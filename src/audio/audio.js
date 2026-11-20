@@ -96,6 +96,8 @@ export function createAudio(G) {
   // ---- recorded/generated samples (public/sfx/index.json: { key: [file, ...] }) replace the synthesised
   // variants per key; loops (wind, howl, crackle, music_act1..3) are picked up by the beds and score.
   const SMP = {};
+  // MP3 encoder delay/padding would click at the loop seam: loop the body only
+  const trimLoop = (src) => { const d = src.buffer.duration; if (d > 1) { src.loopStart = 0.03; src.loopEnd = d - 0.06; } };
   fetch('/sfx/index.json').then((r) => (r.ok ? r.json() : {})).then(async (idxJson) => {
     await Promise.all(Object.entries(idxJson).map(async ([k, files]) => {
       const bufs = (await Promise.all(files.map((f) => fetch('/sfx/' + f).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a)).catch(() => null)))).filter(Boolean);
@@ -118,7 +120,7 @@ export function createAudio(G) {
   }
   // ambience: wind bed
   let windSrc = null;
-  function startAmb() { if (windSrc || ctx.state !== 'running') return; windSrc = ctx.createBufferSource(); windSrc.buffer = SMP.wind?.[0] || wind(); windSrc.loop = true; const g = ctx.createGain(); g.gain.value = 0.5; windSrc.connect(g); g.connect(amb); windSrc.start(); startMusic(); }
+  function startAmb() { if (windSrc || ctx.state !== 'running') return; windSrc = ctx.createBufferSource(); windSrc.buffer = SMP.wind?.[0] || wind(); windSrc.loop = true; trimLoop(windSrc); const g = ctx.createGain(); g.gain.value = SMP.wind ? 0.24 : 0.5; /* the recorded bed is much denser than the synth one */ windSrc.connect(g); g.connect(amb); windSrc.start(); startMusic(); }
   // music: slow dark pad + pulse that rises in combat (procedural, no samples)
   let musicLvl = 0, combat = 0, pulseT = 0; const mus = {};
   function startMusic() {
@@ -171,7 +173,7 @@ export function createAudio(G) {
     const b = SMP['music_act' + a]?.[0]; if (!b || ctx.state !== 'running') return false;
     const t = ctx.currentTime;
     for (const [k, l] of Object.entries(loops)) { l.g.gain.setTargetAtTime(0, t, 1.2); l.src.stop(t + 6); delete loops[k]; }
-    const src = ctx.createBufferSource(); src.buffer = b; src.loop = true; const g = ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(0.8, t, 1.5); src.connect(g); g.connect(musicDuck); src.start(); loops[a] = { src, g };
+    const src = ctx.createBufferSource(); src.buffer = b; src.loop = true; trimLoop(src); const g = ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(0.55, t, 1.5); src.connect(g); g.connect(musicDuck); src.start(); loops[a] = { src, g };
     if (mus.out) mus.out.gain.setTargetAtTime(0, t, 1.0); mus.sampled = true; return true;
   }
   ev.on('flow:act', (e) => { if (playAct(e.act)) return; const c = CHORDS[e.act]; if (c && mus.osc) mus.osc.forEach((o, i) => o.frequency.setTargetAtTime(c[i], ctx.currentTime, 2.5)); bpm = [92, 92, 104, 118][e.act] || 92; });
@@ -179,7 +181,7 @@ export function createAudio(G) {
   // storm howl and fire crackle beds
   const beds = {};
   function startBeds() { if (beds.on || ctx.state !== 'running') return; beds.on = true;
-    for (const [k, b] of [['howl', SMP.howl?.[0] || howlLoop()], ['crackle', SMP.crackle?.[0] || crackleLoop()]]) { const src = ctx.createBufferSource(); src.buffer = b; src.loop = true; const g = ctx.createGain(); g.gain.value = 0; src.connect(g); g.connect(amb); src.start(); beds[k] = g; } }
+    for (const [k, b] of [['howl', SMP.howl?.[0] || howlLoop()], ['crackle', SMP.crackle?.[0] || crackleLoop()]]) { const src = ctx.createBufferSource(); src.buffer = b; src.loop = true; trimLoop(src); const g = ctx.createGain(); g.gain.value = 0; src.connect(g); g.connect(amb); src.start(); beds[k] = g; } }
 
   function update(dt) {
     const cam = G.R.camera; const p = cam.getWorldPosition(new G.THREE.Vector3()); const f = cam.getWorldDirection(new G.THREE.Vector3());
@@ -199,5 +201,5 @@ export function createAudio(G) {
       let fd = 1e9; for (const f of G.fire?.fires || []) fd = Math.min(fd, f.pos.distanceTo(p) / Math.max(0.5, f.size)); beds.crackle.gain.value += (Math.min(1, 3 / (1 + fd)) * 0.9 - beds.crackle.gain.value) * Math.min(1, dt * 3);
     }
   }
-  return { update, ctx, play };
+  return { update, ctx, play, samples: () => Object.keys(SMP) };
 }

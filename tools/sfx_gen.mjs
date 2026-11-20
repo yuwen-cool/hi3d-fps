@@ -30,7 +30,7 @@ if (PICK) {
 
 const jobs = [];
 for (const s of spec.sfx) if (!ONLY || ONLY.includes(s.key)) jobs.push({ ...s, kind: 'sfx', takes: Math.max(s.n, TAKES) });
-for (const m of spec.music) if (!ONLY || ONLY.includes(m.key)) jobs.push({ ...m, n: 1, kind: 'music', takes: ONLY ? TAKES : 1 });
+for (const m of spec.music) if (!ONLY || ONLY.includes(m.key)) jobs.push({ ...m, n: 1, kind: 'music', takes: Math.min(TAKES, 2) });
 const cost = (j) => j.takes * j.sec * (j.kind === 'music' ? MUSIC_RATE : SFX_RATE);
 const total = jobs.reduce((a, j) => a + cost(j), 0);
 console.log(jobs.map((j) => `${j.kind.padEnd(5)} ${j.key.padEnd(12)} ${j.takes} x ${j.sec}s  $${cost(j).toFixed(3)}`).join('\n'));
@@ -50,16 +50,16 @@ const api = async (path, body) => {
 };
 // find the MP3 in whatever shape the provider output comes back in
 const findAudio = (o) => { if (!o || typeof o !== 'object') return null; if (typeof o.audio_base64 === 'string') return o.audio_base64; if (typeof o.audio === 'string' && o.audio.length > 1000) return o.audio; for (const v of Object.values(o)) { const f = findAudio(v); if (f) return f; } return null; };
-const findUrl = (o) => { if (!o || typeof o !== 'object') return null; for (const v of Object.values(o)) { if (typeof v === 'string' && /^https?:\/\/.+\.(mp3|wav|ogg|m4a)(\?|$)/i.test(v)) return v; const f = findUrl(v); if (f) return f; } return null; };
+const findUrl = (o) => { if (!o || typeof o !== 'object') return null; if (typeof o.download_link === 'string') return o.download_link; for (const v of Object.values(o)) { if (typeof v === 'string' && /^https?:\/\/.+\.(mp3|wav|ogg|m4a)(\?|$)/i.test(v)) return v; const f = findUrl(v); if (f) return f; } return null; };
 let spent = 0;
 async function generate(j, take) {
   const body = j.kind === 'music'
-    ? { provider: 'elevenlabs', endpoint: '/v1/music', input: { body: { prompt: j.prompt, music_length_ms: Math.round(j.sec * 1000), model_id: 'music_v1', force_instrumental: true } } }
+    ? { provider: 'elevenlabs', endpoint: '/v1/music', input: { body: { prompt: j.prompt, music_length_ms: Math.round(j.sec * 1000), model_id: 'music_v2', force_instrumental: true } } }
     : { provider: 'elevenlabs', endpoint: '/v1/sound-generation', input: { body: { text: j.prompt, duration_seconds: j.sec, model_id: 'eleven_text_to_sound_v2', prompt_influence: 0.5, ...(j.loop ? { loop: true } : {}) } } };
   body.maxCost = +(j.sec * (j.kind === 'music' ? MUSIC_RATE : SFX_RATE) * 1.5 + 0.01).toFixed(4); body.tag = `sandline-${j.key}`;
   let run = await api('/v1/run', body);
   while (run.runId && ['READY', 'RUNNING', 'STOPPING'].includes(run.status)) { await new Promise((s) => setTimeout(s, 3000)); run = await api(`/v1/runs/${run.runId}`); }
-  const charged = +(run.cost?.amount ?? run.billing?.amount ?? run.price?.amount ?? 0) || 0; spent += charged;
+  const charged = +(run.cost?.value ?? run.cost?.amount ?? 0) || 0; spent += charged;
   appendFileSync(LEDGER, JSON.stringify({ t: new Date().toISOString(), key: j.key, take, runId: run.runId, status: run.status, cost: charged }) + '\n');
   if (run.status !== 'COMPLETED') throw new Error(`${j.key} take ${take}: ${run.status} ${run.reason || ''}`);
   const b64 = findAudio(run.output); const url = !b64 && findUrl(run.output);
@@ -76,9 +76,9 @@ function finish(key, src, dst) {
   else if (s.loop) af = 'loudnorm=I=-20:TP=-2';
   else af = `silenceremove=start_periods=1:start_threshold=-50dB,afade=t=out:st=${Math.max(0.05, (s.sec || 1) * 0.8)}:d=${Math.max(0.05, (s.sec || 1) * 0.2)},loudnorm=I=-14:TP=-1`;
   execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', src, '-af', af, '-ar', '44100', '-ac', '2', '-b:a', '192k', dst]);
-  if (s.loop && !music) { // seamless: crossfade the last second into the start
+  if (s.loop && music) { // music has no native loop mode: crossfade the last 2 s into the start (SFX loops come seamless)
     const tmp = dst.replace('.mp3', '.tmp.mp3');
-    execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', dst, '-filter_complex', `[0]asplit[a][b];[a]atrim=start=1,asetpts=PTS-STARTPTS[body];[b]atrim=0:1,asetpts=PTS-STARTPTS[head];[body][head]acrossfade=d=1:c1=tri:c2=tri`, '-b:a', '192k', tmp]);
+    execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-i', dst, '-filter_complex', `[0]asplit[a][b];[a]atrim=start=2,asetpts=PTS-STARTPTS[body];[b]atrim=0:2,asetpts=PTS-STARTPTS[head];[body][head]acrossfade=d=2:c1=tri:c2=tri`, '-b:a', '192k', tmp]);
     execFileSync('mv', [tmp, dst]);
   }
 }
