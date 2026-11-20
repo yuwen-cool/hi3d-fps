@@ -34,3 +34,9 @@
 {"name": "generator", "step": "image", "task": "07711121048d4a1c9d146502f7bd15cf", "points": 6}
 {"name": "container", "step": "image", "task": "7830483f5327456798290af203016e50", "points": 6}
 {"name": "pumpjack", "step": "image", "task": "13c3a0f345cb42898a8839ba160d1702", "points": 6}
+{"name": "pumpjack", "step": "model", "task": "db5c2cd4d8764bdd84bb0ca3d61b2394", "points": 45}
+{"name": "generator", "step": "model", "task": "0a042f42b3334de8a600aa11edd0fef6", "points": 45}
+{"name": "spool", "step": "image", "task": "50e2b1e7387c4153bc01ebfb4a15f511", "points": 6}
+{"name": "container", "step": "model", "task": "67e1d29ee56449e78d2369fe45674da7", "points": 45}
+{"name": "sandbags", "step": "image", "task": "ef60759ea9664069b5a94da92d2a609a", "points": 6}
+{"name": "scaffold", "step": "image", "task": "b6f35ea655234117bf34abdd2257616f", "points": 6}

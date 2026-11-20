@@ -36,7 +36,7 @@ vec3 tpT, tpB; vec2 tpUv;`)
       .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = metalness * tpArm.b;')
       .replace('#include <normal_fragment_maps>', `{ vec3 tn = texture(normalMap, tpUv).xyz * 2.0 - 1.0; tn.xy *= normalScale;
         normal = normalize(normalize(vTpTv) * tn.x + normalize(vTpBv) * tn.y + normal * tn.z); }\n// SL_NRM`)
-      .replace('#include <aomap_fragment>', 'float tpAo = mix(1.0, tpArm.r, 0.8); reflectedLight.indirectDiffuse *= tpAo; reflectedLight.indirectSpecular *= tpAo;');
+      .replace('#include <aomap_fragment>', 'float tpAo = mix(1.0, tpArm.r, 0.8); reflectedLight.indirectDiffuse *= tpAo; reflectedLight.indirectSpecular *= tpAo;\n// SL_AO');
   };
   m.customProgramCacheKey = () => 'tp1';
   return patchMaterial(m, cls);

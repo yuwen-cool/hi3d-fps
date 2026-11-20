@@ -198,7 +198,22 @@ export function createFX(G) {
     pl.geo.instanceCount = n;
     for (const k in b) { b[k].needsUpdate = true; b[k].clearUpdateRanges(); b[k].addUpdateRange(0, n * b[k].itemSize); }
   }
+  let moteT = 0, gustT = 0;
+  function ambient(dt) {
+    const c = R.camera.position;
+    moteT -= dt;
+    while (moteT < 0) { moteT += 0.012;
+      const p = new THREE.Vector3(c.x + (rnd() - 0.5) * 16, 0.2 + rnd() * 5, c.z + (rnd() - 0.5) * 16);
+      emit(alpha, { pos: p, vel: V(0.5 + rnd() * 0.6, (rnd() - 0.5) * 0.15, 0.25 + rnd() * 0.3), life: 3 + rnd() * 3, size: 0.012 + rnd() * 0.02, col: litColor([1.4, 1.1, 0.8], 1), alpha: 0.5, fadeIn: 0.3 });
+    }
+    gustT -= dt;
+    if (gustT < 0) { gustT = 0.05 + rnd() * 0.08;
+      const p = new THREE.Vector3(c.x - 10 + rnd() * 20, 0.05, c.z - 14 + rnd() * 20);
+      emit(alpha, { pos: p, vel: V(2.2 + rnd(), 0.15, 0.9 + rnd() * 0.5), life: 2 + rnd() * 1.5, size: 0.3, size1: 1.6, col: litColor([0.62, 0.5, 0.38]), alpha: 0.12, soft: true, fadeIn: 0.4, drag: 0.2 });
+    }
+  }
   function update(dt) {
+    if (!G.params.noamb) ambient(dt);
     updPool(add, dt); updPool(alpha, dt);
     // debris
     let n = 0;

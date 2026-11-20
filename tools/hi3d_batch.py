@@ -122,7 +122,7 @@ def run(a):
             ext = os.path.splitext(path)[1]
             kind = 'preview' if '/preview/' in path else ('cover' if '/cover/' in path else 'model')
             p = os.path.join(OUT, f'{name}_{kind}{ext}')
-            urllib.request.urlretrieve(u, p)
+            urllib.request.urlretrieve(u, p + '.part'); os.replace(p + '.part', p)   # atomic: the bake queue polls for this file
             if kind == 'model' and ext == '.glb':
                 st['model_file'] = p
         st['model_points'] = t.get('actual_points'); st['page'] = t.get('model_page_url'); save(name, st)

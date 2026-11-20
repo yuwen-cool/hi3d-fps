@@ -15,6 +15,7 @@ export const CLASSES = {
   weapon:  { macro: [0.06, 0.06, 6.0, 0.00], dust: [0.10, 0.00] },
   plant:   { macro: [0.10, 0.05, 1.0, 0.00], dust: [0.20, 0.20] },
 };
+export const INTERIOR = { min: new THREE.Vector3(1e5, 1e5, 1e5), max: new THREE.Vector3(1e5, 1e5, 1e5) };
 export const DUST_COLOR = new THREE.Color().setRGB(0.42, 0.33, 0.24); // linear, sampled from target sand
 
 const VERT_DECL = /* glsl */`
@@ -35,6 +36,8 @@ varying vec3 vSlWP; varying vec3 vSlWN;
 uniform vec4 uSlMacro;   // albedoVar, roughVar, freq (1/m), grime
 uniform vec4 uSlDust;    // amount, splashBand, -, -
 uniform vec3 uSlDustCol;
+uniform vec3 uSlInMin, uSlInMax;
+float slInterior(vec3 p){ vec3 d = max(uSlInMin - p, p - uSlInMax); return 1.0 - smoothstep(0.0, 1.2, max(max(d.x, d.y), d.z)); }
 float slH(vec3 p){ p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
 float slN(vec3 x){ vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(mix(slH(i), slH(i + vec3(1,0,0)), f.x), mix(slH(i + vec3(0,1,0)), slH(i + vec3(1,1,0)), f.x), f.y),
@@ -69,13 +72,15 @@ const FRAG_ROUGH = /* glsl */`
   roughnessFactor = clamp(roughnessFactor, 0.045, 1.0);
 }`;
 
+const AO_SNIP = `
+{ float slIn = slInterior(vSlWP); reflectedLight.indirectDiffuse *= mix(1.0, 0.28, slIn); reflectedLight.indirectSpecular *= mix(1.0, 0.22, slIn); }`;
 export function patchMaterial(mat, cls = 'default', over = {}) {
   if (mat.userData.slPatched) return mat;
   const c = { ...CLASSES[cls] || CLASSES.default, ...over };
   const u = {
     uSlMacro: { value: new THREE.Vector4(...c.macro) },
     uSlDust: { value: new THREE.Vector4(c.dust[0], c.dust[1], 0, 0) },
-    uSlDustCol: { value: DUST_COLOR },
+    uSlDustCol: { value: DUST_COLOR }, uSlInMin: { value: INTERIOR.min }, uSlInMax: { value: INTERIOR.max },
   };
   mat.userData.slPatched = true; mat.userData.sl = u;
   const prev = mat.onBeforeCompile;
@@ -85,6 +90,7 @@ export function patchMaterial(mat, cls = 'default', over = {}) {
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + VERT_DECL).replace('#include <worldpos_vertex>', VERT_BODY);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + FRAG_DECL)
       .replace('#include <map_fragment>', FRAG_ALBEDO).replace('#include <normal_fragment_maps>', FRAG_ROUGH)
+      .replace('#include <aomap_fragment>', '#include <aomap_fragment>' + AO_SNIP).replace('// SL_AO', AO_SNIP)
       .replace('// SL_MAP', FRAG_ALBEDO.replace('#include <map_fragment>', '')).replace('// SL_NRM', FRAG_ROUGH.replace('#include <normal_fragment_maps>', ''));
   };
   const prevKey = mat.customProgramCacheKey.bind(mat);

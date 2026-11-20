@@ -98,7 +98,7 @@ export async function createWeapon(G) {
     o.add(aimG); o.position.copy(pos);
   }
   const gp = (k, d) => (T[k] ? T[k].split(',').map(Number) : d);
-  const gR = gp('gr', [-0.25, 0.55, -0.6, 1.6, 0.03, -0.07, 0.06]), gL = gp('gl', [0.9, 0.25, -0.3, -1.57, -0.015, -0.05, 0]);
+  const gR = gp('gr', [-0.25, 0.55, -0.6, 1.6, 0.03, -0.07, 0.06]), gL = gp('gl', [1, 0.2, -0.25, 0.4, 0.022, -0.05, 0]);
   if (gloves.glove_r) orientGlove(gloves.glove_r, new THREE.Vector3(gR[0], gR[1], gR[2]), gR[3], new THREE.Vector3(gR[4], gR[5], gR[6]));
   const lHome = new THREE.Vector3(gL[4], gL[5], muzzleLocal.z * 0.55 + gL[6]);
   if (gloves.glove_l) orientGlove(gloves.glove_l, new THREE.Vector3(gL[0], gL[1], gL[2]), gL[3], lHome);

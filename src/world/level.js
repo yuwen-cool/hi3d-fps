@@ -4,6 +4,7 @@ import { instance, setRendererCaps } from './assets.js';
 import { makeGround } from './ground.js';
 import { triplanarMaterial } from '../mats/triplanar.js';
 import { dress } from './scatter.js';
+import { INTERIOR } from '../mats/patch.js';
 
 // Abandoned desert refinery. Player starts at +Z looking -Z into the low sun (backlit, like
 // target/t1). Courtyard x∈[-21,13], z∈[-30,6]; interior corridor (workshop) x∈[14,20].
@@ -35,11 +36,13 @@ export async function buildLevel(G) {
   setRendererCaps(R.renderer);
   const root = new THREE.Group(); root.name = 'level'; scene.add(root);
   const ground = makeGround(320); root.add(ground);
+  const explosives = [];
 
   const matSteel = triplanarMaterial('rusty_metal_02', { metres: 1.6, cls: 'rust', tint: 0xb8aa98 });
   const matConc = triplanarMaterial('concrete_floor_worn_001', { metres: 3.0, cls: 'concrete', metal: 0, tint: 0xd8cbb6 });
   const matWall = triplanarMaterial('rusty_metal_02', { metres: 2.6, cls: 'rust', tint: 0x8c7d70 });
-  const steel = [], conc = [], wall = [];
+  const steel = [], conc = [], wall = [], floor = [];
+  const matFloor = triplanarMaterial('concrete_floor_worn_001', { metres: 2.2, cls: 'concrete', metal: 0, tint: 0x6e6257, rough: 0.85 });
 
   // ---------- gantry: 2 rows x 6 columns, 4 levels, the light-shaft maker ----------
   const gx0 = -19, gz = [-22, -17];
@@ -57,6 +60,7 @@ export async function buildLevel(G) {
   }
   // ---------- corridor / workshop (interior volume) ----------
   const C = LAYOUT.corridor;
+  INTERIOR.min.set(C.minX + 0.15, -1, C.minZ + 0.15); INTERIOR.max.set(C.maxX - 0.15, C.h - 0.1, C.maxZ - 0.15);
   const wallT = 0.25;
   // outer wall x = maxX, inner wall x = minX with two openings (z in [-5,-2.6] and [-20,-17.6])
   wall.push(boxGeo(wallT, C.h, C.maxZ - C.minZ, C.maxX, C.h / 2, (C.minZ + C.maxZ) / 2));
@@ -75,7 +79,7 @@ export async function buildLevel(G) {
   for (const [z0, z1] of roofPanels) wall.push(boxGeo(C.maxX - C.minX + 0.4, 0.12, z1 - z0, (C.minX + C.maxX) / 2, C.h, (z0 + z1) / 2));
   for (let z = C.minZ + 1; z < C.maxZ; z += 3) steel.push(...ibeam(C.maxX - C.minX, 'x', (C.minX + C.maxX) / 2, C.h - 0.3, z, 0.26));
   // concrete floor slab inside
-  conc.push(boxGeo(C.maxX - C.minX, 0.08, C.maxZ - C.minZ, (C.minX + C.maxX) / 2, 0.04, (C.minZ + C.maxZ) / 2));
+  floor.push(boxGeo(C.maxX - C.minX, 0.08, C.maxZ - C.minZ, (C.minX + C.maxX) / 2, 0.04, (C.minZ + C.maxZ) / 2));
   // ---------- perimeter: low concrete wall on the left, blast wall at the back right ----------
   for (let z = -30; z < 6; z += 4) { conc.push(boxGeo(0.5, 2.4, 3.9, -21.5, 1.2, z + 2)); }
   P.addBox(new THREE.Vector3(-22, 0, -31), new THREE.Vector3(-21.2, 2.4, 7), 'concrete');
@@ -93,18 +97,20 @@ export async function buildLevel(G) {
     m.userData.surface = name === 'concrete' ? 'concrete' : 'metal';
     P.addShootable(m, m.userData.surface);
   };
-  add(steel, matSteel, 'steel'); add(conc, matConc, 'concrete'); add(wall, matWall, 'wall');
+  add(steel, matSteel, 'steel'); add(conc, matConc, 'concrete'); add(wall, matWall, 'wall'); add(floor, matFloor, 'concrete');
 
   // ---------- Hi3D props ----------
   const place = async (name, x, z, ry = 0, { s = 1, y = 0, col = true, shrink = 0.85, surface = 'metal', colH } = {}) => {
     const o = await instance(name); o.position.set(x, y, z); o.rotation.y = ry; o.scale.setScalar(s); root.add(o);
     o.updateMatrixWorld(true);
+    let colBox = null;
     if (col) {
       const bb = new THREE.Box3().setFromObject(o); const c = bb.getCenter(new THREE.Vector3()); const sz = bb.getSize(new THREE.Vector3());
       sz.x *= shrink; sz.z *= shrink; if (colH) { sz.y = colH; c.y = y + colH / 2; }
-      P.addBoxCenter(c, sz, surface);
+      colBox = P.addBoxCenter(c, sz, surface);
     }
     P.addShootable(o, surface);
+    if (name === 'drums') { o.userData.explosive = { hp: 40, box: colBox }; o.traverse((m) => { m.userData.owner = o; }); explosives.push(o); }
     return o;
   };
   const jobs = [
@@ -127,13 +133,16 @@ export async function buildLevel(G) {
     place('rubble', 7.2, -2, 0.4, { colH: 0.5, surface: 'concrete' }), place('rubble', -4, -29, 1.4, { colH: 0.5, surface: 'concrete' }), place('rubble', -17, -24, 2.4, { colH: 0.5, surface: 'concrete' }),
     place('stairs', -12.5, -19.5, Math.PI / 2, { s: 1.0 }),
     place('wall_broken', 16.9, -24.1, 0, { s: 1.4, col: false }),
+    ...[-2.2, -6.4, -10.6, -14.8, -19.0, -23.0].map((z) => place('wall_broken', C.maxX - 0.22, z, -Math.PI / 2, { s: 1.15, col: false })),
+    ...[-3.5, -9.5, -15.5, -21.5].map((z) => place('lamp', C.maxX - 0.3, z, -Math.PI / 2, { y: 3.2, col: false })),
+    place('drums', 18.6, -12.5, 1.1), place('valves', 18.5, -17.5, -1.4), place('rubble', 15.4, -8, 0.5, { colH: 0.4, surface: 'concrete' }), place('rubble', 18.2, -3.5, 2, { colH: 0.4, surface: 'concrete' }),
   ];
   // dry shrubs (no collision)
   const shrubs = [[-19.5, 2], [-19.8, -10], [-14, 4.5], [12.4, 3.5], [-20, -29], [9, -29.5], [-8, -30], [13, -18.5], [-3, 5.5]];
   for (const [x, z] of shrubs) jobs.push(place('shrub', x, z, x * 1.7, { col: false, s: 0.8 + ((x * z) % 0.4 + 0.4) * 0.6, surface: 'wood' }));
   await Promise.all(jobs);
 
-  G.level = { root, cover: [], layout: LAYOUT };
+  G.level = { root, cover: [], layout: LAYOUT, explosives };
   await dress(G, root);
   R.fitShadow(new THREE.Box3(new THREE.Vector3(-36, -1, -56), new THREE.Vector3(30, 26, 10)));
   R.setInteriors([{ c: new THREE.Vector3((C.minX + C.maxX) / 2, C.h / 2, (C.minZ + C.maxZ) / 2), h: new THREE.Vector3((C.maxX - C.minX) / 2, C.h / 2, (C.maxZ - C.minZ) / 2) }]);
@@ -146,6 +155,6 @@ export async function buildLevel(G) {
     const ex = (b.max.x - b.min.x) / 2 + 0.7, ez = (b.max.z - b.min.z) / 2 + 0.7;
     cover.push(c.clone().add(new THREE.Vector3(0, 0, -ez)), c.clone().add(new THREE.Vector3(0, 0, ez)), c.clone().add(new THREE.Vector3(-ex, 0, 0)), c.clone().add(new THREE.Vector3(ex, 0, 0)));
   }
-  G.level = { root, cover: cover.filter((p) => !P.blocked(p.x, p.z, 0.4)), layout: LAYOUT };
+  G.level = { root, cover: cover.filter((p) => !P.blocked(p.x, p.z, 0.4)), layout: LAYOUT, explosives };
   return G.level;
 }
