@@ -127,8 +127,11 @@ void main(){
     vec4 sc = uShadowMat * vec4(p, 1.0);
     float sh = 1.0;
     if (sc.x > 0.0 && sc.x < 1.0 && sc.y > 0.0 && sc.y < 1.0 && sc.z < 1.0) {
-      float ef = smoothstep(0.0, 0.12, min(min(sc.x, 1.0 - sc.x), min(sc.y, 1.0 - sc.y)));
-      sh = mix(1.0, texture(tShadow, vec3(sc.xy, sc.z - 0.0006)), ef);
+      float ef = smoothstep(0.0, 0.3, min(min(sc.x, 1.0 - sc.x), min(sc.y, 1.0 - sc.y))) * smoothstep(1.0, 0.85, sc.z);
+      // penumbra that widens with distance (sun disc + scattering), so shafts get soft edges
+      float ja = fract(jit * 7.13 + float(i) * 0.618) * 6.2831; vec2 jo = vec2(cos(ja), sin(ja)) * (0.0006 + t * 0.00006);
+      float s0 = texture(tShadow, vec3(sc.xy + jo, sc.z - 0.0006)), s1 = texture(tShadow, vec3(sc.xy - jo.yx * 1.7, sc.z - 0.0006));
+      sh = mix(1.0, (s0 + s1) * 0.5, ef);
     }
     float nearW = mix(2.3, 0.55, smoothstep(4.0, 85.0, t));
     vec3 L = uSunCol * uSunScale * sh * ph * 12.566 * nearW + uAmbient * uFogCol * (0.4 + 0.6 * sh);

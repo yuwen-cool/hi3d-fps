@@ -34,6 +34,7 @@ function ibeam(len, axis, x, y, z, s = 0.36) {
 export async function buildLevel(G) {
   const R = G.R, P = G.phys, scene = R.scene;
   setRendererCaps(R.renderer);
+  const have = new Set(await fetch('/models/index.json').then((r) => r.json()).catch(() => []));
   const root = new THREE.Group(); root.name = 'level'; scene.add(root);
   const ground = makeGround(320); root.add(ground);
   const explosives = [];
@@ -113,6 +114,7 @@ export async function buildLevel(G) {
     if (name === 'drums') { o.userData.explosive = { hp: 40, box: colBox }; o.traverse((m) => { m.userData.owner = o; }); explosives.push(o); }
     return o;
   };
+  const optional = (n, ...a) => (have.has(n) ? [place(n, ...a)] : []);
   const jobs = [
     // skyline
     place('tank', 10, -40, 0.4, { s: 1.35, surface: 'metal' }), place('tank', 27, -26, 2.0, { s: 1.15 }),
@@ -120,6 +122,11 @@ export async function buildLevel(G) {
     place('tank', -34, -18, 1.0, { s: 1.1 }),
     place('tank', 10.2, 2.6, 2.6, { s: 0.9 }), place('tower', -18.6, -2.5, 0.8, { s: 0.75 }),
     place('valves', -14, 1.5, 2.2), place('barrier', -10.5, -1.5, 1.2, { surface: 'concrete' }),
+    ...optional('pumpjack', -30, -6, 0.9, { s: 1.0 }), ...optional('pumpjack', 24, -38, 2.4, { s: 1.1 }),
+    ...optional('container', 11.6, -19.5, 1.45, {}), ...optional('container', -15.5, -13.2, 0.15, {}), ...optional('container', 26, -14, 0.3, { col: false }),
+    ...optional('generator', -16.2, -8.8, 1.6, {}), ...optional('generator', 7.6, -27.6, 0.2, {}),
+    ...optional('spool', 2.8, -14, 0.7, {}), ...optional('sandbags', 4.6, -3.2, 0.1, { surface: 'concrete' }), ...optional('sandbags', -6.4, -17.8, 2.9, { surface: 'concrete' }),
+    ...optional('scaffold', -13, -42, 0.4, {}), ...optional('scaffold', 18, -46, 1.9, { s: 0.85 }),
     // pipe racks bridging the yard (overhead, walkable underneath: collide only legs)
     place('piperack', -6, -11.5, 0, { s: 1.35, col: false }), place('piperack', 3.6, -11.5, 0, { s: 1.35, col: false }),
     place('piperack', 22, -9, Math.PI / 2, { s: 1.3, col: false }),
@@ -144,7 +151,7 @@ export async function buildLevel(G) {
 
   G.level = { root, cover: [], layout: LAYOUT, explosives };
   await dress(G, root);
-  R.fitShadow(new THREE.Box3(new THREE.Vector3(-36, -1, -56), new THREE.Vector3(30, 26, 10)));
+  R.fitShadow(new THREE.Box3(new THREE.Vector3(-62, -1, -84), new THREE.Vector3(42, 30, 22)));
   R.setInteriors([{ c: new THREE.Vector3((C.minX + C.maxX) / 2, C.h / 2, (C.minZ + C.maxZ) / 2), h: new THREE.Vector3((C.maxX - C.minX) / 2, C.h / 2, (C.maxZ - C.minZ) / 2) }]);
   root.traverse((o) => { if (o.isMesh && !o.isSkinnedMesh) { o.matrixAutoUpdate = false; o.updateMatrix(); } });
   // cover points (both sides of each cover object), used by the AI

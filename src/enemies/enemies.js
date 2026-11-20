@@ -152,6 +152,9 @@ export async function createEnemies(G) {
     e.knock = dir.clone().setY(0).normalize().multiplyScalar(0.6);
     const hp = e.bones.head.getWorldPosition(new THREE.Vector3());
     G.fxs?.electric(weak ? hp : e.bones.spine_03.getWorldPosition(new THREE.Vector3()));
+    const core = e.bones.spine_03.getWorldPosition(new THREE.Vector3());
+    for (let i = 0; i < 7; i++) G.fxs?.chunk(core.clone().add(new THREE.Vector3(rnd() - 0.5, rnd() - 0.3, rnd() - 0.5).multiplyScalar(0.4)), new THREE.Vector3((rnd() - 0.5) * 5 + dir.x * 4, 2.5 + rnd() * 4, (rnd() - 0.5) * 5 + dir.z * 4), 0.12 + rnd() * 0.14, rnd() < 0.5 ? 0x3b3a37 : 0x9a8f7c, 9, 1);
+    G.fxs?.emit(false, { pos: core, life: 0.12, size: 1.2, size1: 0.3, col: [8, 10, 16] });
     for (let i = 0; i < 6; i++) G.fxs?.chunk(hp.clone().add(new THREE.Vector3(rnd() - 0.5, -rnd() * 0.6, rnd() - 0.5).multiplyScalar(0.3)), new THREE.Vector3((rnd() - 0.5) * 4 + dir.x * 3, 2 + rnd() * 3, (rnd() - 0.5) * 4 + dir.z * 3), 0.04 + rnd() * 0.05, 0x2c2b29, 6);
     for (const m of e.mats) m.emissiveIntensity = 0;
     G.events.emit('enemy:killed', { e, weak, pos: e.root.position.clone() });
@@ -202,6 +205,11 @@ export async function createEnemies(G) {
       e.mixer.update(dt);
       if (!e.alive) {
         e.deadT += dt; if (e.knock && e.deadT < 0.4) e.root.position.addScaledVector(e.knock, dt * (1 - e.deadT / 0.4));
+        // wreck: electrical sputter + smoke for a few seconds
+        if (e.deadT < 4 && G.fxs) {
+          if (rnd() < dt * 6) { const c = e.bones.spine_03.getWorldPosition(new THREE.Vector3()); for (let i = 0; i < 5; i++) G.fxs.emit(false, { pos: c, vel: new THREE.Vector3((rnd() - 0.5) * 6, 2 + rnd() * 4, (rnd() - 0.5) * 6), life: 0.2 + rnd() * 0.3, size: 0.01, stretch: 0.06, col: [8, 11, 18], grav: 9.8 }); R.flash(c, 0x9fd8ff, 3, 2.5, 0.06); }
+          if (rnd() < dt * 9) { const c = e.bones.spine_02.getWorldPosition(new THREE.Vector3()); G.fxs.emit(true, { pos: c, vel: new THREE.Vector3(0.3, 0.8, 0.2), life: 2.6, size: 0.15, size1: 0.9, col: G.fxs.litColor([0.1, 0.09, 0.085]), alpha: 0.45, soft: true, drag: 0.8, rise: 0.4 }); }
+        }
         if (e.deadT < 0.05) e.gunV = new THREE.Vector3((rnd() - 0.5) * 2, 2, (rnd() - 0.5) * 2);
         if (e.gun.position.y > 0.05) { e.gunV.y -= 9.8 * dt; e.gun.position.addScaledVector(e.gunV, dt); e.gun.rotateX(dt * 3); } 
         if (e.deadT > 12) { e.root.position.y -= dt * 0.22; if (e.deadT > 15) { e.root.visible = false; e.gun.visible = false; } }

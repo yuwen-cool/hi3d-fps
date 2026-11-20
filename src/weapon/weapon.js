@@ -6,7 +6,7 @@ import { instance, MODELS } from '../world/assets.js';
 // Numbers: docs/SPEC.md §4.
 const W = {
   rpm: 720, dmg: 26, range: 300, mag: 30, reserve: 150,
-  hip: new THREE.Vector3(0.17, -0.22, -0.40), hipR: new THREE.Euler(0.14, 0.12, -0.10),
+  hip: new THREE.Vector3(0.25, -0.21, -0.42), hipR: new THREE.Euler(0.07, 0.24, -0.08),
   sprintP: new THREE.Vector3(-0.035, 0.004, 0.03), sprintR: new THREE.Euler(-0.04, 0.62, 0.26),
   reloadP: new THREE.Vector3(-0.02, 0.06, 0.0), reloadR: new THREE.Euler(0.28, 0.16, -0.48),
   adsZ: -0.135, tactical: 2.1, empty: 2.72,
@@ -79,8 +79,9 @@ export async function createWeapon(G) {
   if (T.vrx) W.hipR.set(+T.vrx, +T.vry, +T.vrz);
   // gloves (rigid, fixed grip pose)
   const gloves = {};
-  for (const [n, side] of [['glove_r', 1], ['glove_l', -1]]) {
-    try { const o = await instance(n); gloves[n] = o; gun.add(o); } catch { /* optional */ }
+  // left hand = the right-hand fist model mirrored (a closed grip reads better than the open palm)
+  for (const [n, src] of [['glove_r', 'glove_r'], ['glove_l', T.lhand || 'glove_r']]) {
+    try { const o = await instance(src); if (n === 'glove_l' && src === 'glove_r') { o.scale.x *= -1; o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.side = THREE.DoubleSide; } }); } o.traverse((m) => { if (m.isMesh) { if (n === 'glove_r' || src !== 'glove_r') m.material = m.material.clone(); m.material.color.multiplyScalar(0.55); } }); gloves[n] = o; gun.add(o); } catch { /* optional */ }
   }
   // auto-orient gloves: find cuff->fingertip axis (cuff end = fatter cross-section), then aim it
   function orientGlove(o, dir, roll, pos) {
@@ -98,7 +99,7 @@ export async function createWeapon(G) {
     o.add(aimG); o.position.copy(pos);
   }
   const gp = (k, d) => (T[k] ? T[k].split(',').map(Number) : d);
-  const gR = gp('gr', [-0.25, 0.55, -0.6, 1.6, 0.03, -0.07, 0.06]), gL = gp('gl', [1, 0.2, -0.25, 0.4, 0.022, -0.05, 0]);
+  const gR = gp('gr', [-0.25, 0.55, -0.6, 1.6, 0.03, -0.07, 0.06]), gL = gp('gl', [1, 0.2, -0.25, 0, 0.02, -0.055, -0.02]);
   if (gloves.glove_r) orientGlove(gloves.glove_r, new THREE.Vector3(gR[0], gR[1], gR[2]), gR[3], new THREE.Vector3(gR[4], gR[5], gR[6]));
   const lHome = new THREE.Vector3(gL[4], gL[5], muzzleLocal.z * 0.55 + gL[6]);
   if (gloves.glove_l) orientGlove(gloves.glove_l, new THREE.Vector3(gL[0], gL[1], gL[2]), gL[3], lHome);

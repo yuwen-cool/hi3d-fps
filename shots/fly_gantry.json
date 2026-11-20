@@ -1,0 +1,3 @@
+{ "name": "fly_gantry", "url": "/?shot=1&noenemies=1&nohud=1&q=ultra", "seconds": 4, "fps": 60,
+  "setup": "const G=__G;G.camLocked=true;G.viewModelVisible=false;window.__cam=G.R.camera;",
+  "perFrame": "const c=__cam;const k=t/4;const e=k*k*(3-2*k);c.position.set(-6+e*7,1.2+e*2.4,-4-e*6);c.lookAt(-14+e*4,4+e*1.5,-22);" }

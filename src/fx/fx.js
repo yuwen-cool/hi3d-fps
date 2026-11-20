@@ -75,11 +75,11 @@ export function createFX(G) {
 
   // ---------- debris chunks ----------
   const DEB = 256; const debGeo = new THREE.BoxGeometry(1, 1, 1);
-  const debMat = new THREE.MeshStandardMaterial({ color: 0x8a7a68, roughness: 0.9 });
+  const debMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.4 });
   const deb = new THREE.InstancedMesh(debGeo, debMat, DEB); deb.instanceMatrix.setUsage(THREE.DynamicDrawUsage); deb.castShadow = false; deb.frustumCulled = false; deb.count = 0; scene.add(deb);
   deb.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(DEB * 3), 3);
   const debs = [];
-  function chunk(pos, vel, size, color, life = 2.5) { if (debs.length >= DEB) debs.shift(); debs.push({ p: pos.clone(), v: vel, s: size, c: new THREE.Color(color), life, age: 0, q: new THREE.Quaternion().random(), w: V(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(30) }); }
+  function chunk(pos, vel, size, color, life = 2.5, flat = 0) { if (debs.length >= DEB) debs.shift(); debs.push({ p: pos.clone(), v: vel, s: size, c: new THREE.Color(color), life, age: 0, q: new THREE.Quaternion().random(), w: V(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(flat ? 12 : 30), flat }); }
 
   // ---------- shells ----------
   const SH = 60; const shGeo = new THREE.CylinderGeometry(0.0045, 0.0045, 0.045, 8); shGeo.rotateX(Math.PI / 2);
@@ -220,10 +220,10 @@ export function createFX(G) {
     for (const d of debs) {
       d.age += dt; if (d.age > d.life) continue;
       d.v.y -= 9.8 * dt; d.p.addScaledVector(d.v, dt);
-      if (d.p.y < d.s * 0.5) { d.p.y = d.s * 0.5; d.v.y *= -0.3; d.v.x *= 0.6; d.v.z *= 0.6; d.w.multiplyScalar(0.6); }
+      if (d.p.y < d.s * (d.flat ? 0.08 : 0.5)) { d.p.y = d.s * (d.flat ? 0.08 : 0.5); d.v.y *= -0.3; d.v.x *= 0.6; d.v.z *= 0.6; d.w.multiplyScalar(0.6); }
       _qq.setFromEuler(_e.set(d.w.x * dt, d.w.y * dt, d.w.z * dt)); d.q.multiply(_qq);
       const sc = d.s * Math.min(1, (d.life - d.age) * 3);
-      _m4.compose(d.p, d.q, _sc.set(sc, sc * 0.7, sc * 0.9)); deb.setMatrixAt(n, _m4); deb.setColorAt(n, d.c); n++;
+      _m4.compose(d.p, d.q, d.flat ? _sc.set(sc, sc * 0.12, sc * 0.75) : _sc.set(sc, sc * 0.7, sc * 0.9)); deb.setMatrixAt(n, _m4); deb.setColorAt(n, d.c); n++;
     }
     deb.count = n; deb.instanceMatrix.needsUpdate = true; if (deb.instanceColor) deb.instanceColor.needsUpdate = true;
     for (let i = debs.length - 1; i >= 0; i--) if (debs[i].age > debs[i].life) debs.splice(i, 1);

@@ -9,3 +9,5 @@ DA=(); AA=(); seen=0
 for x in "$@"; do if [ "$x" == "--" ]; then seen=1; elif [ $seen == 0 ]; then DA+=("$x"); else AA+=("$x"); fi; done
 python3 tools/delight.py $D "${DA[@]}" | cut -c1-300
 node tools/assemble.mjs $D $N "${AA[@]}"
+
+ls public/models/*.glb | xargs -n1 basename | sed "s/.glb//" | python3 -c "import sys,json;print(json.dumps([l.strip() for l in sys.stdin]))" > public/models/index.json

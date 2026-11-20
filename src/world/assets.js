@@ -23,6 +23,12 @@ export const MODELS = {
   shrub: { len: 1.2, cls: 'plant' },
   wall_broken: { len: 4.2, cls: 'rust' },
   lamp: { len: 0.55, cls: 'metal' },
+  container: { len: 6.1, cls: 'paint' },
+  pumpjack: { len: 7.5, cls: 'rust' },
+  generator: { len: 3.4, cls: 'paint' },
+  spool: { len: 2.4, cls: 'default' },
+  sandbags: { len: 3.0, cls: 'default' },
+  scaffold: { len: 15.0, cls: 'rust', up: true },
 };
 
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);

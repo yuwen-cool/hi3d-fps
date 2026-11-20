@@ -31,9 +31,9 @@ async function boot() {
 
   let last = performance.now();
   const fixedDt = params.dt ? +params.dt : 0;
-  R.renderer.setAnimationLoop(() => {
+  const tick = (forceDt) => {
     const now = performance.now();
-    let dt = fixedDt || Math.min((now - last) / 1000, 0.1); last = now;
+    let dt = forceDt || fixedDt || Math.min((now - last) / 1000, 0.1); last = now;
     G.time += dt; G.dt = dt;
     for (const [name, m] of Object.entries(G.modules)) {
       if (!m.update || G.err[name]) continue;
@@ -42,7 +42,12 @@ async function boot() {
     try { R.frame(dt); } catch (e) { if (!G.err.render) { G.err.render = 1; console.error(e); window.__errors.push('render: ' + e.message); } }
     window.__frames++;
     if (window.__frames === 4) window.__ready = true;
-  });
+  };
+  if (params.record) {
+    // offline capture: frames advance only when the recorder asks (fixed dt, no wall clock)
+    window.__step = (n = 1, dt = 1 / 60) => { for (let i = 0; i < n; i++) tick(dt); return window.__frames; };
+    for (let i = 0; i < 4; i++) tick(1 / 60);
+  } else R.renderer.setAnimationLoop(() => tick());
 }
 
 window.__stats = () => {
