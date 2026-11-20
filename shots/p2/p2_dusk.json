@@ -1,0 +1,13 @@
+{
+ "name": "p2_dusk",
+ "url": "/?shot=1&noenemies=1&nohud=1&q=ultra",
+ "fps": 60,
+ "size": [
+  1920,
+  1080
+ ],
+ "seconds": 6,
+ "warm": 20,
+ "setup": "const G=__G,T=G.THREE;G.god=true;G.botT=0;G.auto={};\nG.botAim=null;\nconst bot={update(dt){G.botT+=dt;const ps=G.player.s;const es=G.enemies.list.filter(e=>e.alive);let tgt=null,bd=1e9;const eye=G.R.camera.getWorldPosition(new T.Vector3());\nfor(const e of es){const h=e.bones.spine_03.getWorldPosition(new T.Vector3());const d=h.distanceTo(eye);if(d<bd&&G.phys.los(eye,h)){bd=d;tgt=h;}}\nif(G.botAim)tgt=G.botAim;\nG.auto=G.auto||{};if(tgt){const d=tgt.clone().sub(eye);const yaw=Math.atan2(-d.x,-d.z),pit=Math.atan2(d.y,Math.hypot(d.x,d.z));ps.yaw+=Math.atan2(Math.sin(yaw-ps.yaw),Math.cos(yaw-ps.yaw))*Math.min(1,dt*(G.botTurn||5));ps.pitch+=(pit-ps.pitch)*Math.min(1,dt*(G.botTurn||5));\nconst err=Math.abs(Math.atan2(Math.sin(yaw-ps.yaw),Math.cos(yaw-ps.yaw)));G.auto.fire=G.botFire!==false&&err<0.03&&((G.botT%0.8)<0.5);}else G.auto.fire=false;\nif(G.weapon.S.ammo===0&&!G.weapon.S.reloading)G.weapon.startReload();}};\nG.modules.bot=bot;const ie=G.modules.inputEnd;delete G.modules.inputEnd;G.modules.inputEnd=ie;\nconst I=G.input;I.down=(a)=>(a==='fwd'&&G.auto.fwd>0)||(a==='right'&&G.auto.str>0)||(a==='left'&&G.auto.str<0)||(a==='sprint'&&G.auto.sprint)||I.keys.has(a);\nconst ps=G.player.s;ps.pos.set(-6,ps.pos.y,-4);ps.yaw=-0.4;ps.pitch=0;\n    for(const [x,z,k] of [[-3.5,-11,'rifle'],[-8.5,-12,'rifle'],[-1,-17,'charger']]){const e=G.enemies.spawn(new T.Vector3(x,0,z),{yaw:2.8,kind:k});e.lastKnown=ps.pos.clone();e.state='engage';e.mode='aim';}\n    G.events.on('enemy:killed',()=>{G.hitstop(0.05);G.player.addShake(0.3);if(G.enemies.alive===0)G.slowmo(0.9,0.28);});",
+ "perFrame": "const G=__G;G.auto.str=Math.sin(t*0.9)>0?1:-1;if(Math.abs(t-3.6)<0.009){G.botFire=false;G.auto.gl=true;}if(t>4.1)G.botFire=true;"
+}

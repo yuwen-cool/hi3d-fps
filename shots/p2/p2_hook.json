@@ -1,0 +1,13 @@
+{
+ "name": "p2_hook",
+ "url": "/?shot=1&noenemies=1&nohud=1&q=ultra",
+ "fps": 60,
+ "size": [
+  1920,
+  1080
+ ],
+ "seconds": 5,
+ "warm": 20,
+ "setup": "const G=__G,T=G.THREE;G.god=true;Object.assign(G.env.S,{front:-30,storm:0.4,night:0.45});G.camLocked=true;G.viewModelVisible=false;G.R.camera.position.set(-20.6,2.4,-12);\n    G.boss.spawn(new T.Vector3(-41,0,-15),Math.PI/2,[new T.Vector3(-34,0,-15),new T.Vector3(-33,0,-10)]);G.boss.S.cool=2.6;\n    for(const [x,z,s] of [[-17,-9,0.8],[-22,-15,1.2]])G.fire.add(new T.Vector3(x,0.05,z),{size:s,life:99});",
+ "perFrame": "const G=__G,c=G.R.camera,B=G.boss.S;c.position.set(-20.6+t*0.06,2.4,-12-t*0.08);c.lookAt(B.pos.x,9,B.pos.z-1);if(Math.abs(t-0.9)<0.009)G.env.strike(new G.THREE.Vector3(-62,45,-30));"
+}

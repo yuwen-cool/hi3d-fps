@@ -1,0 +1,13 @@
+{
+ "name": "p2_tank",
+ "url": "/?shot=1&noenemies=1&nohud=1&q=ultra",
+ "fps": 60,
+ "size": [
+  1920,
+  1080
+ ],
+ "seconds": 5,
+ "warm": 20,
+ "setup": "const G=__G,T=G.THREE;G.god=true;Object.assign(G.env.S,{front:-20,storm:1,night:0.1});G.camLocked=true;G.viewModelVisible=false;G.R.camera.position.set(-4,1.7,-9);",
+ "perFrame": "const G=__G,c=G.R.camera;c.position.set(-4+t*0.15,1.7,-9+t*0.1);c.lookAt(10.2,4,2.6);if(Math.abs(t-1.0)<0.009){const tk=G.level.explosives.find(o=>o.userData.explosive?.big);G.env.strike(tk.position.clone().setY(30));setTimeout(()=>G.explosives.hurt(tk,9999),100);}"
+}

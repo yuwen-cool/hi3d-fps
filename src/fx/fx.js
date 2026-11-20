@@ -151,7 +151,7 @@ export function createFX(G) {
   // embers and smoking debris -> a smoke column that hangs for seconds -> scorch. Fires are lit by fire.js.
   function explosion(p, size = 1) {
     R.flash(p, 0xfff0d0, 420 * size, 12 + 10 * size, 0.07); R.flash(p, 0xff8a30, 70 * size, 9 + 7 * size, 0.6);
-    emit(add, { pos: p, life: 0.1, size: 2.6 * size, size1: 3.6 * size, col: [30, 26, 20], soft: true });
+    emit(add, { pos: p, life: 0.1, size: Math.min(2.6 * size, 3.2), size1: Math.min(3.6 * size, 4.5), col: [30, 26, 20], soft: true });
     for (let i = 0; i < 22 + 10 * size; i++) { const hot = rnd() < 0.35;
       emit(add, { pos: p.clone().add(V(rnd() - 0.5, rnd() * 0.7, rnd() - 0.5).multiplyScalar(size)), vel: cone(V(0, 1, 0), 2.2).multiplyScalar(1.5 + rnd() * 6 * size), life: 0.45 + rnd() * 0.7, size: 0.45 * size, size1: (1.6 + rnd()) * size, col: hot ? [24, 13, 4] : [13, 4.2, 0.9], drag: 3.5, rise: 2, soft: true, spin: 1 }); }
     // fireball turning into rolling black smoke

@@ -89,5 +89,5 @@ export function createFlow(G) {
     }
     if (S.state === 'extract' && G.player.s.pos.distanceTo(S.extract) < 3) { S.state = 'won'; say(`EXTRACTED — ${S.kills} KILLS — ${Math.round(S.t - S.startT)}s`, 99); G.events.emit('flow:won'); }
   }
-  return { update, S, start, say, setAct };
+  return { update, S, start, say, setAct, fellTower };
 }

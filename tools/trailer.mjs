@@ -7,7 +7,9 @@ import { mkdirSync, existsSync } from 'node:fs';
 const out = process.argv[2] || 'out/trailer/sandline_trailer.mp4';
 const dir = 'out/trailer'; mkdirSync(dir, { recursive: true });
 // [clip, seconds to use from its start]
-const cut = [['s1_fly', 5], ['s2_fight', 7], ['s4_corridor', 6], ['s5_robot', 4], ['s3_boom', 4.5]];
+// hook first (the colossus in the sand), then the title, then the three acts in order
+const hook = ['p2_hook', 4.6];
+const cut = [['p2_dusk', 5.5], ['p2_wall', 5.5], ['p2_storm', 5.5], ['p2_tank', 4.2], ['p2_boss', 8.5], ['p2_tower', 5.5]];
 const F = 0.6; // crossfade seconds
 
 const card = (title, sub, small) => `<html><body style="margin:0;width:1920px;height:1080px;background:#0b0907;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Avenir Next','Helvetica Neue',sans-serif;color:#e8dcc6">
@@ -17,14 +19,15 @@ const card = (title, sub, small) => `<html><body style="margin:0;width:1920px;he
 const b = await chromium.launch({ channel: 'chrome', headless: true });
 const p = await b.newPage({ viewport: { width: 1920, height: 1080 } });
 for (const [name, html] of [
-  ['card_in', card('SANDLINE', 'A BROWSER FPS', 'EVERY MODEL GENERATED WITH HI3D')],
-  ['card_out', card('SANDLINE', 'PLAYABLE IN THE BROWSER · 60 FPS', 'WEAPON · ROBOTS · REFINERY — ALL GENERATED WITH HI3D')],
+  ['card_in', card('SANDLINE', 'A STORM IS COMING', 'A BROWSER FPS · EVERY MODEL GENERATED WITH HI3D')],
+  ['card_out', card('SANDLINE', 'DUSK · SANDSTORM · FIRE NIGHT', 'PLAYABLE IN THE BROWSER AT 60 FPS · WEAPON, ROBOTS, COLOSSUS, REFINERY GENERATED WITH HI3D')],
 ]) { await p.setContent(html); await p.screenshot({ path: `${dir}/${name}.png` }); }
 await b.close();
 
 const seg = [];
 const mk = (args, name) => { const f = `${dir}/${name}.mp4`; execSync(`ffmpeg -y -loglevel error ${args} -r 60 -c:v libx264 -preset slow -crf 16 -pix_fmt yuv420p ${f}`); seg.push(f); };
-mk(`-loop 1 -t 2.6 -i ${dir}/card_in.png -vf "fade=in:0:30"`, 'seg_in');
+mk(`-t ${hook[1]} -i out/rec/${hook[0]}.mp4`, 'seg_hook');
+mk(`-loop 1 -t 2.4 -i ${dir}/card_in.png`, 'seg_in');
 for (const [c, t] of cut) { const src = `out/rec/${c}.mp4`; if (!existsSync(src)) { console.warn('missing', src); continue; } mk(`-t ${t} -i ${src}`, `seg_${c}`); }
 mk(`-loop 1 -t 3.4 -i ${dir}/card_out.png -vf "fade=out:st=2.6:d=0.8"`, 'seg_out');
 
