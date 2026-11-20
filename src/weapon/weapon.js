@@ -187,9 +187,11 @@ export async function createWeapon(G) {
     const hitW = G.phys.raycast(_o, _d, W.range);
     const maxD = hitW ? hitW.distance : W.range;
     const hitE = G.enemies?.hitTest?.(_o, _d, maxD);
-    const end = _o.clone().addScaledVector(_d, hitE ? hitE.distance : maxD);
-    if (hitE) { const dmg = W.dmg * (hitE.part === 'weak' ? 2.2 : 1); G.enemies.damage(hitE.enemy, dmg, hitE, _d); }
-    G.events.emit('weapon:fire', { muzzle: _m.clone(), dir: _d.clone(), end, hitW: hitE ? null : hitW, hitE, ads });
+    const hitB = G.boss?.hitTest(_o, _d, hitE ? hitE.distance : maxD);
+    const end = _o.clone().addScaledVector(_d, hitB ? hitB.distance : hitE ? hitE.distance : maxD);
+    if (hitB) G.boss.damage(hitB, W.dmg);
+    else if (hitE) { const dmg = W.dmg * (hitE.part === 'weak' ? 2.2 : 1); G.enemies.damage(hitE.enemy, dmg, hitE, _d); }
+    G.events.emit('weapon:fire', { muzzle: _m.clone(), dir: _d.clone(), end, hitW: hitE || hitB ? null : hitW, hitE: hitB ? null : hitE, hitB, ads });
     G.events.emit('noise', { pos: _o.clone(), r: 45 });
   }
 
@@ -214,7 +216,7 @@ export async function createWeapon(G) {
       G.fxs?.emit(false, { pos: n.m.position, life: 0.12, size: 0.05, size1: 0.01, col: [10, 5, 1.6] });
       if (Math.random() < 0.6) G.fxs?.emit(true, { pos: n.m.position, vel: new THREE.Vector3(0, 0.3, 0), life: 0.9, size: 0.05, size1: 0.3, col: G.fxs.litColor([0.55, 0.53, 0.5]), alpha: 0.35, soft: true, drag: 1 });
       const seg = n.m.position.distanceTo(_n0); _nd.copy(n.m.position).sub(_n0).normalize();
-      const hw = G.phys.raycast(_n0, _nd, seg + 0.05), he = G.enemies?.hitTest?.(_n0, _nd, seg + 0.3);
+      const hw = G.phys.raycast(_n0, _nd, seg + 0.05), he = G.enemies?.hitTest?.(_n0, _nd, seg + 0.3) || G.boss?.hitTest(_n0, _nd, seg + 0.3);
       if (hw || he || n.age > 6 || n.m.position.y < 0.02) {
         const p = he ? he.point : hw ? hw.point.clone().addScaledVector(hw.normal, 0.15) : n.m.position.clone().setY(Math.max(0.15, n.m.position.y));
         R.scene.remove(n.m); nades.splice(i, 1); G.explosives?.blast(p, 1.15, 5.5, 190);

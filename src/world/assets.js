@@ -29,6 +29,10 @@ export const MODELS = {
   spool: { len: 2.4, cls: 'default' },
   sandbags: { len: 3.0, cls: 'default' },
   scaffold: { len: 15.0, cls: 'rust', up: true },
+  colossus_hull: { len: 12.6, cls: 'paint' },
+  colossus_leg_upper: { len: 6.4, cls: 'paint' },
+  colossus_leg_lower: { len: 7.6, cls: 'paint' },
+  tank_wreck: { len: 9.0, cls: 'rust' },
 };
 
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);

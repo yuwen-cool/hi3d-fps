@@ -12,9 +12,9 @@ export function createFire(G) {
   const lights = []; for (let i = 0; i < LIGHTS; i++) { const l = new THREE.PointLight(0xff7a2a, 0, 10, 2); l.layers.enable(1); R.scene.add(l); R.volLights.push(l); lights.push(l); }
 
   // size ~ flame height in metres; life in seconds (Infinity = permanent)
-  function add(pos, { size = 1, life = 8, dir = null, dmg = 22 } = {}) {
+  function add(pos, { size = 1, life = 8, dir = null, dmg = 22, smoke = true } = {}) {
     if (fires.length >= MAXF) fires.shift();
-    const f = { pos: pos.clone(), size, life, age: 0, dir: dir ? dir.clone().normalize() : null, dmg, acc: 0, seed: rnd() * 100 };
+    const f = { pos: pos.clone(), size, life, age: 0, dir: dir ? dir.clone().normalize() : null, dmg, acc: 0, seed: rnd() * 100, smoke };
     fires.push(f); return f;
   }
   function leak(pos, nrm) {
@@ -37,6 +37,7 @@ export function createFire(G) {
     for (const l of leaks) if (l.pos.distanceTo(e.pos) < 4 + e.size * 2) ignite(l);
   });
 
+  for (const p of G.level?.flares || []) add(p, { size: 4.2, life: Infinity, dmg: 0, smoke: false }); // clean gas flare
   const _p = V(0, 0, 0), _v = V(0, 0, 0), _a = V(0, 0, 0), _b = V(0, 0, 0);
   function flames(f, dt) {
     const fx = G.fxs, k = f.age < 0.4 ? f.age / 0.4 : 1, end = f.life - f.age < 2 ? Math.max(0, (f.life - f.age) / 2) : 1, s = f.size * k * end;
@@ -53,7 +54,7 @@ export function createFire(G) {
         fx.emit(false, { pos: _p, vel: V((rnd() - 0.5) * 0.4, 1.4 + rnd() * 1.6 * s, (rnd() - 0.5) * 0.4), life: 0.35 + rnd() * 0.4, size: (core ? 0.3 : 0.22) * s, size1: 0.04, stretch: 0.22 * s, col: core ? [22, 12, 4] : [12, 3.8, 0.8], drag: 1.5, rise: 2.5, soft: true });
       }
     }
-    if (rnd() < dt * (3 + 4 * s)) fx.emit(true, { pos: V(f.pos.x, f.pos.y + 0.9 * s, f.pos.z), vel: V(0.4 + (rnd() - 0.5) * 0.5, 1.1 + rnd() * 0.6, 0.2 + (rnd() - 0.5) * 0.5), life: 3.5 + rnd() * 2, size: 0.3 * s, size1: 2.2 * s, col: fx.litColor([0.05, 0.045, 0.04]), alpha: 0.6, soft: true, drag: 0.5, rise: 0.5, spin: 0.4 });
+    if (f.smoke && rnd() < dt * (3 + 4 * s)) fx.emit(true, { pos: V(f.pos.x, f.pos.y + 0.9 * s, f.pos.z), vel: V(0.4 + (rnd() - 0.5) * 0.5, 1.1 + rnd() * 0.6, 0.2 + (rnd() - 0.5) * 0.5), life: 3.5 + rnd() * 2, size: 0.3 * s, size1: 2.2 * s, col: fx.litColor([0.05, 0.045, 0.04]), alpha: 0.6, soft: true, drag: 0.5, rise: 0.5, spin: 0.4 });
     if (rnd() < dt * (6 + 10 * s)) fx.emit(false, { pos: V(f.pos.x + (rnd() - 0.5) * 0.4 * s, f.pos.y + 0.4 * s, f.pos.z + (rnd() - 0.5) * 0.4 * s), vel: V((rnd() - 0.5) * 1.5, 2 + rnd() * 3, (rnd() - 0.5) * 1.5), life: 1 + rnd() * 1.2, size: 0.008, stretch: 0.03, col: [16, 6, 1.5], drag: 0.6, rise: 1.2 });
   }
   function burn(f, dt) {

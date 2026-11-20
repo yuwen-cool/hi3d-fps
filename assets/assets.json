@@ -119,5 +119,29 @@
   "quality": "high_quality",
   "max_points": 90,
   "prompt": "Game first-person viewmodel asset: a single left forearm and hand in a tactical combat glove (black synthetic leather palm, dark olive knuckle pads) with a rolled-up dark olive ripstop sleeve with visible fabric folds and a velcro strap at the wrist, hand curled palm-up in a C-shaped grip as if holding the underside of a rifle handguard from below, thumb along one side, four fingers wrapped around the other side; forearm extends straight back from the wrist about 30 cm and is cut off cleanly at the elbow. No weapon. Side view."
+ },
+ {
+  "name": "colossus_hull",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: the hull of a giant four-legged industrial walker mech built from oil-drilling equipment, NO legs, a long armoured boxy body with rusted yellow and black hazard-striped plates, a short derrick-like lattice mast and exhaust stacks on top, two large glowing orange coolant cylinders mounted on the back, a heavy twin-barrel beam cannon slung under the front, four round hip sockets at the corners where legs attach. Three-quarter view."
+ },
+ {
+  "name": "colossus_leg_upper",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: one upper leg segment of a giant industrial walker mech, a thick armoured hydraulic strut with exposed pistons and hoses, rusted yellow and black hazard paint, large hinge joints at both ends. Isolated single part, side view."
+ },
+ {
+  "name": "colossus_leg_lower",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: one lower leg segment of a giant industrial walker mech, an armoured hydraulic strut ending in a wide heavy three-toed steel foot with claws, rusted yellow hazard paint, hinge joint at the top. Isolated single part, side view."
+ },
+ {
+  "name": "tank_wreck",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: the ruined remains of an exploded cylindrical oil storage tank, torn and peeled-back steel walls curling outward, blackened and scorched by fire, collapsed roof plates, twisted ladder, sitting on a cracked concrete ring base. Three-quarter view."
  }
 ]

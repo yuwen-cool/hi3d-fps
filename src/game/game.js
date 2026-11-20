@@ -17,6 +17,7 @@ export async function buildGame(G, setLoad) {
   try { const { createFire } = await import('../fx/fire.js'); G.fire = createFire(G); mods.push(['fire', G.fire]); } catch (e) { console.warn('fire', e); }
   setLoad('enemies', 0.65);
   try { const { createEnemies } = await import('../enemies/enemies.js'); G.enemies = await createEnemies(G); mods.push(['enemies', G.enemies]); } catch (e) { console.warn('enemies', e); }
+  try { const { createColossus } = await import('../enemies/colossus.js'); G.boss = await createColossus(G); mods.push(['boss', G.boss]); } catch (e) { console.warn('boss', e); }
   try { const { createExplosives } = await import('../world/explosives.js'); G.explosives = createExplosives(G); mods.push(['explosives', G.explosives]); } catch (e) { console.warn('explosives', e); }
   try { const { createAudio } = await import('../audio/audio.js'); G.audio = createAudio(G); mods.push(['audio', G.audio]); } catch (e) { console.warn('audio', e); }
   try { const { createHUD } = await import('../hud/hud.js'); G.hud = createHUD(G); mods.push(['hud', G.hud]); } catch (e) { console.warn('hud', e); }

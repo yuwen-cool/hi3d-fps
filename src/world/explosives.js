@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { instance } from './assets.js';
 // Shootable fuel drums: take damage from bullets, ignite, then explode (fireball, shockwave,
 // area damage to robots and the player, shake, sound). The wreck stays as scorched debris.
 export function createExplosives(G) {
@@ -10,9 +11,12 @@ export function createExplosives(G) {
     if (ex.hp <= 0 && !ex.lit) { ex.lit = true; ex.fuse = 0.35 + Math.random() * 0.3; burning.push(o); }
   }
   G.events.on('weapon:fire', (e) => { const ob = e.hitW?.object; let o = ob; while (o && !o.userData.explosive) o = o.parent; if (o) hurt(o, 26); });
-  G.events.on('explosion', (e) => { for (const o of list) { const ex = o.userData.explosive; if (!ex.dead && !ex.lit && o.position.distanceTo(e.pos) < 4.5) { ex.lit = true; ex.fuse = 0.18 + Math.random() * 0.25; burning.push(o); } } });
+  G.events.on('explosion', (e) => { for (const o of list) { const ex = o.userData.explosive; if (ex.dead || ex.lit) continue;
+    if (ex.big) { const r = (ex.r ??= new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3()).x * 0.5); if (o.position.distanceTo(e.pos.clone().setY(o.position.y)) < r + 3.5) hurt(o, 210 * e.size); }
+    else if (o.position.distanceTo(e.pos) < 4.5) { ex.lit = true; ex.fuse = 0.18 + Math.random() * 0.25; burning.push(o); } } });
   function boom(o) {
     const ex = o.userData.explosive; ex.dead = true;
+    if (ex.big) return bigBoom(o, ex);
     const p = o.position.clone().setY(0.7);
     blast(p, 1.3, 6, 160);
     // wreck: flatten + char
@@ -26,6 +30,19 @@ export function createExplosives(G) {
     G.events.emit('blast', { pos: p.clone(), r, dmg });
     const pd = G.player.s.pos.distanceTo(p); if (pd < r * 0.9 && !G.god) G.player.damage(Math.round(dmg * 0.34 * (1 - pd / (r * 0.9))), p);
     G.player.addShake(THREE.MathUtils.clamp(1 - pd / (r * 4), 0, 1) * 0.9);
+  }
+  // storage tank: chained blasts up the shell, a tall fireball, the shell swaps to a torn wreck that burns on
+  async function bigBoom(o, ex) {
+    const sz = new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3()), c = o.position.clone();
+    for (let i = 0; i < 4; i++) setTimeout(() => blast(c.clone().add(new THREE.Vector3((Math.random() - 0.5) * sz.x * 0.6, 1 + i * sz.y * 0.25, (Math.random() - 0.5) * sz.z * 0.6)), 2.2 + i * 0.4, 13, 260), i * 140);
+    G.slowmo(0.7, 0.35); G.events.emit('tank:boom', { pos: c.clone() });
+    for (let i = 0; i < 7; i++) { const a = Math.random() * 6.28, r = sz.x * (0.3 + Math.random() * 0.5); G.fire?.add(new THREE.Vector3(c.x + Math.cos(a) * r, 0.05, c.z + Math.sin(a) * r), { size: 1 + Math.random() * 1.5, life: 120 + Math.random() * 120 }); }
+    G.fire?.add(c.clone().setY(sz.y * 0.55), { size: 3.2, life: 300 });
+    const w = await instance('tank_wreck');
+    setTimeout(() => {
+      o.visible = false; if (!w.name.endsWith('_placeholder')) { w.position.copy(o.position); w.rotation.copy(o.rotation); const ws = new THREE.Box3().setFromObject(w).getSize(new THREE.Vector3()); w.scale.setScalar(Math.max(sz.x, sz.z) / Math.max(ws.x, ws.z)); o.parent.add(w); }
+      if (ex.box) ex.box.max.y = ex.box.min.y + sz.y * 0.6;
+    }, 280);
   }
   function update(dt) {
     for (let i = burning.length - 1; i >= 0; i--) {

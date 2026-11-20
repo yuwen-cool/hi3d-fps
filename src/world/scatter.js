@@ -129,6 +129,16 @@ export async function dress(G, root) {
     const fm = triplanarMaterial('rusty_metal_02', { metres: 2.2, cls: 'rust', tint: 0x4e4038 });
     const far = new THREE.Mesh(mergeGeometries(sg.map((g) => g.index ? g.toNonIndexed() : g), false), fm); far.name = 'far_skyline'; far.castShadow = false; far.receiveShadow = false; root.add(far);
   }
+  // ---- flare stack: a tall burner that stays lit all match (fire.js lights it); a landmark at night ----
+  {
+    const fx = 22, fz = -44, H = 34, sg = [];
+    const cy = (r0, r1, h, y) => { const g = new THREE.CylinderGeometry(r1, r0, h, 16, 1, false); g.translate(fx, y + h / 2, fz); sg.push(g); };
+    cy(1.1, 0.7, H, 0); cy(1.3, 1.3, 0.5, H * 0.33); cy(1.15, 1.15, 0.5, H * 0.66); cy(0.95, 0.95, 1.2, H);   // shaft, platforms, tip
+    for (let i = 0; i < 3; i++) { const a = i * 2.09, g = new THREE.CylinderGeometry(0.06, 0.06, H * 0.8, 6); g.rotateZ(Math.cos(a) * 0.12); g.rotateX(Math.sin(a) * 0.12); g.translate(fx + Math.cos(a) * 4, H * 0.4, fz + Math.sin(a) * 4); sg.push(g); } // guy wires
+    const m = new THREE.Mesh(mergeGeometries(sg.map((g) => g.index ? g.toNonIndexed() : g), false), triplanarMaterial('rusty_metal_02', { metres: 1.5, cls: 'rust', tint: 0x8a7464 }));
+    m.castShadow = true; m.name = 'flare_stack'; root.add(m);
+    G.level.flares = [new THREE.Vector3(fx, H + 1.4, fz)];
+  }
   // ---- pipe runs (procedural): horizontal runs on the gantry + along the workshop wall, with flanges ----
   const pipeMat = triplanarMaterial('rusty_metal_02', { metres: 1.2, cls: 'rust', tint: 0xa89684 });
   const pg = [];

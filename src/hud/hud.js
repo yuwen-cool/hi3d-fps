@@ -28,6 +28,7 @@ const CSS = `
 #hud .title .keys{margin-top:14px;font-size:11px;letter-spacing:.18em;opacity:.55}
 #hud .credit{position:absolute;left:56px;top:46px;font-size:11px;letter-spacing:.3em;opacity:.55}
 #hud .obj{position:absolute;left:56px;top:68px;font-size:12px;letter-spacing:.2em;opacity:.85}
+#hud .boss{position:absolute;left:50%;top:44px;transform:translateX(-50%);width:420px;text-align:center;opacity:0;transition:opacity .4s}#hud .boss .lbl{font-size:11px;letter-spacing:.4em;color:#ffcf9a;margin-bottom:6px}#hud .boss .bar{height:4px;background:rgba(255,255,255,.15)}#hud .boss .fill{height:100%;background:#ff8a3a;width:100%;transition:width .15s}
 `;
 export function createHUD(G) {
   const el = document.getElementById('hud');
@@ -39,13 +40,14 @@ export function createHUD(G) {
   <div class="dmg"><i></i></div>
   <div class="credit">SANDLINE · ASSETS GENERATED WITH HI3D</div>
   <div class="obj"></div>
+  <div class="boss"><div class="lbl">COLOSSUS · SHOOT THE COOLANT TANKS</div><div class="bar"><div class="fill"></div></div></div>
   <div class="hp"><div class="lbl">INTEGRITY</div><div class="bar"><div class="fill"></div></div></div>
   <div class="ammo"><div class="low">LOW AMMO</div><b>30</b><span>/ 150</span><div class="lbl">KR-9 CARBINE · <span class="gl">GL 3</span></div></div>
   <div class="feed"></div><div class="ban"></div>
-  ${G.params.shot ? '' : `<div class="title"><p>HI3D · BROWSER FPS DEMO</p><h1>SANDLINE</h1><p>ABANDONED REFINERY · DUSK</p><div class="go">CLICK TO DEPLOY</div><div class="keys">WASD MOVE · SHIFT SPRINT · SPACE JUMP · C CROUCH · RMB AIM · LMB FIRE · R RELOAD</div></div>`}`;
+  ${G.params.shot ? '' : `<div class="title"><p>HI3D · BROWSER FPS DEMO</p><h1>SANDLINE</h1><p>ABANDONED REFINERY · A STORM IS COMING</p><div class="go">CLICK TO DEPLOY</div><div class="keys">WASD MOVE · SHIFT SPRINT · SPACE JUMP · C CROUCH · RMB AIM · LMB FIRE · R RELOAD · G GRENADE</div></div>`}`;
   const q = (s) => el.querySelector(s);
   const xh = q('.xh'), arms = { t: q('.xh .t'), b: q('.xh .b'), l: q('.xh .l'), r: q('.xh .r') }, hm = q('.hm'), dmgI = q('.dmg i');
-  const ammoB = q('.ammo b'), glS = q('.ammo .gl'), ammoS = q('.ammo span'), low = q('.ammo .low'), hpF = q('.hp .fill'), feed = q('.feed'), ban = q('.ban'), title = q('.title'), obj = q('.obj');
+  const ammoB = q('.ammo b'), glS = q('.ammo .gl'), ammoS = q('.ammo span'), low = q('.ammo .low'), hpF = q('.hp .fill'), feed = q('.feed'), ban = q('.ban'), title = q('.title'), obj = q('.obj'), bossEl = q('.boss'), bossF = q('.boss .fill');
   let hmT = 0, hmDur = 0.24, banT = 0;
   G.events.on('enemy:hit', (e) => { hmT = hmDur = 0.24; hm.className = 'hm' + (e.weak ? ' weak' : ''); });
   G.events.on('enemy:killed', (e) => {
@@ -72,7 +74,8 @@ export function createHUD(G) {
     ammoB.textContent = W.S.ammo; glS.textContent = `GL ${W.S.gl}  [G]`; ammoS.textContent = `/ ${W.S.reserve}`; low.style.opacity = W.S.ammo <= Math.ceil(W.W.mag * 0.27) ? 1 : 0;
     hpF.style.width = `${Math.max(0, p.hp / p.maxHp * 100)}%`;
     if (banT > 0) { banT -= dt; if (banT <= 0) ban.style.opacity = 0; }
-    const F = G.flow?.S; if (F) obj.textContent = F.state === 'play' ? `WAVE ${Math.max(1, F.wave + 1)} · HOSTILES ${G.enemies?.alive ?? 0}` : F.state === 'extract' ? 'REACH EXTRACTION ◂ WEST GATE' : '';
+    const F = G.flow?.S; if (F) obj.textContent = F.state === 'play' ? `${['', 'I · DUSK', 'II · SANDSTORM', 'III · FIRE NIGHT'][F.act] || ''} · HOSTILES ${G.enemies?.alive ?? 0}` : F.state === 'extract' ? 'REACH EXTRACTION ◂ WEST GATE' : '';
+    const B = G.boss?.S; bossEl.style.opacity = B?.active && !B.dead ? 1 : 0; if (B) bossF.style.width = `${Math.round(B.hp * 100)}%`;
   }
   return { update };
 }

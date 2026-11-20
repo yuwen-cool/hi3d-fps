@@ -19,7 +19,7 @@ export function createEnv(G) {
     key: ex.uKey.value, maxE: ex.uMaxE.value,
   };
   const STORM = { zen: new THREE.Color(0.10, 0.065, 0.04), hor: new THREE.Color(0.55, 0.28, 0.12), away: new THREE.Color(0.24, 0.15, 0.09), fog: new THREE.Color(0.62, 0.40, 0.22), hemiSky: new THREE.Color(0.45, 0.30, 0.18) };
-  const NIGHT = { zen: new THREE.Color(0.004, 0.006, 0.016), hor: new THREE.Color(0.07, 0.035, 0.025), away: new THREE.Color(0.012, 0.014, 0.025), fog: new THREE.Color(0.10, 0.07, 0.055), hemiSky: new THREE.Color(0.06, 0.07, 0.11) };
+  const NIGHT = { zen: new THREE.Color(0.012, 0.017, 0.04), hor: new THREE.Color(0.16, 0.075, 0.045), away: new THREE.Color(0.025, 0.03, 0.05), fog: new THREE.Color(0.14, 0.09, 0.07), hemiSky: new THREE.Color(0.16, 0.19, 0.3) };
   const skySun = sky.uSunCol.value.clone(); sky.uSunCol.value = skySun; const sunCol0 = skySun.clone();
   const S = { front: 260, storm: 0, night: 0, flash: 0, boltT: 4, inside: 0 };
 
@@ -54,7 +54,7 @@ export function createEnv(G) {
     const n = S.night, k = S.inside;
     // sun: swallowed by the storm, then gone at night
     sun.intensity = base.sun * (1 - 0.93 * k) * (1 - n);
-    hemi.intensity = base.hemi * (1 - 0.35 * k) * lerp(1, 0.5, n) + S.flash * 0.9;
+    hemi.intensity = base.hemi * (1 - 0.35 * k) * lerp(1, 0.75, n) + S.flash * 0.9;
     hemi.color.copy(base.hemiSky).lerp(STORM.hemiSky, k).lerp(NIGHT.hemiSky, n);
     // sky dome
     sky.uZenith.value.copy(base.zen).lerp(STORM.zen, k).lerp(NIGHT.zen, n).multiplyScalar(1 + S.flash * 3);

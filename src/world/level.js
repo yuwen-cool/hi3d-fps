@@ -102,7 +102,7 @@ export async function buildLevel(G) {
   add(steel, matSteel, 'steel'); add(conc, matConc, 'concrete'); add(wall, matWall, 'wall'); add(floor, matFloor, 'concrete');
 
   // ---------- Hi3D props ----------
-  const place = async (name, x, z, ry = 0, { s = 1, y = 0, col = true, shrink = 0.85, surface = 'metal', colH } = {}) => {
+  const place = async (name, x, z, ry = 0, { s = 1, y = 0, col = true, shrink = 0.85, surface = 'metal', colH, big } = {}) => {
     const o = await instance(name); o.position.set(x, y, z); o.rotation.y = ry; o.scale.setScalar(s); root.add(o);
     o.updateMatrixWorld(true);
     let colBox = null;
@@ -113,15 +113,18 @@ export async function buildLevel(G) {
     }
     P.addShootable(o, surface);
     if (name === 'drums') { o.userData.explosive = { hp: 40, box: colBox }; o.traverse((m) => { m.userData.owner = o; }); explosives.push(o); }
+    // storage tank that can go up: takes a grenade or a few magazines, then becomes a burning wreck
+    if (big) { o.userData.explosive = { hp: 380, box: colBox, big: true }; o.traverse((m) => { m.userData.owner = o; }); explosives.push(o); }
     return o;
   };
   const optional = (n, ...a) => (have.has(n) ? [place(n, ...a)] : []);
+  let fallTower = null; // the distillation column that comes down at the end
   const jobs = [
     // skyline
     place('tank', 10, -40, 0.4, { s: 1.35, surface: 'metal' }), place('tank', 27, -26, 2.0, { s: 1.15 }),
-    place('tower', -4, -46, 0.2, { s: 1.0 }), place('tower', 5, -52, 1.3, { s: 1.15 }), place('tower', -30, -40, 2.5, { s: 0.9 }),
+    place('tower', -4, -46, 0.2, { s: 1.0 }).then((o) => { fallTower = o; return o; }), place('tower', 5, -52, 1.3, { s: 1.15 }), place('tower', -30, -40, 2.5, { s: 0.9 }),
     place('tank', -34, -18, 1.0, { s: 1.1 }),
-    place('tank', 10.2, 2.6, 2.6, { s: 0.9 }), place('tower', -18.6, -2.5, 0.8, { s: 0.75 }),
+    place('tank', 10.2, 2.6, 2.6, { s: 0.9, big: true }), place('tower', -18.6, -2.5, 0.8, { s: 0.75 }),
     place('valves', -14, 1.5, 2.2), place('barrier', -10.5, -1.5, 1.2, { surface: 'concrete' }),
     ...optional('pumpjack', -30, -6, 0.9, { s: 1.0 }), ...optional('pumpjack', 24, -38, 2.4, { s: 1.1 }),
     ...optional('container', 11.6, -19.5, 1.45, {}), ...optional('container', -15.5, -13.2, 0.15, {}), ...optional('container', 26, -14, 0.3, { col: false }),
@@ -158,7 +161,7 @@ export async function buildLevel(G) {
     const l = new THREE.PointLight(new THREE.Color(1.0, 0.6, 0.3), 9, 8.5, 2); l.position.set(C.maxX - 0.75, 3.05, z); root.add(l); R.volLights.push(l);
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), bulbM); b.position.set(C.maxX - 0.48, 3.12, z); root.add(b);
   }
-  G.level = { root, cover: [], layout: LAYOUT, explosives };
+  G.level = { root, cover: [], layout: LAYOUT, explosives, fallTower };
   await dress(G, root);
   R.fitShadow(new THREE.Box3(new THREE.Vector3(-62, -1, -84), new THREE.Vector3(42, 30, 22)));
   R.setInteriors([{ c: new THREE.Vector3((C.minX + C.maxX) / 2, C.h / 2, (C.minZ + C.maxZ) / 2), h: new THREE.Vector3((C.maxX - C.minX) / 2, C.h / 2, (C.maxZ - C.minZ) / 2) }]);
@@ -171,6 +174,6 @@ export async function buildLevel(G) {
     const ex = (b.max.x - b.min.x) / 2 + 0.7, ez = (b.max.z - b.min.z) / 2 + 0.7;
     cover.push(c.clone().add(new THREE.Vector3(0, 0, -ez)), c.clone().add(new THREE.Vector3(0, 0, ez)), c.clone().add(new THREE.Vector3(-ex, 0, 0)), c.clone().add(new THREE.Vector3(ex, 0, 0)));
   }
-  G.level = { root, cover: cover.filter((p) => !P.blocked(p.x, p.z, 0.4)), layout: LAYOUT, explosives };
+  G.level.cover = cover.filter((p) => !P.blocked(p.x, p.z, 0.4));
   return G.level;
 }
