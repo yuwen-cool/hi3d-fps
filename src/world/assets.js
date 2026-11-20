@@ -9,7 +9,7 @@ export const MODELS = {
   rifle2: { len: 0.90, cls: 'weapon' },
   mag: { len: 0.25, cls: 'weapon' },
   glove_r: { len: 0.26, cls: 'default' },
-  glove_l: { len: 0.26, cls: 'default' },
+  arm_l: { len: 0.46, cls: 'default' },
   robot: { len: 1.90, cls: 'robot', up: true },
   tank: { len: 9.0, cls: 'rust', up: true },
   tower: { len: 16.0, cls: 'rust', up: true },

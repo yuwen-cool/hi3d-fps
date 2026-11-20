@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import { instance, MODELS } from '../world/assets.js';
-import { triplanarMaterial } from '../mats/triplanar.js';
 
 // First-person rifle. Viewmodel lives on layer 1 under the world camera and is drawn by the
 // view camera with depthRange(0,0.05) (never clips into walls). Motion is all springs.
@@ -80,14 +79,12 @@ export async function createWeapon(G) {
   if (T.vrx) W.hipR.set(+T.vrx, +T.vry, +T.vrz);
   // gloves (rigid, fixed grip pose)
   const gloves = {};
-  // left hand = the right-hand fist model mirrored (a closed grip reads better than the open palm)
-  for (const [n, src] of [['glove_r', 'glove_r'], ['glove_l', T.lhand || 'glove_r']]) {
-    try { const o = await instance(src); if (n === 'glove_l' && src === 'glove_r') { o.scale.x *= -1; o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.side = THREE.DoubleSide; } }); } o.traverse((m) => { if (m.isMesh) { if (n === 'glove_r' || src !== 'glove_r') m.material = m.material.clone(); m.material.color.multiplyScalar(0.42); } }); gloves[n] = o; gun.add(o); } catch { /* optional */ }
+  // right = fist glove on the pistol grip; left = Hi3D forearm (C-grip glove + sleeve) under the handguard
+  for (const [n, src] of [['glove_r', 'glove_r'], ['glove_l', 'arm_l']]) {
+    try { const o = await instance(src); o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.color.multiplyScalar(n === 'glove_r' ? 0.42 : 0.8); } }); gloves[n] = o; gun.add(o); } catch { /* optional */ }
   }
-  // sleeve: worn canvas look from a fine-scale triplanar (weave-ish normal + roughness), dark olive
-  const sleeveMat = triplanarMaterial('concrete_floor_worn_001', { metres: 0.18, cls: 'weapon', metal: 0, tint: 0x4a4a3a, nscale: 2.6 }); sleeveMat.side = THREE.DoubleSide;
   // auto-orient gloves: find cuff->fingertip axis (cuff end = fatter cross-section), then aim it
-  function orientGlove(o, dir, roll, pos, sleeve = false) {
+  function orientGlove(o, dir, roll, pos, pivot = 0) {
     o.updateMatrixWorld(true); o.position.set(0, 0, 0); o.rotation.set(0, 0, 0); o.updateMatrixWorld(true);
     const P = []; o.traverse((m) => { if (m.isMesh) { const a = m.geometry.attributes.position; for (let i = 0; i < a.count; i += 5) P.push(new THREE.Vector3().fromBufferAttribute(a, i).applyMatrix4(m.matrixWorld)); } });
     const bx = new THREE.Box3().setFromPoints(P); const sz = bx.getSize(new THREE.Vector3()); const c = bx.getCenter(new THREE.Vector3());
@@ -95,35 +92,17 @@ export async function createWeapon(G) {
     const L = sz[ax]; const spread = (lo) => { const sel = P.filter((p) => lo ? p[ax] < bx.min[ax] + L * 0.2 : p[ax] > bx.max[ax] - L * 0.2); const b = new THREE.Box3().setFromPoints(sel).getSize(new THREE.Vector3()); return b.x * b.y * b.z / b[ax]; };
     const cuffLo = spread(true) > spread(false);
     const along = new THREE.Vector3(); along[ax] = cuffLo ? 1 : -1;     // cuff -> fingers
-    const inner = new THREE.Group(); while (o.children.length) inner.add(o.children[0]); inner.position.copy(c).negate(); 
+    const inner = new THREE.Group(); while (o.children.length) inner.add(o.children[0]); inner.position.copy(c).negate(); inner.position[ax] -= along[ax] * L * pivot; // pivot toward the fingers 
     const mid = new THREE.Group(); mid.add(inner); mid.quaternion.setFromUnitVectors(along, new THREE.Vector3(0, 0, -1));
     const rollG = new THREE.Group(); rollG.add(mid); rollG.rotation.z = roll;
     const aimG = new THREE.Group(); aimG.add(rollG); aimG.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), dir.clone().normalize());
     o.add(aimG); o.position.copy(pos);
-    if (!sleeve) return;
-    // sleeve: tapered fabric tube from the cuff down-left-back toward the (off-screen) elbow,
-    // so the glove reads as a forearm reaching under the handguard
-    o.updateMatrixWorld(true); // parented to the glove so it follows the reload reach (o is unrotated, maybe x-mirrored)
-    const cuff = o.worldToLocal(rollG.localToWorld(new THREE.Vector3(0, 0, -L * 0.3)));
-    const elbowDir = new THREE.Vector3(-0.18 * Math.sign(o.scale.x), -0.85, 0.5).normalize(); // steep: the forearm leaves frame fast instead of lying across it
-    const len = 0.5, sl = new THREE.CylinderGeometry(0.043, 0.056, len, 28, 24, true);
-    const pa = sl.attributes.position; for (let i = 0; i < pa.count; i++) {
-      const y = pa.getY(i), a = Math.atan2(pa.getZ(i), pa.getX(i)), k = (y + len / 2) / len;
-      // fabric: big asymmetric folds, bunched rings near the cuff, two strap bands; flattened cross-section
-      const fold = 0.11 * Math.pow(Math.max(0, Math.sin(a * 2 + y * 14 + 0.6)), 3) + 0.06 * Math.sin(a * 5 - y * 23) + 0.05 * Math.sin(a * 3 + y * 41);
-      const bunch = 0.12 * Math.pow(Math.max(0, Math.sin(y * 48)), 4) * (1 - k);
-      const strap = 0.09 * (Math.exp(-Math.pow((k - 0.22) / 0.025, 2)) + Math.exp(-Math.pow((k - 0.5) / 0.025, 2)));
-      const w = 1 + (fold + bunch) * Math.min(1, k * 6) + strap;
-      pa.setX(i, pa.getX(i) * w * 1.08); pa.setZ(i, pa.getZ(i) * w * 0.9); }
-    sl.translate(0, len / 2, 0); sl.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), elbowDir)); sl.translate(cuff.x, cuff.y, cuff.z);
-    sl.computeVertexNormals();
-    const sm = new THREE.Mesh(sl, sleeveMat); sm.frustumCulled = false; o.add(sm);
   }
   const gp = (k, d) => (T[k] ? T[k].split(',').map(Number) : d);
-  const gR = gp('gr', [-0.25, 0.55, -0.6, 1.6, 0.03, -0.07, 0.06]), gL = gp('gl', [1, 0.2, -0.25, 0, 0.02, -0.055, -0.02]);
+  const gR = gp('gr', [-0.25, 0.55, -0.6, 1.6, 0.03, -0.07, 0.06]), gL = gp('gl', [0.2, 0.3, -0.93, -0.5, 0.05, -0.02, -0.3]);
   if (gloves.glove_r) orientGlove(gloves.glove_r, new THREE.Vector3(gR[0], gR[1], gR[2]), gR[3], new THREE.Vector3(gR[4], gR[5], gR[6]));
   const lHome = new THREE.Vector3(gL[4], gL[5], muzzleLocal.z * 0.55 + gL[6]);
-  if (gloves.glove_l) orientGlove(gloves.glove_l, new THREE.Vector3(gL[0], gL[1], gL[2]), gL[3], lHome, !T.nosleeve);
+  if (gloves.glove_l) orientGlove(gloves.glove_l, new THREE.Vector3(gL[0], gL[1], gL[2]), gL[3], lHome, +(T.lpiv || 0.4));
   // magazine (rifle2 has an empty magwell)
   let mag = null;
   if (gunName === 'rifle2') { try { mag = await instance('mag'); gun.add(mag); mag.position.set(0, -0.2, -0.13); mag.rotation.set(-0.12, Math.PI / 2, 0); } catch { /* */ } }
