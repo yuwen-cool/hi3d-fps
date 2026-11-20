@@ -40,7 +40,7 @@ float gMask(){ return smoothstep(0.35, 0.65, gN(vGW.xz * 0.06) * 0.7 + gN(vGW.xz
       .replace('#include <map_fragment>', `
   vec2 gUv = vGW.xz * uGTile; float gm = gMask();
   vec4 gd1 = gSample(map, gUv), gd2 = gSample(uG2d, gUv * 0.8);
-  diffuseColor *= mix(gd1, gd2, gm);`)
+  diffuseColor *= mix(gd1, gd2, gm * 0.6) * vec4(1.18, 1.06, 0.92, 1.0);`)
       .replace('#include <roughnessmap_fragment>', `
   vec4 ga = mix(gSample(roughnessMap, gUv), gSample(uG2a, gUv * 0.8), gm);
   float roughnessFactor = roughness * ga.g;`)

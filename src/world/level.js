@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import { instance, setRendererCaps } from './assets.js';
 import { makeGround } from './ground.js';
 import { triplanarMaterial } from '../mats/triplanar.js';
+import { dress } from './scatter.js';
 
 // Abandoned desert refinery. Player starts at +Z looking -Z into the low sun (backlit, like
 // target/t1). Courtyard x∈[-21,13], z∈[-30,6]; interior corridor (workshop) x∈[14,20].
@@ -111,6 +112,8 @@ export async function buildLevel(G) {
     place('tank', 10, -40, 0.4, { s: 1.35, surface: 'metal' }), place('tank', 27, -26, 2.0, { s: 1.15 }),
     place('tower', -4, -46, 0.2, { s: 1.0 }), place('tower', 5, -52, 1.3, { s: 1.15 }), place('tower', -30, -40, 2.5, { s: 0.9 }),
     place('tank', -34, -18, 1.0, { s: 1.1 }),
+    place('tank', 10.2, 2.6, 2.6, { s: 0.9 }), place('tower', -18.6, -2.5, 0.8, { s: 0.75 }),
+    place('valves', -14, 1.5, 2.2), place('barrier', -10.5, -1.5, 1.2, { surface: 'concrete' }),
     // pipe racks bridging the yard (overhead, walkable underneath: collide only legs)
     place('piperack', -6, -11.5, 0, { s: 1.35, col: false }), place('piperack', 3.6, -11.5, 0, { s: 1.35, col: false }),
     place('piperack', 22, -9, Math.PI / 2, { s: 1.3, col: false }),
@@ -130,6 +133,8 @@ export async function buildLevel(G) {
   for (const [x, z] of shrubs) jobs.push(place('shrub', x, z, x * 1.7, { col: false, s: 0.8 + ((x * z) % 0.4 + 0.4) * 0.6, surface: 'wood' }));
   await Promise.all(jobs);
 
+  G.level = { root, cover: [], layout: LAYOUT };
+  await dress(G, root);
   R.fitShadow(new THREE.Box3(new THREE.Vector3(-36, -1, -56), new THREE.Vector3(30, 26, 10)));
   R.setInteriors([{ c: new THREE.Vector3((C.minX + C.maxX) / 2, C.h / 2, (C.minZ + C.maxZ) / 2), h: new THREE.Vector3((C.maxX - C.minX) / 2, C.h / 2, (C.maxZ - C.minZ) / 2) }]);
   root.traverse((o) => { if (o.isMesh && !o.isSkinnedMesh) { o.matrixAutoUpdate = false; o.updateMatrix(); } });

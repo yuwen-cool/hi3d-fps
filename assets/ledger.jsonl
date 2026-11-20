@@ -31,3 +31,6 @@
 {"name": "mag", "step": "model", "task": "58dc867c8c9643a3990d2a07b3ee1896", "points": 45}
 {"name": "lamp", "step": "model", "task": "4e8de30a1c5049c891bc76bc3e0b6d5e", "points": 45}
 {"name": "rifle2", "step": "model", "task": "421814d0db794763986ccfae7d5b6888", "points": 145}
+{"name": "generator", "step": "image", "task": "07711121048d4a1c9d146502f7bd15cf", "points": 6}
+{"name": "container", "step": "image", "task": "7830483f5327456798290af203016e50", "points": 6}
+{"name": "pumpjack", "step": "image", "task": "13c3a0f345cb42898a8839ba160d1702", "points": 6}

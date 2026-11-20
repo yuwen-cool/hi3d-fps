@@ -27,6 +27,18 @@ export async function loadRobotRig(url = '/models/robot_skin.glb') {
     const restS = {}, restT = {};
     for (const n in tb) if (sb[n]) { restS[n] = sb[n].getWorldQuaternion(new THREE.Quaternion()); restT[n] = tb[n].getWorldQuaternion(new THREE.Quaternion()); }
     const order = []; tgtRoot.traverse((o) => { if (o.isBone && restS[o.name]) order.push(o.name); });
+    // rest-direction alignment (A-pose target vs T-pose source): rotate each target bone's rest
+    // direction onto the source's before transferring world-space deltas
+    const CHILD = { clavicle_l: 'upperarm_l', upperarm_l: 'lowerarm_l', lowerarm_l: 'hand_l', clavicle_r: 'upperarm_r', upperarm_r: 'lowerarm_r', lowerarm_r: 'hand_r',
+      thigh_l: 'calf_l', calf_l: 'foot_l', thigh_r: 'calf_r', calf_r: 'foot_r', pelvis: 'spine_01', spine_01: 'spine_02', spine_02: 'spine_03', spine_03: 'neck_01', neck_01: 'head' };
+    for (const n of order) {
+      const c = CHILD[n]; if (!c || !tb[c] || !sb[c]) continue;
+      const dt_ = tb[c].getWorldPosition(new THREE.Vector3()).sub(tb[n].getWorldPosition(new THREE.Vector3())).normalize();
+      const ds_ = sb[c].getWorldPosition(new THREE.Vector3()).sub(sb[n].getWorldPosition(new THREE.Vector3())).normalize();
+      // express both in their root frames so differing root orientations do not leak in
+      dt_.applyQuaternion(tgtRoot.getWorldQuaternion(new THREE.Quaternion()).invert()).applyQuaternion(sRoot.getWorldQuaternion(new THREE.Quaternion()));
+      restT[n] = new THREE.Quaternion().setFromUnitVectors(dt_.clone().applyQuaternion(sRoot.getWorldQuaternion(new THREE.Quaternion()).invert()).applyQuaternion(tgtRoot.getWorldQuaternion(new THREE.Quaternion())), ds_.clone().applyQuaternion(sRoot.getWorldQuaternion(new THREE.Quaternion()).invert()).applyQuaternion(tgtRoot.getWorldQuaternion(new THREE.Quaternion()))).multiply(restT[n]);
+    }
     const sRootInv = new THREE.Matrix4().copy(sRoot.matrixWorld).invert();
     const pelS0 = sb.pelvis.getWorldPosition(new THREE.Vector3()).applyMatrix4(sRootInv);
     const legS = sb.thigh_l.getWorldPosition(new THREE.Vector3()).distanceTo(sb.foot_l.getWorldPosition(new THREE.Vector3()));

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { clone as skClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadRobotRig } from './anim.js';
-import { instance } from '../world/assets.js';
+import { alignedGun } from '../weapon/align.js';
 import { patchMaterial } from '../mats/patch.js';
 
 // Hi3D combat robots. AI layer follows docs/SPEC.md §6.1 (perception, attack tokens, firing
@@ -21,8 +21,8 @@ export async function createEnemies(G) {
   const L = {}, U = {};
   for (const n of ['Jog', 'Walk', 'Strafe_left', 'Strafe_right', 'Walk_Backwards', 'Sprint', 'Pistol_Idle', 'Idle_A', 'Run_Stealth']) if (clips[n]) L[n] = subClip(clips[n], false, n + '_L');
   for (const n of ['Pistol_Aim_Neutral', 'Pistol_Shoot', 'Pistol_Idle', 'Pistol_Reload', 'Jog', 'Walk', 'Sprint']) if (clips[n]) U[n] = subClip(clips[n], true, n + '_U');
-  const gunSrc = await instance('rifle_v1');
-  const list = [], tokens = { n: 0, last: 0 };
+  const gunA = await alignedGun('rifle_v1'); const gunSrc = gunA.group;
+  const list = [], tokens = { n: 0, last: 0 }; let gripFit = null;
   // ---------- nav grid ----------
   const B = G.level.layout.bounds, CS = 0.5, NX = Math.ceil((B.maxX - B.minX) / CS), NZ = Math.ceil((B.maxZ - B.minZ) / CS);
   const block = new Uint8Array(NX * NZ);
@@ -59,8 +59,8 @@ export async function createEnemies(G) {
     const bones = {}; o.traverse((b) => { if (b.isBone) bones[b.name] = b; });
     const mats = []; o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); patchMaterial(m.material, 'robot'); mats.push(m.material); } });
     // rifle in the right hand
-    const gun = gunSrc.clone(true); gun.scale.setScalar(1 / CFG.height); bones.hand_r.add(gun);
-    gun.position.set(0.0, 0.02, 0.02); gun.rotation.set(Math.PI / 2, 0, Math.PI / 2 + 0.15);
+    const gun = gunSrc.clone(true); scene.add(gun); // placed in world space each frame (robust to any clip)
+    gun.userData.fit = true;
     gun.traverse((m) => { if (m.isMesh) m.castShadow = true; });
     const mixer = new THREE.AnimationMixer(o);
     const act = {}; for (const [k, c] of Object.entries(L)) act['L' + k] = mixer.clipAction(c); for (const [k, c] of Object.entries(U)) act['U' + k] = mixer.clipAction(c);
@@ -181,6 +181,19 @@ export async function createEnemies(G) {
     }
     return best;
   }
+  // ---------- rifle placement: grip in the right hand, muzzle along the aim line ----------
+  const _gp = new THREE.Vector3(), _gl = new THREE.Vector3(), _gm = new THREE.Matrix4(), _up = new THREE.Vector3(0, 1, 0);
+  function placeGun(e, aim) {
+    e.o.updateMatrixWorld(true);
+    e.bones.hand_r.getWorldPosition(_gp); e.bones.hand_l.getWorldPosition(_gl);
+    let dir;
+    if (aim && !G.player.s.dead) dir = playerEye().clone().sub(_gp).normalize();
+    else dir = new THREE.Vector3(Math.sin(e.yaw), -0.55, Math.cos(e.yaw)).normalize();
+    _gm.lookAt(new THREE.Vector3(0, 0, 0), dir.clone().negate(), _up); // -Z of the gun -> dir
+    e.gun.quaternion.setFromRotationMatrix(_gm);
+    e.gun.position.copy(_gp).addScaledVector(dir, 0.04).y += 0.02;
+    e.gun.visible = e.root.visible;
+  }
   // ---------- update ----------
   const UPV = new THREE.Vector3(0, 1, 0);
   function update(dt) {
@@ -189,7 +202,9 @@ export async function createEnemies(G) {
       e.mixer.update(dt);
       if (!e.alive) {
         e.deadT += dt; if (e.knock && e.deadT < 0.4) e.root.position.addScaledVector(e.knock, dt * (1 - e.deadT / 0.4));
-        if (e.deadT > 12) { e.root.position.y -= dt * 0.22; if (e.deadT > 15) e.root.visible = false; }
+        if (e.deadT < 0.05) e.gunV = new THREE.Vector3((rnd() - 0.5) * 2, 2, (rnd() - 0.5) * 2);
+        if (e.gun.position.y > 0.05) { e.gunV.y -= 9.8 * dt; e.gun.position.addScaledVector(e.gunV, dt); e.gun.rotateX(dt * 3); } 
+        if (e.deadT > 12) { e.root.position.y -= dt * 0.22; if (e.deadT > 15) { e.root.visible = false; e.gun.visible = false; } }
         continue;
       }
       const toP = _v.copy(pp).sub(e.root.position); toP.y = 0; const dist = toP.length();
@@ -255,6 +270,7 @@ export async function createEnemies(G) {
       if (e.state === 'engage') { const pitch = Math.atan2(playerEye().y - 1.5, Math.max(1, dist)); e.bones.spine_02.rotateX(-pitch * 0.5); e.bones.spine_03.rotateX(-pitch * 0.5); }
       e.bones.spine_02.rotateX(hs.p * 0.6); e.bones.spine_03.rotateZ(hs.r * 0.5); e.bones.neck_01.rotateX(hs.p * 0.4);
       for (const m of e.mats) m.emissiveIntensity = 2.5 + e.glow * 14;
+      placeGun(e, aiming || e.state === 'engage');
     }
   }
   return { update, spawn, list, hitTest, damage, CFG, get alive() { return list.filter((e) => e.alive).length; } };

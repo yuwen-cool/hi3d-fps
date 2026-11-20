@@ -3,9 +3,9 @@ import * as THREE from 'three';
 // Procedural dusk sky dome: zenith/horizon gradient, sun-side warm band, layered clouds,
 // multi-lobe sun halo, sun disk (disk only in the main view, never in the PMREM env).
 export const SKY = {
-  zenith: new THREE.Color(0.085, 0.13, 0.22),
-  horizon: new THREE.Color(1.15, 0.58, 0.26),
-  horizonAway: new THREE.Color(0.30, 0.33, 0.40),
+  zenith: new THREE.Color(0.07, 0.13, 0.30),
+  horizon: new THREE.Color(1.25, 0.48, 0.16),
+  horizonAway: new THREE.Color(0.30, 0.34, 0.46),
   ground: new THREE.Color(0.20, 0.15, 0.11),
 };
 
@@ -26,14 +26,14 @@ vec3 skyColor(vec3 d){
   float h = max(d.y, 0.0);
   vec3 hor = mix(uAway, uHorizon, pow(sunSide, 2.2));
   vec3 col = mix(hor, uZenith, pow(smoothstep(0.0, 0.62, h), 0.55));
-  col += uHorizon * 0.35 * exp(-h * 18.0) * sunSide;                // thick dusty horizon band
+  col += uHorizon * 0.25 * exp(-h * 14.0) * sunSide * sunSide;                // thick dusty horizon band
   // clouds: thin high streaks lit from below by the low sun
   if (d.y > 0.0) {
     vec2 uv = d.xz / (d.y + 0.08) * 0.9 + vec2(uTime * 0.004, 0.0);
     float c = fbm(uv * vec2(0.6, 2.2));
-    c = smoothstep(0.52, 0.85, c) * smoothstep(0.0, 0.25, d.y) * (1.0 - smoothstep(0.5, 0.95, d.y));
-    vec3 cl = mix(uAway * 0.9, uSunCol * 1.6, pow(sunSide, 3.0)) * (0.55 + 0.9 * pow(max(mu, 0.0), 6.0));
-    col = mix(col, cl, c * 0.75);
+    c = smoothstep(0.46, 0.8, c) * smoothstep(0.0, 0.25, d.y) * (1.0 - smoothstep(0.5, 0.95, d.y));
+    vec3 cl = mix(uAway * 0.75 + vec3(0.05, 0.03, 0.04), uSunCol * vec3(1.9, 1.3, 1.0), pow(sunSide, 2.5)) * (0.5 + 1.2 * pow(max(mu, 0.0), 5.0));
+    col = mix(col, cl, c * 0.85);
   }
   // halo lobes
   float m = max(mu, 0.0);

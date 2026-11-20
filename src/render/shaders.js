@@ -112,7 +112,7 @@ void main(){
   bool sky = z > uFar * 0.9;
   if (z < 0.02) { o = vec4(0.0, 0.0, 0.0, 1.0); return; } // weapon
   float dist = sky ? 1e5 : z / max(-vdir.z, 1e-3);
-  float maxD = min(dist, uMaxD * (sky ? 0.55 : 1.0));
+  float maxD = min(dist, uMaxD * (sky ? 0.3 : 1.0));
   float mu = dot(wdir, uSunDir);
   float ph = min(hg(mu, 0.78) * 0.55 + hg(mu, 0.25) * 0.45, 1.15);
   float jit = ign(gl_FragCoord.xy + fract(uTime * 7.31) * 64.0);
@@ -126,14 +126,17 @@ void main(){
     float s = uSigma * shape(p.y) * (1.0 + uInteriorDust * interior(p));
     vec4 sc = uShadowMat * vec4(p, 1.0);
     float sh = 1.0;
-    if (sc.x > 0.0 && sc.x < 1.0 && sc.y > 0.0 && sc.y < 1.0 && sc.z < 1.0) sh = texture(tShadow, vec3(sc.xy, sc.z - 0.0006));
+    if (sc.x > 0.0 && sc.x < 1.0 && sc.y > 0.0 && sc.y < 1.0 && sc.z < 1.0) {
+      float ef = smoothstep(0.0, 0.12, min(min(sc.x, 1.0 - sc.x), min(sc.y, 1.0 - sc.y)));
+      sh = mix(1.0, texture(tShadow, vec3(sc.xy, sc.z - 0.0006)), ef);
+    }
     float nearW = mix(2.3, 0.55, smoothstep(4.0, 85.0, t));
     vec3 L = uSunCol * uSunScale * sh * ph * 12.566 * nearW + uAmbient * uFogCol * (0.4 + 0.6 * sh);
     float a = exp(-s * dt);
     ins += T * L * (1.0 - a);
     T *= a;
   }
-  if (dist > uMaxD) { // analytic far haze
+  if (dist > uMaxD && !sky) { // analytic far haze (sky already carries its own atmosphere)
     float tau = uSigma * uFarHaze * (min(dist, 4000.0) - uMaxD) * shape(uCamPos.y + wdir.y * uMaxD * 0.5);
     float a = exp(-tau);
     vec3 hz = uHorizon * 0.5 + uFogCol * uAmbient * 3.0 + uSunCol * uSunScale * ph * 0.6;

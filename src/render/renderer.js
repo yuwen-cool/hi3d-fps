@@ -55,8 +55,8 @@ export function createRenderer(G, canvas) {
 
   // sun: low dusk sun behind the refinery
   const sunDir = new THREE.Vector3(-0.62, 0.14, -0.77).normalize();
-  const sunCol = new THREE.Color(1.0, 0.60, 0.30);
-  const sun = new THREE.DirectionalLight(sunCol, 9.0);
+  const sunCol = new THREE.Color(1.0, 0.56, 0.24);
+  const sun = new THREE.DirectionalLight(sunCol, 11.0);
   sun.position.copy(sunDir).multiplyScalar(120);
   sun.castShadow = true;
   sun.shadow.mapSize.set(tier.shadow, tier.shadow);
@@ -112,7 +112,7 @@ export function createRenderer(G, canvas) {
     blur: pass(S.BILATERAL, { tSrc: { value: null }, tZ: { value: null }, uDir: { value: new THREE.Vector2() }, uTol: { value: 0.04 } }),
     vol: pass(S.VOLUME, {
       tZ: { value: null }, tShadow: { value: null }, uInvView: { value: new THREE.Matrix4() }, uShadowMat: { value: new THREE.Matrix4() }, uProj: { value: new THREE.Vector4() },
-      uCamPos: { value: new THREE.Vector3() }, uSunDir: { value: sunDir }, uSunCol: { value: sunCol }, uFogCol: { value: new THREE.Color(0.55, 0.45, 0.36) }, uHorizon: { value: new THREE.Color(1.0, 0.6, 0.32) },
+      uCamPos: { value: new THREE.Vector3() }, uSunDir: { value: sunDir }, uSunCol: { value: sunCol }, uFogCol: { value: new THREE.Color(0.50, 0.42, 0.36) }, uHorizon: { value: new THREE.Color(1.0, 0.52, 0.24) },
       uSigma: { value: TUNE.volSigma }, uMaxD: { value: TUNE.volMaxD }, uAmbient: { value: TUNE.volAmbient }, uFarHaze: { value: TUNE.volFarHaze }, uTime: { value: 0 }, uSunScale: { value: TUNE.volSunScale },
       uHeightFall: { value: TUNE.volHeightFall }, uBase: { value: TUNE.volBase }, uSteps: { value: tier.vol },
       uInterior: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uInteriorSize: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uInteriorCount: { value: 0 }, uInteriorDust: { value: TUNE.volInteriorDust },

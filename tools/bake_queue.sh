@@ -19,6 +19,12 @@ Q=(
  "lamp 8000 1024 -- --tex 1024 --norm 1024 --orm 512"
  "mag 10000 2048 -- --tex 2048 --norm 2048 --orm 1024"
  "rifle2 160000 4096 -- --tex 4096 --norm 4096 --orm 2048"
+ "container 30000 2048 -- --tex 2048 --norm 2048 --orm 1024"
+ "pumpjack 40000 2048 -- --tex 2048 --norm 2048 --orm 1024"
+ "generator 30000 2048 -- --tex 2048 --norm 2048 --orm 1024"
+ "spool 24000 2048 -- --tex 2048 --norm 2048 --orm 1024"
+ "sandbags 24000 2048 -- --tex 2048 --norm 2048 --orm 1024"
+ "scaffold 50000 2048 -- --tex 2048 --norm 2048 --orm 1024"
 )
 for round in $(seq 1 120); do
   left=0

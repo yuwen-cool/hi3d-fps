@@ -8,7 +8,7 @@ const W = {
   rpm: 720, dmg: 26, range: 300, mag: 30, reserve: 150,
   hip: new THREE.Vector3(0.17, -0.22, -0.40), hipR: new THREE.Euler(0.14, 0.12, -0.10),
   sprintP: new THREE.Vector3(-0.035, 0.004, 0.03), sprintR: new THREE.Euler(-0.04, 0.62, 0.26),
-  reloadP: new THREE.Vector3(-0.03, 0.10, -0.02), reloadR: new THREE.Euler(0.46, 0.22, -0.80),
+  reloadP: new THREE.Vector3(-0.02, 0.06, 0.0), reloadR: new THREE.Euler(0.28, 0.16, -0.48),
   adsZ: -0.135, tactical: 2.1, empty: 2.72,
 };
 function spring(k, c) { return { x: 0, v: 0, k, c, t: 0 }; }
@@ -69,7 +69,8 @@ export async function createWeapon(G) {
   const gripBottom = rear.reduce((a, p) => (p.y < a.y ? p : a), rear[0]);
   const top = pts2.filter((p) => p.z > b2.min.z + L * 0.3 && p.z < b2.min.z + L * 0.7).reduce((a, p) => (p.y > a.y ? p : a), pts2[0]);
   const gripPt = new THREE.Vector3(0, gripBottom.y + 0.115, gripBottom.z - 0.02);
-  const sightY = top.y - 0.025 - gripPt.y;  // eye line ~2.5cm under the top of the sight housing
+  const sightY = top.y - 0.042 - gripPt.y;  // eye line ~2.5cm under the top of the sight housing
+  const sightZ = top.z - gripPt.z;
   holder.position.sub(gripPt);
   gun.add(holder);
   const muzzleLocal = new THREE.Vector3(0, (b2.min.y + b2.max.y) * 0.5 - gripPt.y + 0.03, b2.min.z - gripPt.z);
@@ -81,8 +82,26 @@ export async function createWeapon(G) {
   for (const [n, side] of [['glove_r', 1], ['glove_l', -1]]) {
     try { const o = await instance(n); gloves[n] = o; gun.add(o); } catch { /* optional */ }
   }
-  if (gloves.glove_r) { const o = gloves.glove_r; o.position.set(0.012, -0.11, 0.045); o.rotation.set(0.1, Math.PI / 2, -0.25); }
-  if (gloves.glove_l) { const o = gloves.glove_l; o.position.set(-0.01, -0.06, muzzleLocal.z * 0.55); o.rotation.set(0.2, -Math.PI / 2, 0.3); }
+  // auto-orient gloves: find cuff->fingertip axis (cuff end = fatter cross-section), then aim it
+  function orientGlove(o, dir, roll, pos) {
+    o.updateMatrixWorld(true); o.position.set(0, 0, 0); o.rotation.set(0, 0, 0); o.updateMatrixWorld(true);
+    const P = []; o.traverse((m) => { if (m.isMesh) { const a = m.geometry.attributes.position; for (let i = 0; i < a.count; i += 5) P.push(new THREE.Vector3().fromBufferAttribute(a, i).applyMatrix4(m.matrixWorld)); } });
+    const bx = new THREE.Box3().setFromPoints(P); const sz = bx.getSize(new THREE.Vector3()); const c = bx.getCenter(new THREE.Vector3());
+    const ax = sz.x >= sz.y && sz.x >= sz.z ? 'x' : sz.y >= sz.z ? 'y' : 'z';
+    const L = sz[ax]; const spread = (lo) => { const sel = P.filter((p) => lo ? p[ax] < bx.min[ax] + L * 0.2 : p[ax] > bx.max[ax] - L * 0.2); const b = new THREE.Box3().setFromPoints(sel).getSize(new THREE.Vector3()); return b.x * b.y * b.z / b[ax]; };
+    const cuffLo = spread(true) > spread(false);
+    const along = new THREE.Vector3(); along[ax] = cuffLo ? 1 : -1;     // cuff -> fingers
+    const inner = new THREE.Group(); while (o.children.length) inner.add(o.children[0]); inner.position.copy(c).negate(); 
+    const mid = new THREE.Group(); mid.add(inner); mid.quaternion.setFromUnitVectors(along, new THREE.Vector3(0, 0, -1));
+    const rollG = new THREE.Group(); rollG.add(mid); rollG.rotation.z = roll;
+    const aimG = new THREE.Group(); aimG.add(rollG); aimG.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), dir.clone().normalize());
+    o.add(aimG); o.position.copy(pos);
+  }
+  const gp = (k, d) => (T[k] ? T[k].split(',').map(Number) : d);
+  const gR = gp('gr', [-0.25, 0.55, -0.6, 1.6, 0.03, -0.07, 0.06]), gL = gp('gl', [0.9, 0.25, -0.3, -1.57, -0.015, -0.05, 0]);
+  if (gloves.glove_r) orientGlove(gloves.glove_r, new THREE.Vector3(gR[0], gR[1], gR[2]), gR[3], new THREE.Vector3(gR[4], gR[5], gR[6]));
+  const lHome = new THREE.Vector3(gL[4], gL[5], muzzleLocal.z * 0.55 + gL[6]);
+  if (gloves.glove_l) orientGlove(gloves.glove_l, new THREE.Vector3(gL[0], gL[1], gL[2]), gL[3], lHome);
   // magazine (rifle2 has an empty magwell)
   let mag = null;
   if (gunName === 'rifle2') { try { mag = await instance('mag'); gun.add(mag); mag.position.set(0, -0.2, -0.13); mag.rotation.set(-0.12, Math.PI / 2, 0); } catch { /* */ } }
@@ -95,6 +114,11 @@ export async function createWeapon(G) {
   const petals2 = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.18), fm); petals2.position.z = -0.03; flash.add(petals2);
   for (const r of [0, Math.PI / 2]) { const j = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.13), fj); j.position.z = -0.17; j.rotation.set(0, Math.PI / 2, r); flash.add(j); }
   flash.traverse((o) => { o.layers.set(1); o.renderOrder = 10; }); flash.visible = false;
+  // reflex reticle: projected dot, only readable down the sight axis
+  const dotMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, toneMapped: false, uniforms: { uA: { value: 0 } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv * 2.0 - 1.0; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'varying vec2 vUv; uniform float uA; void main(){ float r = length(vUv); float d = smoothstep(0.16, 0.0, r) * 3.0 + exp(-r * r * 9.0) * 0.5; gl_FragColor = vec4(vec3(1.0, 0.12, 0.06) * d * uA * 6.0, 1.0); }' });
+  const dot = new THREE.Mesh(new THREE.PlaneGeometry(0.008, 0.008), dotMat); dot.position.set(0, sightY, sightZ + 0.01); dot.layers.set(1); dot.renderOrder = 12; gun.add(dot);
 
   const S = {
     ammo: W.mag, reserve: W.reserve, cool: 0, shots: 0, lastShot: -9, bloom: 0, spread: 0, heat: 0, ads: 0, adsLin: 0, sprint: 0,
@@ -190,8 +214,8 @@ export async function createWeapon(G) {
         mag.position.set(magHome.p.x - out * 0.05, magHome.p.y - out * 0.28, magHome.p.z + out * 0.06); mag.rotation.set(magHome.r.x - out * 0.6, magHome.r.y, magHome.r.z);
         mag.visible = !(t > 0.72 && t < 0.86);
       }
-      if (gloves.glove_l) { const k = THREE.MathUtils.clamp((t - 0.1) / 0.26, 0, 1) * (1 - THREE.MathUtils.clamp((t - 1.55) / 0.3, 0, 1)); gloves.glove_l.position.y = -0.06 - k * 0.12; gloves.glove_l.position.z = muzzleLocal.z * 0.55 + k * 0.18; }
-      if (t >= D) { S.reloading = false; if (mag) { mag.position.copy(magHome.p); mag.rotation.copy(magHome.r); mag.visible = true; } if (gloves.glove_l) { gloves.glove_l.position.y = -0.06; gloves.glove_l.position.z = muzzleLocal.z * 0.55; } }
+      if (gloves.glove_l) { const k = THREE.MathUtils.clamp((t - 0.1) / 0.26, 0, 1) * (1 - THREE.MathUtils.clamp((t - 1.55) / 0.3, 0, 1)); const mp = mag ? mag.position : magHome?.p || new THREE.Vector3(0, -0.2, -0.13); gloves.glove_l.position.lerpVectors(lHome, new THREE.Vector3(mp.x - 0.04, mp.y - 0.06, mp.z + 0.02), k); }
+      if (t >= D) { S.reloading = false; if (mag) { mag.position.copy(magHome.p); mag.rotation.copy(magHome.r); mag.visible = true; } if (gloves.glove_l) gloves.glove_l.position.copy(lHome); }
     }
     // springs
     for (const k of ['kZ', 'kP', 'kY', 'kR', 'swY', 'swP', 'jY', 'jP', 'bump']) stepSpring(S[k], dt);
@@ -222,6 +246,7 @@ export async function createWeapon(G) {
     if (S.flashT > 0) { S.flashT -= dt; const k = Math.sqrt(Math.max(0, S.flashT / S.flashDur)); fm.uniforms.uI.value = fj.uniforms.uI.value = 9.5 * k; flash.visible = S.flashT > 0; }
     else flash.visible = false;
     R.fx.flash = Math.max(0, R.fx.flash - dt * 30);
+    dotMat.uniforms.uA.value = THREE.MathUtils.smoothstep(S.ads, 0.55, 0.95);
     root.visible = !p.dead;
   }
   return { update, S, W, root, gun, fire, startReload, muzzleLocal, vmToWorld, name: gunName, sightY, set hip(v) { W.hip.copy(v); } };

@@ -83,5 +83,35 @@
   "name": "lamp",
   "quality": "high_quality",
   "prompt": "Game environment asset concept: an old industrial wall-mounted caged bulkhead lamp with a curved steel bracket arm, thick glass dome inside a rusted wire cage, scratched dark green enamel paint, side view."
+ },
+ {
+  "name": "container",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: a 20-foot steel shipping container, heavily rusted and dented, faded orange-red paint peeling, one door half open, corrugated walls, sand piled against the base. Abandoned desert oil refinery."
+ },
+ {
+  "name": "pumpjack",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: an oil field pumpjack (nodding donkey) with its walking beam, horse head, counterweights and A-frame on a concrete base, rusted steel with faded yellow paint, desert dust. Side three-quarter view."
+ },
+ {
+  "name": "generator",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: a large industrial diesel generator unit on skids, boxy steel housing with louvers, exhaust pipe on top, rusty faded green paint, cables, warning labels without text, sand dust."
+ },
+ {
+  "name": "spool",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: a large wooden cable spool (cable drum) lying on its side next to a stack of rusty steel pipes, weathered wood, sand dust."
+ },
+ {
+  "name": "sandbags",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: a curved military sandbag wall fortification about 3 m long and 1.1 m high, stacked burlap sandbags in tan and khaki, slightly torn, sand spilling, desert."
+ },
+ {
+  "name": "scaffold",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: a tall rusted steel lattice flare stack / pipe tower about 14 m high with ladders and a small platform near the top, abandoned desert oil refinery, rust, faded paint."
  }
 ]
