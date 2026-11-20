@@ -14,13 +14,18 @@ export function createExplosives(G) {
   function boom(o) {
     const ex = o.userData.explosive; ex.dead = true;
     const p = o.position.clone().setY(0.7);
-    G.fxs?.explosion(p, 1.3);
-    for (const e of G.enemies?.list || []) { if (!e.alive) continue; const d = e.root.position.distanceTo(p); if (d < 6) G.enemies.damage(e, 160 * (1 - d / 6) + 20, { part: 'body', point: e.root.position.clone().setY(1) }, e.root.position.clone().sub(p).normalize()); }
-    const pd = G.player.s.pos.distanceTo(p); if (pd < 5.5) G.player.damage(Math.round(55 * (1 - pd / 5.5)), p);
-    G.player.addShake(THREE.MathUtils.clamp(1 - pd / 24, 0, 1) * 0.75);
+    blast(p, 1.3, 6, 160);
     // wreck: flatten + char
     o.scale.y *= 0.45; o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.color?.multiplyScalar(0.25); m.material.roughness = 1; } });
     if (ex.box) { ex.box.max.y = ex.box.min.y + 0.5; }
+  }
+  // shared area effect for drums, grenades, tanks: fireball + falloff damage to robots and player + shake
+  function blast(p, size, r, dmg) {
+    G.fxs?.explosion(p, size);
+    for (const e of G.enemies?.list || []) { if (!e.alive) continue; const d = e.root.position.distanceTo(p); if (d < r) G.enemies.damage(e, dmg * (1 - d / r) + 20, { part: 'body', point: e.root.position.clone().setY(1) }, e.root.position.clone().sub(p).normalize()); }
+    G.events.emit('blast', { pos: p.clone(), r, dmg });
+    const pd = G.player.s.pos.distanceTo(p); if (pd < r * 0.9 && !G.god) G.player.damage(Math.round(dmg * 0.34 * (1 - pd / (r * 0.9))), p);
+    G.player.addShake(THREE.MathUtils.clamp(1 - pd / (r * 4), 0, 1) * 0.9);
   }
   function update(dt) {
     for (let i = burning.length - 1; i >= 0; i--) {
@@ -30,5 +35,5 @@ export function createExplosives(G) {
       if (ex.fuse <= 0) { burning.splice(i, 1); boom(o); }
     }
   }
-  return { update, hurt };
+  return { update, hurt, blast };
 }

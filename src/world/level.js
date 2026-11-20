@@ -155,7 +155,7 @@ export async function buildLevel(G) {
   // practical lights for the workshop lamps: warm, unshadowed, with a hot bulb so bloom picks them up
   const bulbM = new THREE.MeshBasicMaterial({ color: new THREE.Color(9, 5.2, 2.4), toneMapped: false });
   for (const z of [-3.5, -9.5, -15.5, -21.5]) {
-    const l = new THREE.PointLight(new THREE.Color(1.0, 0.6, 0.3), 9, 8.5, 2); l.position.set(C.maxX - 0.75, 3.05, z); root.add(l);
+    const l = new THREE.PointLight(new THREE.Color(1.0, 0.6, 0.3), 9, 8.5, 2); l.position.set(C.maxX - 0.75, 3.05, z); root.add(l); R.volLights.push(l);
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), bulbM); b.position.set(C.maxX - 0.48, 3.12, z); root.add(b);
   }
   G.level = { root, cover: [], layout: LAYOUT, explosives };

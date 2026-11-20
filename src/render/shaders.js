@@ -94,7 +94,24 @@ uniform vec3 uCamPos, uSunDir, uSunCol, uFogCol, uHorizon;
 uniform float uSigma, uMaxD, uAmbient, uFarHaze, uTime, uSunScale, uHeightFall, uBase;
 uniform int uSteps;
 uniform vec4 uInterior[4]; uniform vec4 uInteriorSize[4]; uniform int uInteriorCount; uniform float uInteriorDust;
+// local lights scattering in the dust (fires, explosions, muzzle flashes, lightning): pos.xyz + range, colour*intensity
+uniform vec4 uPL[6]; uniform vec3 uPLc[6]; uniform int uPLn;
+// sandstorm: xz = direction toward the storm, z = front position along it, w = density boost inside
+uniform vec4 uStorm; uniform vec2 uWind;
 out vec4 o;
+float h31(vec3 p){ p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
+float vn3(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(h31(i), h31(i + vec3(1,0,0)), f.x), mix(h31(i + vec3(0,1,0)), h31(i + vec3(1,1,0)), f.x), f.y),
+             mix(mix(h31(i + vec3(0,0,1)), h31(i + vec3(1,0,1)), f.x), mix(h31(i + vec3(0,1,1)), h31(i + vec3(1,1,1)), f.x), f.y), f.z); }
+float storm(vec3 p){
+  if (uStorm.w <= 0.0) return 1.0;
+  float u = dot(p.xz, uStorm.xy) - uStorm.z;
+  float inside = smoothstep(-14.0, 14.0, u + (vn3(vec3(p.xz * 0.02, uTime * 0.05)) - 0.5) * 30.0);
+  if (inside <= 0.001) return 1.0;
+  vec3 q = p * 0.07 + vec3(uWind.x, -0.2, uWind.y) * uTime * 0.35;
+  float n = vn3(q) * 0.6 + vn3(q * 2.3) * 0.4;
+  return 1.0 + uStorm.w * inside * (0.35 + 1.3 * n) * (0.55 + 0.45 * exp(-max(p.y, 0.0) / 40.0));
+}
 float hg(float mu, float g){ float g2 = g * g; return (1.0 - g2) / (12.566 * pow(max(1.0 + g2 - 2.0 * g * mu, 1e-4), 1.5)); }
 float shape(float h){ return uBase + (1.0 - uBase) * exp(-max(h, 0.0) / uHeightFall); }
 float interior(vec3 p){
@@ -123,7 +140,7 @@ void main(){
     float t = maxD * f * (0.35 + 0.65 * f);
     float dt = t - prevT; prevT = t;
     vec3 p = uCamPos + wdir * t;
-    float s = uSigma * shape(p.y) * (1.0 + uInteriorDust * interior(p));
+    float s = uSigma * shape(p.y) * (1.0 + uInteriorDust * interior(p)) * storm(p);
     vec4 sc = uShadowMat * vec4(p, 1.0);
     float sh = 1.0;
     if (sc.x > 0.0 && sc.x < 1.0 && sc.y > 0.0 && sc.y < 1.0 && sc.z < 1.0) {
@@ -135,6 +152,8 @@ void main(){
     }
     float nearW = mix(2.3, 0.55, smoothstep(4.0, 85.0, t));
     vec3 L = uSunCol * uSunScale * sh * ph * 12.566 * nearW + uAmbient * uFogCol * (0.4 + 0.6 * sh);
+    for (int k = 0; k < 6; k++) { if (k >= uPLn) break; vec3 dl = p - uPL[k].xyz; float d2 = dot(dl, dl);
+      L += uPLc[k] * (1.0 / (1.0 + d2)) * smoothstep(uPL[k].w * uPL[k].w, 0.0, d2); }
     float a = exp(-s * dt);
     ins += T * L * (1.0 - a);
     T *= a;

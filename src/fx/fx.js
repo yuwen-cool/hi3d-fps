@@ -147,13 +147,22 @@ export function createFX(G) {
     emit(add, { pos: mid, vel: d.clone().multiplyScalar(10.01), life: enemy ? 0.22 : 0.12, size: enemy ? 0.009 : 0.006, stretch: len * 0.5, col: enemy ? [1.2, 2.2, 5] : [2, 1.2, 0.6], drag: 0 });
   }
   function muzzleSmoke(p, heat) { emit(alpha, { pos: p, vel: V((rnd() - 0.5) * 0.3, 0.6, (rnd() - 0.5) * 0.3), life: 1.3, size: 0.1 + heat * 0.06, size1: 0.5, col: litColor([0.5, 0.48, 0.46]), alpha: 0.22, soft: true, drag: 1.2, rise: 0.3 }); }
+  // explosion in layers: white flash -> fireball that rolls up and darkens -> ground shock ring of dust ->
+  // embers and smoking debris -> a smoke column that hangs for seconds -> scorch. Fires are lit by fire.js.
   function explosion(p, size = 1) {
-    R.flash(p, 0xffe0b0, 320 * size, 10 + 9 * size, 0.08); R.flash(p, 0xff8a30, 55 * size, 8 + 6 * size, 0.45);
-    for (let i = 0; i < 13 + 5 * size; i++) emit(add, { pos: p.clone().add(V(rnd() - 0.5, rnd() * 0.6, rnd() - 0.5).multiplyScalar(size)), vel: cone(V(0, 1, 0), 2).multiplyScalar(2 + rnd() * 5 * size), life: 0.35 + rnd() * 0.4, size: 0.4 * size, size1: 1.4 * size, col: [14, 6, 1.5], drag: 4, soft: true });
-    for (let i = 0; i < Math.min(90, 34 * size); i++) emit(add, { pos: p, vel: cone(V(0, 1, 0), 2.2).multiplyScalar(6 + rnd() * 20), life: 0.4 + rnd() * 0.9, size: 0.02, stretch: 0.12, col: [16, 7, 2], grav: 9.8, drag: 0.8 });
-    for (let i = 0; i < 11 + 5 * size; i++) emit(alpha, { pos: p.clone().add(V(rnd() - 0.5, rnd(), rnd() - 0.5).multiplyScalar(size)), vel: cone(V(0, 1, 0), 1.6).multiplyScalar(1 + rnd() * 3), life: 2.5 + rnd() * 2, size: 0.6 * size, size1: 3.2 * size, col: litColor([0.14, 0.12, 0.11]), alpha: 0.75, drag: 1.4, soft: true, rise: 0.6, spin: 0.6 });
-    for (let i = 0; i < 10 * size; i++) chunk(p, cone(V(0, 1, 0), 2).multiplyScalar(4 + rnd() * 8), 0.03 + rnd() * 0.06, 0x2a2622, 4);
-    decal(V(p.x, 0.01, p.z), V(0, 1, 0), 2.3 * size);
+    R.flash(p, 0xfff0d0, 420 * size, 12 + 10 * size, 0.07); R.flash(p, 0xff8a30, 70 * size, 9 + 7 * size, 0.6);
+    emit(add, { pos: p, life: 0.1, size: 2.6 * size, size1: 3.6 * size, col: [30, 26, 20], soft: true });
+    for (let i = 0; i < 22 + 10 * size; i++) { const hot = rnd() < 0.35;
+      emit(add, { pos: p.clone().add(V(rnd() - 0.5, rnd() * 0.7, rnd() - 0.5).multiplyScalar(size)), vel: cone(V(0, 1, 0), 2.2).multiplyScalar(1.5 + rnd() * 6 * size), life: 0.45 + rnd() * 0.7, size: 0.45 * size, size1: (1.6 + rnd()) * size, col: hot ? [24, 13, 4] : [13, 4.2, 0.9], drag: 3.5, rise: 2, soft: true, spin: 1 }); }
+    // fireball turning into rolling black smoke
+    for (let i = 0; i < 10 + 4 * size; i++) emit(alpha, { pos: p.clone().add(V(rnd() - 0.5, 0.3 + rnd() * 0.8, rnd() - 0.5).multiplyScalar(size)), vel: cone(V(0, 1, 0), 1.2).multiplyScalar(2 + rnd() * 3 * size), life: 2 + rnd() * 1.5, size: 0.8 * size, size1: 3 * size, col: litColor([0.06, 0.05, 0.045]), alpha: 0.85, drag: 1.6, soft: true, rise: 1.2, spin: 0.8, fadeIn: 0.12 });
+    // shock ring: dust thrown out flat along the ground
+    for (let i = 0; i < 36; i++) { const a = (i / 36) * 6.283 + rnd() * 0.1; emit(alpha, { pos: V(p.x + Math.cos(a) * 0.4 * size, 0.15, p.z + Math.sin(a) * 0.4 * size), vel: V(Math.cos(a), 0.06, Math.sin(a)).multiplyScalar((9 + rnd() * 4) * size), life: 0.9 + rnd() * 0.5, size: 0.25 * size, size1: 1.5 * size, col: litColor([0.55, 0.44, 0.33]), alpha: 0.5, drag: 3.2, soft: true }); }
+    for (let i = 0; i < Math.min(110, 46 * size); i++) emit(add, { pos: p, vel: cone(V(0, 1, 0), 2.2).multiplyScalar(6 + rnd() * 22), life: 0.5 + rnd() * 1.4, size: 0.022, stretch: 0.14, col: [18, 7, 2], grav: 9.8, drag: 0.7 });
+    for (let i = 0; i < 12 * size; i++) chunk(p, cone(V(0, 1, 0), 2).multiplyScalar(4 + rnd() * 9), 0.03 + rnd() * 0.08, 0x221e1b, 5);
+    // hanging smoke column
+    for (let i = 0; i < 8 + 4 * size; i++) emit(alpha, { pos: V(p.x + (rnd() - 0.5) * size, p.y + 0.5 + rnd() * 2 * size, p.z + (rnd() - 0.5) * size), vel: V(0.3 + (rnd() - 0.5) * 0.4, 0.7 + rnd() * 0.8, 0.15 + (rnd() - 0.5) * 0.4), life: 7 + rnd() * 5, size: 1.2 * size, size1: 5 * size, col: litColor([0.08, 0.07, 0.065]), alpha: 0.55, drag: 0.3, soft: true, rise: 0.2, spin: 0.25, fadeIn: 0.15 });
+    decal(V(p.x, 0.01, p.z), V(0, 1, 0), 2.6 * size);
     G.events.emit('explosion', { pos: p.clone(), size });
   }
   function electric(p) { // robot death: blue-white arcs + sparks

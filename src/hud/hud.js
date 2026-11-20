@@ -11,7 +11,7 @@ const CSS = `
 #hud .hm.weak i{background:#ffd27a}#hud .hm.kill i{background:#ff5a3c}
 #hud .ammo{position:absolute;right:56px;bottom:46px;text-align:right}
 #hud .ammo b{font-size:46px;font-weight:600;letter-spacing:-1px}#hud .ammo span{font-size:18px;opacity:.7;margin-left:6px}
-#hud .ammo .lbl{font-size:11px;letter-spacing:.28em;opacity:.65}
+#hud .ammo .lbl{font-size:11px;letter-spacing:.28em;opacity:.65}#hud .ammo .gl{font-size:11px;margin:0;opacity:1;color:#ffcf9a}
 #hud .ammo .low{color:#ffb27a;font-size:11px;letter-spacing:.2em;opacity:0;transition:opacity .2s}
 #hud .hp{position:absolute;left:56px;bottom:52px;width:240px}
 #hud .hp .bar{height:4px;background:rgba(255,255,255,.18);margin-top:6px}#hud .hp .fill{height:100%;background:#f1ebe0;width:100%;transition:width .12s}
@@ -40,12 +40,12 @@ export function createHUD(G) {
   <div class="credit">SANDLINE · ASSETS GENERATED WITH HI3D</div>
   <div class="obj"></div>
   <div class="hp"><div class="lbl">INTEGRITY</div><div class="bar"><div class="fill"></div></div></div>
-  <div class="ammo"><div class="low">LOW AMMO</div><b>30</b><span>/ 150</span><div class="lbl">KR-9 CARBINE</div></div>
+  <div class="ammo"><div class="low">LOW AMMO</div><b>30</b><span>/ 150</span><div class="lbl">KR-9 CARBINE · <span class="gl">GL 3</span></div></div>
   <div class="feed"></div><div class="ban"></div>
   ${G.params.shot ? '' : `<div class="title"><p>HI3D · BROWSER FPS DEMO</p><h1>SANDLINE</h1><p>ABANDONED REFINERY · DUSK</p><div class="go">CLICK TO DEPLOY</div><div class="keys">WASD MOVE · SHIFT SPRINT · SPACE JUMP · C CROUCH · RMB AIM · LMB FIRE · R RELOAD</div></div>`}`;
   const q = (s) => el.querySelector(s);
   const xh = q('.xh'), arms = { t: q('.xh .t'), b: q('.xh .b'), l: q('.xh .l'), r: q('.xh .r') }, hm = q('.hm'), dmgI = q('.dmg i');
-  const ammoB = q('.ammo b'), ammoS = q('.ammo span'), low = q('.ammo .low'), hpF = q('.hp .fill'), feed = q('.feed'), ban = q('.ban'), title = q('.title'), obj = q('.obj');
+  const ammoB = q('.ammo b'), glS = q('.ammo .gl'), ammoS = q('.ammo span'), low = q('.ammo .low'), hpF = q('.hp .fill'), feed = q('.feed'), ban = q('.ban'), title = q('.title'), obj = q('.obj');
   let hmT = 0, hmDur = 0.24, banT = 0;
   G.events.on('enemy:hit', (e) => { hmT = hmDur = 0.24; hm.className = 'hm' + (e.weak ? ' weak' : ''); });
   G.events.on('enemy:killed', (e) => {
@@ -69,7 +69,7 @@ export function createHUD(G) {
     arms.t.style.top = `${-gap - 9}px`; arms.b.style.top = `${gap}px`; arms.l.style.left = `${-gap - 9}px`; arms.r.style.left = `${gap}px`;
     xh.style.opacity = W.S.ads > 0.6 || p.dead ? 0 : 1;
     if (hmT > 0) { hmT -= dt; const k = 1 - hmT / hmDur; const s = (hm.className.includes('kill') || hm.className.includes('weak') ? 1.5 : 1.15); hm.style.opacity = k < 0.35 ? 1 : 1 - (k - 0.35) / 0.65; hm.style.transform = `scale(${k < 0.35 ? s - (s - 1) * k / 0.35 : 1})`; } else hm.style.opacity = 0;
-    ammoB.textContent = W.S.ammo; ammoS.textContent = `/ ${W.S.reserve}`; low.style.opacity = W.S.ammo <= Math.ceil(W.W.mag * 0.27) ? 1 : 0;
+    ammoB.textContent = W.S.ammo; glS.textContent = `GL ${W.S.gl}  [G]`; ammoS.textContent = `/ ${W.S.reserve}`; low.style.opacity = W.S.ammo <= Math.ceil(W.W.mag * 0.27) ? 1 : 0;
     hpF.style.width = `${Math.max(0, p.hp / p.maxHp * 100)}%`;
     if (banT > 0) { banT -= dt; if (banT <= 0) ban.style.opacity = 0; }
     const F = G.flow?.S; if (F) obj.textContent = F.state === 'play' ? `WAVE ${Math.max(1, F.wave + 1)} · HOSTILES ${G.enemies?.alive ?? 0}` : F.state === 'extract' ? 'REACH EXTRACTION ◂ WEST GATE' : '';

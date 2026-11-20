@@ -193,6 +193,34 @@ export async function createWeapon(G) {
     G.events.emit('noise', { pos: _o.clone(), r: 45 });
   }
 
+  // under-barrel grenade launcher: lobbed 40 mm round, explodes on contact with world or robot
+  const nades = [], nadeGeo = new THREE.CylinderGeometry(0.022, 0.022, 0.07, 10); nadeGeo.rotateX(Math.PI / 2);
+  const nadeMat = new THREE.MeshStandardMaterial({ color: 0x3a3b2e, roughness: 0.5, metalness: 0.6 });
+  S.gl = 3;
+  function launch() {
+    if (S.gl <= 0 || S.reloading) { G.events.emit('weapon:dry'); return; }
+    S.gl--; cam.updateMatrixWorld(true); vmToWorld(muzzleLocal, _m); cam.getWorldDirection(_d);
+    const m = new THREE.Mesh(nadeGeo, nadeMat); m.position.copy(_m); R.scene.add(m);
+    nades.push({ m, v: _d.clone().multiplyScalar(30).add(new THREE.Vector3(0, 2.5, 0)).add(G.player.s.vel), age: 0 });
+    S.kZ.v += 3.2; S.kP.v += 3.5; G.player.recoil(0.03, (Math.random() - 0.5) * 0.01); G.player.addShake(0.3);
+    R.flash(_m, 0xffb060, 30, 6, 0.06); for (let i = 0; i < 6; i++) G.fxs?.emit(true, { pos: _m, vel: _d.clone().multiplyScalar(2 + Math.random() * 2), life: 1.2, size: 0.08, size1: 0.6, col: G.fxs.litColor([0.5, 0.48, 0.46]), alpha: 0.4, soft: true, drag: 2.5, rise: 0.3 });
+    G.events.emit('gl:fire', { pos: _m.clone() });
+  }
+  const _n0 = new THREE.Vector3(), _nd = new THREE.Vector3();
+  function updNades(dt) {
+    for (let i = nades.length - 1; i >= 0; i--) {
+      const n = nades[i]; n.age += dt; _n0.copy(n.m.position);
+      n.v.y -= 9.8 * dt; n.m.position.addScaledVector(n.v, dt); n.m.lookAt(_n0.clone().addScaledVector(n.v, -1)); n.m.rotateY(Math.PI);
+      G.fxs?.emit(false, { pos: n.m.position, life: 0.12, size: 0.05, size1: 0.01, col: [10, 5, 1.6] });
+      if (Math.random() < 0.6) G.fxs?.emit(true, { pos: n.m.position, vel: new THREE.Vector3(0, 0.3, 0), life: 0.9, size: 0.05, size1: 0.3, col: G.fxs.litColor([0.55, 0.53, 0.5]), alpha: 0.35, soft: true, drag: 1 });
+      const seg = n.m.position.distanceTo(_n0); _nd.copy(n.m.position).sub(_n0).normalize();
+      const hw = G.phys.raycast(_n0, _nd, seg + 0.05), he = G.enemies?.hitTest?.(_n0, _nd, seg + 0.3);
+      if (hw || he || n.age > 6 || n.m.position.y < 0.02) {
+        const p = he ? he.point : hw ? hw.point.clone().addScaledVector(hw.normal, 0.15) : n.m.position.clone().setY(Math.max(0.15, n.m.position.y));
+        R.scene.remove(n.m); nades.splice(i, 1); G.explosives?.blast(p, 1.15, 5.5, 190);
+      }
+    }
+  }
   function startReload() {
     if (S.reloading || S.ammo >= W.mag || S.reserve <= 0) return;
     S.reloading = true; S.reloadT = 0; S.reloadEmpty = S.ammo === 0; S.reloadDur = S.reloadEmpty ? W.empty : W.tactical; S.rEv = 0;
@@ -209,6 +237,8 @@ export async function createWeapon(G) {
     S.sprint += ((p.sprinting ? 1 : 0) - S.sprint) * Math.min(1, dt * 10);
     // fire
     S.cool -= dt;
+    updNades(dt);
+    if (live && (I.pressed('gl') || G.auto?.gl) && S.sprint < 0.3) { if (G.auto) G.auto.gl = false; launch(); }
     const trigger = live && (I.st.fire || G.auto?.fire);
     if (trigger && !S.reloading && S.sprint < 0.3) {
       if (S.ammo <= 0) { if (I.st.pressedFire) { G.events.emit('weapon:dry'); S.bump.v -= 0.08; } if (!S.dryT) S.dryT = 0.32; }
@@ -269,5 +299,5 @@ export async function createWeapon(G) {
     dotMat.uniforms.uA.value = THREE.MathUtils.smoothstep(S.ads, 0.55, 0.95);
     root.visible = !p.dead;
   }
-  return { update, S, W, root, gun, fire, startReload, muzzleLocal, vmToWorld, name: gunName, sightY, set hip(v) { W.hip.copy(v); } };
+  return { update, S, W, root, gun, fire, launch, startReload, muzzleLocal, vmToWorld, name: gunName, sightY, set hip(v) { W.hip.copy(v); } };
 }

@@ -7,7 +7,7 @@ export const MOVE = { walk: 3.8, sprint: 6.4, crouch: 1.9, ads: 2.4, accel: 34, 
 export function createInput(canvas) {
   const keys = new Set(), pressed = new Set();
   const st = { dx: 0, dy: 0, fire: false, ads: false, locked: false, pressedFire: false };
-  const map = { KeyW: 'fwd', KeyS: 'back', KeyA: 'left', KeyD: 'right', ShiftLeft: 'sprint', ShiftRight: 'sprint', Space: 'jump', ControlLeft: 'crouch', KeyC: 'crouch', KeyR: 'reload', KeyF: 'inspect', Escape: 'esc' };
+  const map = { KeyW: 'fwd', KeyS: 'back', KeyA: 'left', KeyD: 'right', ShiftLeft: 'sprint', ShiftRight: 'sprint', Space: 'jump', ControlLeft: 'crouch', KeyC: 'crouch', KeyR: 'reload', KeyF: 'inspect', KeyG: 'gl', KeyQ: 'gl', Escape: 'esc' };
   const clear = () => { keys.clear(); st.fire = st.ads = false; };
   addEventListener('keydown', (e) => { const a = map[e.code]; if (!a) return; if (!keys.has(a)) pressed.add(a); keys.add(a); if (a !== 'esc') e.preventDefault(); });
   addEventListener('keyup', (e) => { const a = map[e.code]; if (a) keys.delete(a); });

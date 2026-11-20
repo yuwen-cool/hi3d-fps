@@ -98,7 +98,8 @@ export function createRenderer(G, canvas) {
   // point light pool (fixed count: no shader recompiles)
   const lights = [];
   for (let i = 0; i < 6; i++) { const l = new THREE.PointLight(0xffffff, 0, 12, 2); l.castShadow = false; l.layers.enable(1); scene.add(l); lights.push({ l, ttl: 0, life: 1, i0: 0 }); }
-  let nextLight = 0;
+  let nextLight = 0; const _pls = [];
+  const volLights = lights.map((s) => s.l); // registry of point lights that also scatter in the volume (pool + fires + lamps)
   function flash(pos, color, intensity, dist, ttl) {
     const s = lights[nextLight]; nextLight = (nextLight + 1) % lights.length;
     s.l.position.copy(pos); s.l.color.set(color); s.l.distance = dist; s.i0 = intensity; s.l.intensity = intensity; s.ttl = ttl; s.life = ttl;
@@ -123,7 +124,7 @@ export function createRenderer(G, canvas) {
       tZ: { value: null }, tShadow: { value: null }, uInvView: { value: new THREE.Matrix4() }, uShadowMat: { value: new THREE.Matrix4() }, uProj: { value: new THREE.Vector4() },
       uCamPos: { value: new THREE.Vector3() }, uSunDir: { value: sunDir }, uSunCol: { value: sunCol }, uFogCol: { value: new THREE.Color(0.50, 0.42, 0.36) }, uHorizon: { value: new THREE.Color(1.0, 0.52, 0.24) },
       uSigma: { value: TUNE.volSigma }, uMaxD: { value: TUNE.volMaxD }, uAmbient: { value: TUNE.volAmbient }, uFarHaze: { value: TUNE.volFarHaze }, uTime: { value: 0 }, uSunScale: { value: TUNE.volSunScale },
-      uHeightFall: { value: TUNE.volHeightFall }, uBase: { value: TUNE.volBase }, uSteps: { value: tier.vol },
+      uHeightFall: { value: TUNE.volHeightFall }, uBase: { value: TUNE.volBase }, uSteps: { value: tier.vol }, uPL: { value: [0, 1, 2, 3, 4, 5].map(() => new THREE.Vector4()) }, uPLc: { value: [0, 1, 2, 3, 4, 5].map(() => new THREE.Vector3()) }, uPLn: { value: 0 }, uStorm: { value: new THREE.Vector4(0, 0, 1e5, 0) }, uWind: { value: new THREE.Vector2(0.62, 0.77) },
       uInterior: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uInteriorSize: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uInteriorCount: { value: 0 }, uInteriorDust: { value: TUNE.volInteriorDust },
     }),
     comp: pass(S.COMPOSITE, { tColor: { value: null }, tDepth: { value: null }, tZ: { value: null }, tAO: { value: null }, tVol: { value: null }, uHalfRes: { value: new THREE.Vector2() }, uAOStrength: { value: TUNE.aoStrength }, uExposureHint: { value: 1 }, uUseAO: { value: 1 }, uUseVol: { value: 1 }, uUseSSR: { value: 1 }, uProjV: { value: new THREE.Vector4() }, uCamMat: { value: new THREE.Matrix4() }, uViewUp: { value: new THREE.Vector3() }, uPads: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(1e5, 1e5, 1e5, 1e5)) }, uCorr: { value: new THREE.Vector4(1e5, 1e5, 1e5, 1e5) }, uTime: { value: 0 } }),
@@ -263,6 +264,11 @@ export function createRenderer(G, canvas) {
       u.tZ.value = T.z.texture; u.tShadow.value = sun.shadow.map.depthTexture; u.uInvView.value.copy(camera.matrixWorld);
       u.uShadowMat.value.copy(sun.shadow.matrix); u.uProj.value.copy(projV); u.uCamPos.value.setFromMatrixPosition(camera.matrixWorld);
       u.uTime.value = time; u.uNear.value = camera.near; u.uFar.value = camera.far;
+      // the six strongest local lights near the camera also scatter in the volume
+      _pls.length = 0; for (const o of volLights) if (o.intensity > 0.05 && o.visible) _pls.push(o);
+      _pls.sort((a, b) => b.intensity / (1 + a.position.distanceToSquared(camera.position) * 0.01) - a.intensity / (1 + b.position.distanceToSquared(camera.position) * 0.01) || 0);
+      u.uPLn.value = Math.min(6, _pls.length);
+      for (let i = 0; i < u.uPLn.value; i++) { const l = _pls[i]; u.uPL.value[i].set(l.position.x, l.position.y, l.position.z, l.distance || 12); u.uPLc.value[i].set(l.color.r, l.color.g, l.color.b).multiplyScalar(l.intensity * TUNE.volLocal); }
       run(M.vol, T.volA);
       M.blur.uniforms.uTol.value = 0.30;
       M.blur.uniforms.tSrc.value = T.volA.texture; M.blur.uniforms.uDir.value.set(1 / hw, 0); run(M.blur, T.volB);
@@ -306,7 +312,7 @@ export function createRenderer(G, canvas) {
   // wet zones are set by the level once it exists (pads + interior slab)
   const setWet = (pads, corr) => { pads.forEach((p, i) => M.comp.uniforms.uPads.value[i].copy(p)); M.comp.uniforms.uCorr.value.copy(corr); };
   return {
-    setWet,
+    setWet, volLights, hemi,
     renderer, scene, camera, viewCam, sun, sky, pmrem, flash, frame, resize, fitShadow, rebuildEnv, setInteriors, fx, post, tier, M, gl,
     get res() { return T ? [T.scene.width, T.scene.height] : [0, 0]; }, get scale() { return dynScale; },
     readExposure() { const b = new Uint16Array(4); renderer.readRenderTargetPixels(T.expA, 0, 0, 1, 1, b); return THREE.DataUtils.fromHalfFloat(b[0]); },
