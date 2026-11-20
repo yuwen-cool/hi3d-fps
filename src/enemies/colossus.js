@@ -42,16 +42,19 @@ export async function createColossus(G) {
   const coreLocal = [V(-1.26, 1.54, -2.24), V(1.26, 1.54, -2.24)];
   const cores = coreLocal.map((p) => { const l = new THREE.PointLight(0xff7a20, 0, 9, 2); root.add(l); R.volLights.push(l); return { local: p, hp: CFG.coreHp, alive: true, light: l, w: V(0, 0, 0) }; });
   // beam: an additive cylinder from the muzzle to the hit point
-  const beamMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, uniforms: { uI: { value: 0 }, uT: { value: 0 } },
+  // beam = white-hot core + wide orange sheath, both view-facing (bright on the centre line, soft at the edge),
+  // flickering in time rather than striped along the length; the far end tapers into the impact
+  const beamShader = (core) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, uniforms: { uI: { value: 0 }, uT: { value: 0 } },
     vertexShader: 'varying vec2 vUv; varying vec3 vN, vV; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
     fragmentShader: `varying vec2 vUv; varying vec3 vN, vV; uniform float uI, uT;
-      float h(float n){ return fract(sin(n) * 43758.5453); }
-      void main(){ float f = abs(dot(normalize(vN), normalize(vV)));          // 1 at the beam's centre line as seen, 0 at its silhouette
-        float n = 0.75 + 0.25 * sin(vUv.y * 140.0 - uT * 90.0) * sin(vUv.y * 37.0 + uT * 23.0) + 0.15 * (h(floor(vUv.y * 300.0) + floor(uT * 30.0)) - 0.5);
-        vec3 c = vec3(1.0, 0.45, 0.15) * pow(f, 2.0) * 2.2 * n + vec3(1.0, 0.92, 0.8) * pow(f, 14.0) * 6.0;
-        gl_FragColor = vec4(c * uI, 1.0); }` });
-  const beamGeo = new THREE.CylinderGeometry(0.32, 0.32, 1, 16, 1, true); beamGeo.translate(0, 0.5, 0); beamGeo.rotateX(Math.PI / 2);
-  const beam = new THREE.Mesh(beamGeo, beamMat); beam.frustumCulled = false; beam.visible = false; scene.add(beam);
+      void main(){ float f = abs(dot(normalize(vN), normalize(vV)));
+        float fl = 0.85 + 0.15 * sin(uT * 47.0) * sin(uT * 31.0 + vUv.y * 6.0);
+        float taper = smoothstep(0.0, 0.04, vUv.y) * (0.6 + 0.4 * smoothstep(1.0, 0.85, vUv.y));
+        vec3 c = ${core ? 'vec3(1.0, 0.95, 0.85) * pow(f, 6.0) * 9.0' : 'vec3(1.0, 0.42, 0.12) * pow(f, 2.5) * 1.2'};
+        gl_FragColor = vec4(c * fl * taper * uI, 1.0); }` });
+  const beamMat = beamShader(true), glowMat = beamShader(false);
+  const mkBeam = (r, mat) => { const g = new THREE.CylinderGeometry(r, r, 1, 18, 1, true); g.translate(0, 0.5, 0); g.rotateX(Math.PI / 2); const m = new THREE.Mesh(g, mat); m.frustumCulled = false; return m; };
+  const beam = new THREE.Group(); beam.add(mkBeam(0.13, beamMat), mkBeam(0.75, glowMat)); beam.visible = false; scene.add(beam);
   const muzzleLight = new THREE.PointLight(0xff8a30, 0, 16, 2); scene.add(muzzleLight); R.volLights.push(muzzleLight);
 
   const S = { active: false, dead: false, pos: V(0, 0, 0), yaw: 0, vel: V(0, 0, 0), phase: 'idle', t: 0, path: [], wp: 0, gait: 0, bob: 0, lean: 0, limp: 0, beamFrom: V(0, 0, 0), beamTo: V(0, 0, 0), sweepA: V(0, 0, 0), sweepB: V(0, 0, 0), deathT: 0, hp: 1 };
@@ -125,9 +128,9 @@ export async function createColossus(G) {
     } else if (S.phase === 'fire') {
       const k = Math.min(1, S.t / 1.8); const aim = S.sweepA.clone().lerp(S.sweepB, k * k * (3 - 2 * k));
       const d = aim.clone().sub(m).normalize(); const h = G.phys.raycast(m, d, 120); const end = h ? h.point : m.clone().addScaledVector(d, 120);
-      beam.visible = true; beam.position.copy(m); beam.lookAt(end); beam.scale.set(1, 1, m.distanceTo(end)); beamMat.uniforms.uI.value = 1.6 * Math.min(1, S.t * 8) * Math.min(1, (1.8 - S.t) * 6 + 0.2); beamMat.uniforms.uT.value = G.time;
+      beam.visible = true; beam.position.copy(m); beam.lookAt(end); beam.scale.set(1, 1, m.distanceTo(end)); const bi = 1.6 * Math.min(1, S.t * 8) * Math.min(1, (1.8 - S.t) * 6 + 0.2); for (const mm of [beamMat, glowMat]) { mm.uniforms.uI.value = bi; mm.uniforms.uT.value = G.time; }
       muzzleLight.position.copy(end).addScaledVector(d, -0.5); muzzleLight.intensity = 90;
-      R.flash(end, 0xff9040, 30, 8, 0.05);
+      R.flash(end, 0xff9040, 30, 8, 0.05); G.fxs?.emit(false, { pos: end, life: 0.06, size: 1.4, size1: 0.6, col: [16, 9, 4], soft: true });
       for (let i = 0; i < 3; i++) G.fxs?.emit(false, { pos: end, vel: V((rnd() - 0.5) * 6, 2 + rnd() * 5, (rnd() - 0.5) * 6), life: 0.4 + rnd() * 0.4, size: 0.02, stretch: 0.08, col: [18, 8, 2], grav: 9.8 });
       if (rnd() < dt * 18) G.fxs?.emit(true, { pos: end, vel: V(0.3, 1.2, 0.2), life: 2.5, size: 0.3, size1: 1.6, col: G.fxs.litColor([0.08, 0.07, 0.06]), alpha: 0.6, soft: true, rise: 0.5, drag: 0.8 });
       if ((S.lastScorch || 0) + 0.12 < S.t) { S.lastScorch = S.t; G.fxs?.decal(V(end.x, 0.012, end.z), V(0, 1, 0), 1.1); if (rnd() < 0.4) G.fire?.add(V(end.x, 0.05, end.z), { size: 0.5 + rnd() * 0.5, life: 10 + rnd() * 10 }); }

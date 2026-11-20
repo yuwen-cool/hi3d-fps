@@ -145,15 +145,16 @@ export function createFX(G) {
     if (len < 2) return;
     const col = enemy ? [7, 12, 26] : [16, 9.5, 5];
     emit(add, { pos: from.clone().addScaledVector(d, Math.min(2.5, len * 0.3)), vel: d.clone().multiplyScalar(180), life: Math.max(0.05, Math.min(0.3, (len - 2) / 180)), size: enemy ? 0.03 : 0.03, stretch: 2.0, col, alpha: 1 });
-    const mid = from.clone().addScaledVector(d, len * 0.5);
-    emit(add, { pos: mid, vel: d.clone().multiplyScalar(10.01), life: enemy ? 0.22 : 0.12, size: enemy ? 0.006 : 0.005, stretch: len * 0.5, col: enemy ? [1.2, 2.2, 5] : [2, 1.2, 0.6], drag: 0 });
+    // filament starts a few metres out so it never smears across the lens
+    const f0 = Math.min(4, len * 0.35), mid = from.clone().addScaledVector(d, f0 + (len - f0) * 0.5);
+    emit(add, { pos: mid, vel: d.clone().multiplyScalar(10.01), life: enemy ? 0.22 : 0.12, size: enemy ? 0.006 : 0.004, stretch: (len - f0) * 0.5, col: enemy ? [1.2, 2.2, 5] : [2, 1.2, 0.6], drag: 0 });
   }
   function muzzleSmoke(p, heat) { emit(alpha, { pos: p, vel: V((rnd() - 0.5) * 0.3, 0.6, (rnd() - 0.5) * 0.3), life: 1.3, size: 0.1 + heat * 0.06, size1: 0.5, col: litColor([0.5, 0.48, 0.46]), alpha: 0.22, soft: true, drag: 1.2, rise: 0.3 }); }
   // explosion in layers: white flash -> fireball that rolls up and darkens -> ground shock ring of dust ->
   // embers and smoking debris -> a smoke column that hangs for seconds -> scorch. Fires are lit by fire.js.
   function explosion(p, size = 1) {
-    R.flash(p, 0xfff0d0, 420 * size, 12 + 10 * size, 0.07); R.flash(p, 0xff8a30, 70 * size, 9 + 7 * size, 0.6);
-    emit(add, { pos: p, life: 0.1, size: Math.min(2.6 * size, 3.2), size1: Math.min(3.6 * size, 4.5), col: [30, 26, 20], soft: true });
+    R.flash(p, 0xfff0d0, 170 * size, 10 + 8 * size, 0.07); R.flash(p, 0xff8a30, 70 * size, 9 + 7 * size, 0.6);
+    emit(add, { pos: p, life: 0.08, size: Math.min(1.8 * size, 2.4), size1: Math.min(2.6 * size, 3.4), col: [12, 9, 6], soft: true });
     for (let i = 0; i < 22 + 10 * size; i++) { const hot = rnd() < 0.35;
       emit(add, { pos: p.clone().add(V(rnd() - 0.5, rnd() * 0.7, rnd() - 0.5).multiplyScalar(size)), vel: cone(V(0, 1, 0), 2.2).multiplyScalar(1.5 + rnd() * 6 * size), life: 0.45 + rnd() * 0.7, size: 0.45 * size, size1: (1.6 + rnd()) * size, col: hot ? [24, 13, 4] : [13, 4.2, 0.9], drag: 3.5, rise: 2, soft: true, spin: 1 }); }
     // fireball turning into rolling black smoke
