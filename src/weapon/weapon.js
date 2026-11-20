@@ -223,6 +223,10 @@ export async function createWeapon(G) {
       }
     }
   }
+  // ammo economy: every robot you break gives rounds back, and supply crates refill you completely
+  const MAXR = 240;
+  G.events.on('enemy:killed', () => { const n = Math.min(26, MAXR - S.reserve); if (n > 0) { S.reserve += n; G.events.emit('ammo:gain', { n }); } });
+  function resupply() { if (S.reserve >= W.reserve && S.gl >= 3) return false; S.reserve = Math.max(S.reserve, W.reserve); S.gl = 3; G.events.emit('ammo:gain', { n: 0, full: true }); return true; }
   function startReload() {
     if (S.reloading || S.ammo >= W.mag || S.reserve <= 0) return;
     S.reloading = true; S.reloadT = 0; S.reloadEmpty = S.ammo === 0; S.reloadDur = S.reloadEmpty ? W.empty : W.tactical; S.rEv = 0;
@@ -301,5 +305,5 @@ export async function createWeapon(G) {
     dotMat.uniforms.uA.value = THREE.MathUtils.smoothstep(S.ads, 0.55, 0.95);
     root.visible = !p.dead;
   }
-  return { update, S, W, root, gun, fire, launch, startReload, muzzleLocal, vmToWorld, name: gunName, sightY, set hip(v) { W.hip.copy(v); } };
+  return { update, S, W, root, gun, fire, launch, resupply, startReload, muzzleLocal, vmToWorld, name: gunName, sightY, set hip(v) { W.hip.copy(v); } };
 }

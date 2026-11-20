@@ -162,6 +162,7 @@ export function createAudio(G) {
   ev.on('boss:beam', (e) => play('beam', { pos: e.pos, ref: 30, roll: 0.25, gain: 1.2 }));
   ev.on('boss:dying', (e) => play('groan', { pos: e.pos, ref: 30, roll: 0.3, gain: 1 }));
   ev.on('gl:fire', () => play('gl', { gain: 1 }));
+  ev.on('ammo:gain', (e) => play(e.full ? 'bolt' : 'magin', { gain: e.full ? 0.8 : 0.35, rate: e.full ? 1 : 1.3 }));
   ev.on('leak', (e) => play('hiss', { pos: e.pos, ref: 4, gain: 0.7, every: 0.2 }));
   ev.on('ignite', (e) => play('whoomp', { pos: e.pos, ref: 6, gain: 1 }));
   for (const n of ['tank:boom', 'tower:down', 'boss:dead']) ev.on(n, (e) => { play('bigBoom', { bus: dry, gain: 1.1 }); musDuckV = 0.2; });

@@ -155,13 +155,21 @@ export async function buildLevel(G) {
   for (const [x, z] of shrubs) jobs.push(place('shrub', x, z, x * 1.7, { col: false, s: 0.8 + ((x * z) % 0.4 + 0.4) * 0.6, surface: 'wood' }));
   await Promise.all(jobs);
 
+  // supply crates (olive boxes with a light strip): walk up to refill ammo + grenades
+  const crateMat = triplanarMaterial('rusty_metal_02', { metres: 0.8, cls: 'paint', tint: 0x55603a }); const crates = [];
+  const stripMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.2, 3.2, 1.4), toneMapped: false });
+  for (const [x, z, ry] of [[3.2, 5.2, 0.3], [-18.5, -12, 1.2], [9.5, -24.5, -0.4]]) {
+    const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.6, 0.7), crateMat); b.position.y = 0.3; b.castShadow = b.receiveShadow = true;
+    const st = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.72), stripMat); st.position.y = 0.5; g.add(b, st); g.position.set(x, 0, z); g.rotation.y = ry; root.add(g);
+    P.addBoxCenter(new THREE.Vector3(x, 0.3, z), new THREE.Vector3(1.0, 0.6, 0.8), 'metal'); crates.push(new THREE.Vector3(x, 0, z));
+  }
   // practical lights for the workshop lamps: warm, unshadowed, with a hot bulb so bloom picks them up
   const bulbM = new THREE.MeshBasicMaterial({ color: new THREE.Color(9, 5.2, 2.4), toneMapped: false });
   for (const z of [-3.5, -9.5, -15.5, -21.5]) {
     const l = new THREE.PointLight(new THREE.Color(1.0, 0.6, 0.3), 9, 8.5, 2); l.position.set(C.maxX - 0.75, 3.05, z); root.add(l); R.volLights.push(l);
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), bulbM); b.position.set(C.maxX - 0.48, 3.12, z); root.add(b);
   }
-  G.level = { root, cover: [], layout: LAYOUT, explosives, fallTower };
+  G.level = { root, cover: [], layout: LAYOUT, explosives, fallTower, crates };
   await dress(G, root);
   R.fitShadow(new THREE.Box3(new THREE.Vector3(-62, -1, -84), new THREE.Vector3(42, 30, 22)));
   R.setInteriors([{ c: new THREE.Vector3((C.minX + C.maxX) / 2, C.h / 2, (C.minZ + C.maxZ) / 2), h: new THREE.Vector3((C.maxX - C.minX) / 2, C.h / 2, (C.maxZ - C.minZ) / 2) }]);

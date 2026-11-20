@@ -7,7 +7,7 @@ import { instance } from '../world/assets.js';
 // beam that sweeps across the player and sets the ground alight; two glowing coolant tanks on its
 // back are the only real weak points.
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
-const CFG = { bodyH: 8.7, hipX: 4.0, hipZ: 3.6, upper: 6.4, lower: 7.6, reachX: 7.8, reachZ: 5.9, stepLen: 3.6, stepT: 0.7, lift: 2.1, speed: 1.8, turn: 0.32, coreHp: 650, armour: 0.04 };
+const CFG = { bodyH: 8.7, hipX: 4.0, hipZ: 3.6, upper: 6.4, lower: 7.6, reachX: 7.8, reachZ: 5.9, stepLen: 3.6, stepT: 0.7, lift: 2.1, speed: 1.8, turn: 0.32, coreHp: 520, armour: 0.04 };
 
 // align a part so its long axis runs from the local origin down -Y; `fat` = which end is heavier
 async function segment(name, len, fatEnd) {
@@ -39,8 +39,11 @@ export async function createColossus(G) {
   }
   root.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; } });
   // coolant cores (weak points) on the back of the hull, with their own glow light
-  const coreLocal = [V(-1.26, 1.54, -2.24), V(1.26, 1.54, -2.24)];
-  const cores = coreLocal.map((p) => { const l = new THREE.PointLight(0xff7a20, 0, 9, 2); root.add(l); R.volLights.push(l); return { local: p, hp: CFG.coreHp, alive: true, light: l, w: V(0, 0, 0) }; });
+  const coreLocal = [V(-2.9, -0.4, 0.6), V(2.9, -0.4, 0.6)];
+  const coreMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(7, 2.6, 0.5), toneMapped: false });
+  const cores = coreLocal.map((p) => { const l = new THREE.PointLight(0xff7a20, 0, 9, 2); root.add(l); R.volLights.push(l);
+    const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 1.3, 6, 14), coreMat); m.position.copy(p); hullH.add(m);
+    return { local: p, hp: CFG.coreHp, alive: true, light: l, mesh: m, w: V(0, 0, 0) }; });
   // beam: an additive cylinder from the muzzle to the hit point
   // beam = white-hot core + wide orange sheath, both view-facing (bright on the centre line, soft at the edge),
   // flickering in time rather than striped along the length; the far end tapers into the impact
@@ -63,7 +66,7 @@ export async function createColossus(G) {
 
   function spawn(pos, yaw, path) {
     S.active = true; S.dead = false; S.pos.copy(pos); S.yaw = yaw; S.path = path.map((p) => p.clone()); S.wp = 0; S.phase = 'walk'; S.t = 0; root.visible = true;
-    for (const c of cores) { c.hp = CFG.coreHp; c.alive = true; }
+    for (const c of cores) { c.hp = CFG.coreHp; c.alive = true; c.mesh.visible = true; }
     for (const L of legs) { home(L, L.foot); L.from.copy(L.foot); L.to.copy(L.foot); L.t = 1; }
     G.events.emit('boss:spawn', { pos: pos.clone() });
   }
@@ -144,8 +147,10 @@ export async function createColossus(G) {
   const _c = V(0, 0, 0), _ray = new THREE.Ray();
   function hitTest(o, d, maxD) {
     if (!S.active || S.dead) return null; _ray.set(o, d); let best = null;
-    for (const c of cores) { if (!c.alive) continue; toWorld(c.local, _c); const t = _c.clone().sub(o).dot(d); if (t < 0 || t > maxD) continue; if (o.clone().addScaledVector(d, t).distanceTo(_c) < 0.75 && (!best || t < best.distance)) best = { distance: t - 0.3, point: o.clone().addScaledVector(d, t - 0.3), core: c }; }
-    const hb = new THREE.Box3().setFromObject(hullH); const p = _ray.intersectBox(hb, V(0, 0, 0)); if (p) { const t = p.distanceTo(o); if (t < maxD && (!best || t < best.distance - 0.5)) best = { distance: t, point: p, core: null }; }
+    // the tanks ride outside the hull: a shot passing within their radius counts, wherever it is fired from
+    for (const c of cores) { if (!c.alive) continue; toWorld(c.local, _c); const t = _c.clone().sub(o).dot(d); if (t < 0 || t > maxD) continue; if (o.clone().addScaledVector(d, t).distanceTo(_c) < 1.15 && (!best || t < best.distance)) best = { distance: t - 0.6, point: o.clone().addScaledVector(d, t - 0.6), core: c }; }
+    if (best) return best;
+    const hb = new THREE.Box3().setFromObject(hullH); const p = _ray.intersectBox(hb, V(0, 0, 0)); if (p) { const t = p.distanceTo(o); if (t < maxD) best = { distance: t, point: p, core: null }; }
     return best;
   }
   function damage(hit, dmg) {
@@ -153,7 +158,7 @@ export async function createColossus(G) {
     if (hit.core) {
       const c = hit.core; c.hp -= dmg; c.flash = 0.08;
       for (let i = 0; i < 6; i++) G.fxs?.emit(false, { pos: hit.point, vel: V((rnd() - 0.5) * 8, rnd() * 6, (rnd() - 0.5) * 8), life: 0.3, size: 0.02, stretch: 0.08, col: [18, 9, 3], grav: 9.8 });
-      if (c.hp <= 0 && c.alive) { c.alive = false; c.light.intensity = 0; G.explosives?.blast(toWorld(c.local), 1.6, 4, 0); S.limp = Math.min(1, S.limp + 0.5); G.events.emit('boss:core', { left: cores.filter((x) => x.alive).length }); if (!cores.some((x) => x.alive)) die(); }
+      if (c.hp <= 0 && c.alive) { c.alive = false; c.light.intensity = 0; c.mesh.visible = false; G.explosives?.blast(toWorld(c.local), 1.6, 4, 0); S.limp = Math.min(1, S.limp + 0.5); G.events.emit('boss:core', { left: cores.filter((x) => x.alive).length }); if (!cores.some((x) => x.alive)) die(); }
     } else { G.fxs?.enemyHit?.(hit.point, V(0, 1, 0), false); }
     S.hp = cores.reduce((a, c) => a + Math.max(0, c.hp), 0) / (CFG.coreHp * cores.length);
   }

@@ -7,7 +7,7 @@ import * as THREE from 'three';
 //   III FIRE  the storm passes into night, the refinery burns, the colossus walks out of the desert.
 //             Kill it, the distillation column comes down, then reach extraction.
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
-const SPAWNS = [[-9, -26], [2, -29], [11, -27], [-16, -21], [17, -21], [-3, -18], [8, -12], [-14, -3], [16, -3], [0, -25], [-8, -10], [7, -9], [-12, -6], [12, -7], [0, -14], [-6, -17], [9, -17]];
+const SPAWNS = [[-9, -26], [2, -29], [11, -27], [-16, -21], [-3, -18], [8, -12], [-14, -3], [0, -25], [-8, -10], [7, -9], [-12, -6], [12, -7], [0, -14], [-6, -17], [9, -17]];
 const WAVES = [{ n: 3, ch: 0 }, { n: 4, ch: 1 }, { n: 5, ch: 2 }, { n: 2, ch: 1 }];
 // west side: only a 2.4 m wall between it and the yard, so the whole machine is in view
 const BOSS_PATH = [V(-33, 0, -16), V(-31, 0, -4), V(-34, 0, -24), V(-31, 0, -10)];
@@ -17,7 +17,7 @@ export function createFlow(G) {
   const E = () => G.enemies, env = () => G.env?.S;
   function say(m, t = 3) { S.msg = m; S.msgT = t; G.events.emit('flow:msg', { m, t }); }
   function spawnWave(n, ch = 0) {
-    const pp = G.player.s.pos; const cand = SPAWNS.map(([x, z]) => V(x, 0, z)).filter((p) => p.distanceTo(pp) > 10 && !G.phys.blocked(p.x, p.z, 0.45));
+    const pp = G.player.s.pos; const cand = SPAWNS.map(([x, z]) => V(x, 0, z)).filter((p) => p.distanceTo(pp) > 10 && !G.phys.blocked(p.x, p.z, 0.45) && (E()?.canReach?.(p, pp) ?? true));
     cand.sort(() => G.rng() - 0.5);
     for (let i = 0; i < n && i < cand.length; i++) setTimeout(() => { const e = E()?.spawn(cand[i], { yaw: Math.atan2(pp.x - cand[i].x, pp.z - cand[i].z), kind: i >= n - ch ? 'charger' : 'rifle' }); if (e) { e.lastKnown = pp.clone(); e.state = 'investigate'; } }, i * 700);
     S.pending = n; setTimeout(() => { S.pending = 0; }, n * 700 + 50);
@@ -57,6 +57,8 @@ export function createFlow(G) {
   function update(dt) {
     S.t += dt; S.actT += dt; if (S.msgT > 0) S.msgT -= dt;
     towerTick(dt);
+    // supply crates
+    for (const c of G.level.crates || []) if (c.distanceTo(G.player.s.pos) < 2.2 && G.weapon?.resupply()) say('RESUPPLIED', 1.5);
     if (S.state === 'dead') { S.deadT += dt; return; }
     if (S.state !== 'play' && S.state !== 'extract') return;
     const ev = env(), alive = E()?.alive ?? 0, clear = alive === 0 && !S.pending;
@@ -70,6 +72,7 @@ export function createFlow(G) {
           else { setAct(2); say('SANDSTORM INBOUND', 3.5); S.waveT = 6; }
         }
       }
+      if (S.act === 1 && S.actT > 90) { S.wave = Math.max(S.wave, 0); setAct(2); say('SANDSTORM INBOUND', 3.5); S.waveT = 4; } // the storm does not wait
     // ---- act II: front sweeps over (~22 s), waves 2 and 3 inside the storm; lightning takes the tank ----
     } else if (S.act === 2) {
       if (ev) ev.front = lerp(150, -140, sstep(S.actT, 0, 24));
@@ -81,6 +84,7 @@ export function createFlow(G) {
           else if (S.actT > 24) { setAct(3); say('THE STORM PASSES', 3); S.waveT = 7; }
         }
       }
+      if (S.act === 2 && S.actT > 110) { S.wave = 2; setAct(3); say('THE STORM PASSES', 3); S.waveT = 7; }
     // ---- act III: night falls on the burning yard; the colossus comes ----
     } else if (S.act === 3) {
       if (ev) { ev.night = sstep(S.actT, 0, 10); ev.storm = lerp(1, 0.3, sstep(S.actT, 0, 10)); ev.front = Math.min(ev.front, -140); }

@@ -28,6 +28,7 @@ const CSS = `
 #hud .title .keys{margin-top:14px;font-size:11px;letter-spacing:.18em;opacity:.55}
 #hud .credit{position:absolute;left:56px;top:46px;font-size:11px;letter-spacing:.3em;opacity:.55}
 #hud .obj{position:absolute;left:56px;top:68px;font-size:12px;letter-spacing:.2em;opacity:.85}
+#hud .mk{position:absolute;left:0;top:0;width:0;height:0;opacity:0;transition:opacity .25s}#hud .mk i{position:absolute;left:-9px;top:-9px;width:18px;height:18px;border:2px solid #ff8a3a;transform:rotate(45deg);box-shadow:0 0 10px rgba(255,138,58,.7)}#hud .mk b{position:absolute;left:-60px;top:16px;width:120px;text-align:center;font-size:10px;letter-spacing:.2em;color:#ffcf9a;font-weight:500}#hud .mk.ext i{border-color:#8fe3a2;box-shadow:0 0 10px rgba(143,227,162,.7)}#hud .mk.ext b{color:#c9f5d2}
 #hud .boss{position:absolute;left:50%;top:44px;transform:translateX(-50%);width:420px;text-align:center;opacity:0;transition:opacity .4s}#hud .boss .lbl{font-size:11px;letter-spacing:.4em;color:#ffcf9a;margin-bottom:6px}#hud .boss .bar{height:4px;background:rgba(255,255,255,.15)}#hud .boss .fill{height:100%;background:#ff8a3a;width:100%;transition:width .15s}
 `;
 export function createHUD(G) {
@@ -44,11 +45,29 @@ export function createHUD(G) {
   <div class="hp"><div class="lbl">INTEGRITY</div><div class="bar"><div class="fill"></div></div></div>
   <div class="ammo"><div class="low">LOW AMMO</div><b>30</b><span>/ 150</span><div class="lbl">KR-9 CARBINE · <span class="gl">GL 3</span></div></div>
   <div class="feed"></div><div class="ban"></div>
+  <div class="mk"><i></i><b></b></div><div class="mk"><i></i><b></b></div><div class="mk"><i></i><b></b></div><div class="mk"><i></i><b></b></div>
   ${G.params.shot ? '' : `<div class="title"><p>HI3D · BROWSER FPS DEMO</p><h1>SANDLINE</h1><p>ABANDONED REFINERY · A STORM IS COMING</p><div class="go">CLICK TO DEPLOY</div><div class="keys">WASD MOVE · SHIFT SPRINT · SPACE JUMP · C CROUCH · RMB AIM · LMB FIRE · R RELOAD · G GRENADE</div></div>`}`;
   const q = (s) => el.querySelector(s);
   const xh = q('.xh'), arms = { t: q('.xh .t'), b: q('.xh .b'), l: q('.xh .l'), r: q('.xh .r') }, hm = q('.hm'), dmgI = q('.dmg i');
   const ammoB = q('.ammo b'), glS = q('.ammo .gl'), ammoS = q('.ammo span'), low = q('.ammo .low'), hpF = q('.hp .fill'), feed = q('.feed'), ban = q('.ban'), title = q('.title'), obj = q('.obj'), bossEl = q('.boss'), bossF = q('.boss .fill');
   let hmT = 0, hmDur = 0.24, banT = 0;
+  // markers: projected onto the screen, pinned to the edge when the target is off-screen or behind
+  const mks = [...el.querySelectorAll('.mk')], _mv = new G.THREE.Vector3();
+  function markers() {
+    const T = [], F = G.flow?.S, cam = G.R.camera, pp = G.player.s.pos;
+    if (F?.state === 'extract') T.push({ p: F.extract.clone().setY(1.6), t: 'EXTRACT', c: 'ext' });
+    const B = G.boss; if (B?.S.active && !B.S.dead) for (const c of B.cores) if (c.alive) T.push({ p: c.light.position, t: 'COOLANT' });
+    if (G.weapon && G.weapon.S.reserve + G.weapon.S.ammo < 45) { const c = (G.level.crates || []).slice().sort((a, b) => a.distanceTo(pp) - b.distanceTo(pp))[0]; if (c) T.push({ p: c.clone().setY(1), t: 'AMMO', c: 'ext' }); }
+    const es = (G.enemies?.list || []).filter((e) => e.alive);
+    if (F?.state === 'play' && es.length && es.length <= 3) for (const e of es) T.push({ p: _mv.clone().copy(e.root.position).setY(2.2), t: 'HOSTILE' });
+    mks.forEach((m, i) => {
+      const t = T[i]; if (!t) { m.style.opacity = 0; return; }
+      _mv.copy(t.p).project(cam); const behind = _mv.z > 1; let x = _mv.x * (behind ? -1 : 1), y = _mv.y * (behind ? -1 : 1);
+      const off = behind || Math.abs(x) > 0.92 || Math.abs(y) > 0.88; if (off) { const k = Math.max(Math.abs(x) / 0.92, Math.abs(y) / 0.88, 1e-3); x /= k; y /= k; if (behind && Math.abs(y) < 0.5) x = Math.sign(x || 1) * 0.92; }
+      m.style.transform = `translate(${(x * 0.5 + 0.5) * innerWidth}px,${(-y * 0.5 + 0.5) * innerHeight}px)`; m.style.opacity = 0.9; m.className = 'mk' + (t.c ? ' ' + t.c : '');
+      m.lastChild.textContent = `${t.t} ${Math.round(t.p.distanceTo(pp))}M`;
+    });
+  }
   G.events.on('enemy:hit', (e) => { hmT = hmDur = 0.24; hm.className = 'hm' + (e.weak ? ' weak' : ''); });
   G.events.on('enemy:killed', (e) => {
     hmT = hmDur = 0.42; hm.className = 'hm kill';
@@ -62,7 +81,8 @@ export function createHUD(G) {
     requestAnimationFrame(() => { dmgI.style.transition = 'opacity .9s'; dmgI.style.opacity = 0; });
   });
   G.events.on('flow:msg', (e) => { ban.textContent = e.m; ban.style.opacity = 1; banT = e.t; });
-  G.events.on('flow:start', () => { if (title) title.style.display = 'none'; });
+  const hpEl = q('.hp'); if (title) hpEl.style.visibility = 'hidden';
+  G.events.on('flow:start', () => { if (title) title.style.display = 'none'; hpEl.style.visibility = ''; });
   function update(dt) {
     const W = G.weapon, p = G.player.s; if (!W) return;
     // crosshair gap from spread
@@ -75,6 +95,7 @@ export function createHUD(G) {
     hpF.style.width = `${Math.max(0, p.hp / p.maxHp * 100)}%`;
     if (banT > 0) { banT -= dt; if (banT <= 0) ban.style.opacity = 0; }
     const F = G.flow?.S; if (F) obj.textContent = F.state === 'play' ? `${['', 'I · DUSK', 'II · SANDSTORM', 'III · FIRE NIGHT'][F.act] || ''} · HOSTILES ${G.enemies?.alive ?? 0}` : F.state === 'extract' ? 'REACH EXTRACTION ◂ WEST GATE' : '';
+    markers();
     const B = G.boss?.S; bossEl.style.opacity = B?.active && !B.dead ? 1 : 0; if (B) bossF.style.width = `${Math.round(B.hp * 100)}%`;
   }
   return { update };

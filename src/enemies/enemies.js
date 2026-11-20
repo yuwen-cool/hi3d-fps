@@ -305,6 +305,12 @@ export async function createEnemies(G) {
         }
       }
       if (e.mode !== 'tele') e.glow = Math.max(0, e.glow - dt * 3);
+      // never strand a robot: with no route to follow and the player far away, re-plan toward the player;
+      // if the grid still has no route, walk straight at them
+      if (!e.wp.length && dist > 9 && (e.state === 'investigate' || e.state === 'search' || (e.state === 'engage' && e.mode === 'move'))) {
+        e.stuckT = (e.stuckT || 0) + dt;
+        if (e.stuckT > 1.5) { e.stuckT = 0; e.lastKnown = pp.clone(); setGoal(e, pp); if (!e.wp.length) e.wp = [pp.clone()]; if (e.state === 'search') e.state = 'investigate'; }
+      } else e.stuckT = 0;
       // steering
       e.repath -= dt;
       let tv = new THREE.Vector3();
@@ -339,6 +345,6 @@ export async function createEnemies(G) {
       placeGun(e, aiming || e.state === 'engage');
     }
   }
-  return { update, spawn, list, hitTest, damage, CFG, get alive() { return list.filter((e) => e.alive).length; } };
+  return { update, spawn, list, hitTest, damage, CFG, canReach: (a, b) => !!path(a, b), get alive() { return list.filter((e) => e.alive).length; } };
 }
 function angleDiff(a, b) { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }
