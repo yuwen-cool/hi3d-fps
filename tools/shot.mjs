@@ -41,5 +41,5 @@ const stats = await page.evaluate(() => window.__stats?.());
 mkdirSync(dirname(out), { recursive: true });
 await page.screenshot({ path: out });
 console.log(JSON.stringify({ out, stats }, null, 0));
-if (logs.length) console.log(logs.slice(0, 20).join('\n'));
+if (logs.length) console.log([...new Set(logs)].filter(l=>!l.includes('404')).slice(0, 12).map(l=>l.slice(0,1500)).join('\n'));
 await browser.close();

@@ -4,6 +4,8 @@ import * as THREE from 'three';
 export async function build(G, show, setLoad) {
   const R = G.R;
   if (show === 'render') return renderTest(G);
+  if (show === 'asset') return assetShow(G);
+  if (show === 'robot') return robotShow(G);
   const { buildGame } = await import('./game/game.js');
   return buildGame(G, setLoad);
 }
@@ -37,4 +39,48 @@ function renderTest(G) {
   }
   R.fitShadow(new THREE.Box3(new THREE.Vector3(-40, -1, -45), new THREE.Vector3(40, 20, 20)));
   R.camera.position.set(1.5, 1.68, 4); R.camera.lookAt(-3, 3.2, -18);
+}
+
+// ?show=asset&m=name[,name2]&d=dist&yaw=deg&h=height : models on sand under the dusk sun
+async function assetShow(G) {
+  const R = G.R; const { instance, setRendererCaps } = await import('./world/assets.js'); const { makeGround } = await import('./world/ground.js');
+  setRendererCaps(R.renderer);
+  R.scene.add(makeGround());
+  const names = (G.params.m || 'rifle_v1').split(',');
+  let x = 0; let maxH = 0, maxL = 0;
+  for (const n of names) {
+    const o = await instance(n); const s = o.userData.size || new THREE.Vector3(1, 1, 1);
+    o.position.x = x + s.x / 2; x += s.x + 0.5; R.scene.add(o); maxH = Math.max(maxH, s.y); maxL = Math.max(maxL, s.x, s.z);
+    if (G.params.lift) o.position.y = +G.params.lift;
+  }
+  R.scene.children.filter((o) => names.includes(o.name)).forEach((o) => { o.position.x -= x / 2 - 0.25; });
+  R.fitShadow(new THREE.Box3(new THREE.Vector3(-x - 6, -1, -8), new THREE.Vector3(x + 6, maxH + 4, 8)));
+  const d = +(G.params.d || Math.max(maxL, maxH) * 1.6 + 0.4); const yaw = (+(G.params.yaw || 200)) * Math.PI / 180;
+  const h = G.params.h !== undefined ? +G.params.h : maxH * 0.6 + (G.params.lift ? +G.params.lift : 0);
+  R.camera.position.set(Math.sin(yaw) * d, h + d * 0.25, Math.cos(yaw) * d); R.camera.lookAt(0, h * 0.85, 0);
+  R.camera.near = 0.02; R.camera.updateProjectionMatrix();
+}
+
+// ?show=robot&clips=Idle_A,Jog,Pistol_Aim_Neutral&t=0.4 : retargeted clips side by side
+async function robotShow(G) {
+  const R = G.R; const { loadRobotRig } = await import('./enemies/anim.js'); const { makeGround } = await import('./world/ground.js');
+  const { patchMaterial } = await import('./mats/patch.js');
+  const { setRendererCaps } = await import('./world/assets.js'); setRendererCaps(R.renderer);
+  R.scene.add(makeGround());
+  const names = (G.params.clips || 'Idle_A,Jog,Pistol_Aim_Neutral,Death_A').split(',');
+  const { clips } = await loadRobotRig();
+  const { clone } = await import('three/examples/jsm/utils/SkeletonUtils.js');
+  const rigSrc = (await loadRobotRig()).gltf.scene;
+  const mixers = [];
+  names.forEach((n, i) => {
+    const o = clone(rigSrc); o.scale.setScalar(1.9);
+    o.position.set((i - (names.length - 1) / 2) * 1.6, 0, 0); o.rotation.y = Math.PI + 0.5;
+    o.traverse((m) => { if (m.isMesh) { m.castShadow = m.receiveShadow = true; m.frustumCulled = false; patchMaterial(m.material, 'robot'); } });
+    R.scene.add(o);
+    const mx = new THREE.AnimationMixer(o); if (clips[n]) { const a = mx.clipAction(clips[n]); a.play(); mx.setTime((+(G.params.t || 0.35)) * clips[n].duration); }
+    mixers.push(mx);
+  });
+  if (G.params.play) G.modules.robotShow = { update: (dt) => mixers.forEach((m) => m.update(dt)) };
+  R.fitShadow(new THREE.Box3(new THREE.Vector3(-8, -1, -6), new THREE.Vector3(8, 4, 6)));
+  R.camera.position.set(0.6, 1.5, -5.6); R.camera.lookAt(0, 1.0, 0);
 }

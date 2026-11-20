@@ -19,3 +19,14 @@
 {"name": "tank", "step": "model", "task": "3e61ffa1a12b4fdf9a5b65e7482dc35c", "points": 45}
 {"name": "shrub", "step": "image", "task": "f4e22d1736014725bbbd761233dd4aa6", "points": 6}
 {"name": "wall_broken", "step": "image", "task": "cebcb5d000ff402b8a916137c5f82dee", "points": 6}
+{"name": "glove_l", "step": "model", "task": "ee354c2c3f194225b663f364f54d37de", "points": 45}
+{"name": "mag", "step": "image", "task": "8250b7edf40a47028178388d122bde7a", "points": 6}
+{"name": "piperack", "step": "model", "task": "fe218792725a4ff7bcc3ed72a7b675de", "points": 45}
+{"name": "lamp", "step": "image", "task": "a0d79bac54c0400e9df0b94f53e4bfb9", "points": 6}
+{"name": "stairs", "step": "model", "task": "fb7aa806a34941e5b4263e3835258dda", "points": 45}
+{"name": "drums", "step": "model", "task": "eab245cc6feb4769b3a7f26653af3bcf", "points": 45}
+{"name": "rubble", "step": "model", "task": "0d6f0481d2bc4f72ad304384fd50b594", "points": 45}
+{"name": "wall_broken", "step": "model", "task": "9ee53650df6c44e3847336e56c1fcc66", "points": 45}
+{"name": "shrub", "step": "model", "task": "e6785ee1403a46a7ad8e444d98f88290", "points": 45}
+{"name": "mag", "step": "model", "task": "58dc867c8c9643a3990d2a07b3ee1896", "points": 45}
+{"name": "lamp", "step": "model", "task": "4e8de30a1c5049c891bc76bc3e0b6d5e", "points": 45}
