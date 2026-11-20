@@ -1,0 +1,41 @@
+{
+ "requested": {
+  "name": "t2-corridor",
+  "use": "wide",
+  "quality": "high",
+  "prompt": "3A 次世代 FPS 游戏实机截图，第一人称视角，玩家手持高精度战术步枪正在开火，枪口火焰与飞出的弹壳清晰。场景：废弃沙漠炼油厂的室内长廊，屋顶破洞漏下黄昏的金色光柱，光束里漂浮着大量沙尘颗粒，墙面锈蚀、油污、剥落油漆。走廊尽头一个人形战斗机器人被击中，火花迸溅。色调：暖橙光与冷青阴影对比，电影级调色，轻微胶片颗粒和暗角。不要任何 UI 文字和水印。",
+  "_fp": "7faf272811ce"
+ },
+ "resolved": {
+  "model": "gpt-image-2.5-flare",
+  "prompt": "3A 次世代 FPS 游戏实机截图，第一人称视角，玩家手持高精度战术步枪正在开火，枪口火焰与飞出的弹壳清晰。场景：废弃沙漠炼油厂的室内长廊，屋顶破洞漏下黄昏的金色光柱，光束里漂浮着大量沙尘颗粒，墙面锈蚀、油污、剥落油漆。走廊尽头一个人形战斗机器人被击中，火花迸溅。色调：暖橙光与冷青阴影对比，电影级调色，轻微胶片颗粒和暗角。不要任何 UI 文字和水印。",
+  "n": 1,
+  "quality": "high",
+  "moderation": "low",
+  "size": "16:9",
+  "resolution": "2k"
+ },
+ "actual": {
+  "task_id": "task_01M7W6SVE4RW08YMV48Q1DQEJ0",
+  "width": 2048,
+  "height": 1152,
+  "alpha": false,
+  "cost": 0.03461,
+  "usage": {
+   "input_tokens": 175,
+   "input_tokens_details": {
+    "cached_tokens": 0,
+    "image_tokens": 0,
+    "text_tokens": 175
+   },
+   "output_tokens": 1413,
+   "output_tokens_details": {
+    "image_tokens": 1413,
+    "text_tokens": 0
+   },
+   "total_tokens": 1588
+  },
+  "warnings": [],
+  "created": "2026-11-20T18:08:09"
+ }
+}

@@ -1,0 +1,27 @@
+{
+ "view": "task",
+ "task_id": "f5f1f30cc64342d4ad08f7999dfd8bea",
+ "task_type": "image2d",
+ "status": "succeeded",
+ "stage": "succeeded",
+ "progress": 100,
+ "summary": "TEXT_TO_IMAGE",
+ "created_at": "2026-11-20T10:09:57.422Z",
+ "next_poll_after": 10,
+ "actual_points": 6,
+ "preview_url": "https://hitem3dstatic.zaohaowu.net/image-edit/target/c_e847db0d506d4bd88d7ad2b911178a19/20261120/f5f1f30cc64342d4ad08f7999dfd8bea/0.png",
+ "model_page_url": null,
+ "assets": [
+  {
+   "name": "0.png",
+   "format": "PNG",
+   "url": "https://hitem3dstatic.zaohaowu.net/image-edit/target/c_e847db0d506d4bd88d7ad2b911178a19/20261120/f5f1f30cc64342d4ad08f7999dfd8bea/0.png",
+   "expires_at": null
+  }
+ ],
+ "error": null,
+ "notice": "本次生成费用 6 积分，按积分文档计算。",
+ "schema_version": "2",
+ "request_id": "req_JGp4dc2CiwjD5b06Pw2JF1FhBFgPIkXfXqkcAitrPxI",
+ "trace_id": "req_JGp4dc2CiwjD5b06Pw2JF1FhBFgPIkXfXqkcAitrPxI"
+}

@@ -1,0 +1,87 @@
+[
+ {
+  "name": "rifle2",
+  "multi_view": true,
+  "quality": "master",
+  "max_points": 200,
+  "prompt": "Game weapon asset concept, original near-future military assault rifle design (not a copy of any real-world gun). Conventional layout: long free-floating handguard with M-LOK style slots, angular monolithic upper receiver with sharp chamfered edges, integrated compact reflex sight with a rectangular window on top rail, compensator muzzle, ergonomic pistol grip, adjustable skeletal stock. The magazine is REMOVED: the magazine well is empty and visible. Materials: matte black anodized aluminum receiver, sand-tan polymer handguard grip and stock, small machined steel parts, realistic edge wear, fine scratches and a little dust. Clean readable hard-surface shapes with crisp bevels, high detail."
+ },
+ {
+  "name": "mag",
+  "quality": "high_quality",
+  "max_points": 80,
+  "prompt": "Game weapon asset concept: a single straight-to-slightly-curved 30-round polymer rifle magazine for an AR-15 style rifle (STANAG pattern), sand-tan polymer body with ribbed grip texture, black follower visible at the feed lips, slight wear and dust. Side view, nothing else in frame."
+ },
+ {
+  "name": "glove_r",
+  "quality": "high_quality",
+  "max_points": 80,
+  "prompt": "Game first-person asset concept: a single right hand wearing a tactical combat glove (black and dark olive fabric, synthetic leather palm, hard knuckle guard), fingers curled in a firm pistol-grip holding pose around an invisible grip, index finger straight along the side, with a short olive sleeve cuff at the wrist. Side view."
+ },
+ {
+  "name": "glove_l",
+  "quality": "high_quality",
+  "max_points": 80,
+  "prompt": "Game first-person asset concept: a single left hand wearing a tactical combat glove (black and dark olive fabric, synthetic leather palm, hard knuckle guard), palm up with fingers wrapped around an invisible horizontal rifle handguard, thumb over the top, with a short olive sleeve cuff at the wrist. Side view."
+ },
+ {
+  "name": "tank",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: a large cylindrical industrial oil storage tank (about 8 m tall), riveted steel plates, heavily rusted with faded white paint peeling, a spiral access ladder with railing around it, pipe flanges and valves at the base, sand dust settled on top and bottom. Abandoned desert oil refinery style, photorealistic weathering."
+ },
+ {
+  "name": "tower",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: a tall slender oil refinery distillation column section (about 12 m tall), rusted steel cylinder with insulation bands, small platforms with yellow safety railings, ladders with cages, connected pipe stubs. Abandoned desert refinery, heavy rust, faded paint, sand dust."
+ },
+ {
+  "name": "piperack",
+  "quality": "high_quality",
+  "prompt": "Game environment modular asset concept: an industrial pipe rack segment, a steel H-beam frame bridge about 6 m long and 5 m tall carrying a bundle of large parallel pipes of different diameters with flanges and supports. Rusted steel, peeling grey and yellow paint, desert dust. Abandoned oil refinery."
+ },
+ {
+  "name": "valves",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: a ground-level cluster of industrial valves and pipe manifolds on a small concrete pad, large red hand wheels with chipped paint, pressure gauges, flanges with bolts, rusted pipes bending into the ground. Abandoned desert oil refinery, heavy rust and sand dust."
+ },
+ {
+  "name": "barrier",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: a heavy chunky concrete jersey barrier block used as cover, about 1.2 m tall and 3 m long, chipped edges with exposed rebar on one corner, faded yellow and black hazard stripes, bullet impact marks, sand piled at its base."
+ },
+ {
+  "name": "hazard_fence",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: a rusted steel sheet-metal blast barrier panel section about 3 m long and 1.5 m tall, painted with diagonal yellow and black hazard stripes that are faded and peeling, dented, bolted to a steel frame with feet, sand dust at bottom."
+ },
+ {
+  "name": "drums",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: a small group of five 200-liter steel oil drums, some standing and one tipped on its side, faded blue, red and yellow paint, rust streaks, dents, oil stains, standing on a broken wooden pallet, sand dust."
+ },
+ {
+  "name": "stairs",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: an industrial steel staircase leading up to a small elevated grating platform about 3 m high, with yellow safety handrails, diamond-plate steps, rusted steel structure, peeling yellow paint, desert dust. Abandoned oil refinery."
+ },
+ {
+  "name": "rubble",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: a low pile of broken concrete chunks, gravel, twisted rusty rebar and a few scrap metal pieces, about 2.5 m wide, desert sand mixed in. Realistic debris pile."
+ },
+ {
+  "name": "shrub",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: a dry dead desert shrub, tangled thin woody branches with a few dry brown-yellow leaves, about 1 m wide, growing from a small mound of sand and stones."
+ },
+ {
+  "name": "wall_broken",
+  "quality": "high_quality",
+  "prompt": "Game environment modular asset concept: a section of an industrial interior wall about 4 m wide and 4 m tall, corrugated rusted steel sheets on a steel frame with a large ragged hole torn through it, peeling teal paint, oil stains, exposed insulation, a broken window frame. Abandoned refinery workshop."
+ },
+ {
+  "name": "lamp",
+  "quality": "high_quality",
+  "prompt": "Game environment asset concept: an old industrial wall-mounted caged bulkhead lamp with a curved steel bracket arm, thick glass dome inside a rusted wire cage, scratched dark green enamel paint, side view."
+ }
+]

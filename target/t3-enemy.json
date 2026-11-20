@@ -1,0 +1,41 @@
+{
+ "requested": {
+  "name": "t3-enemy",
+  "use": "wide",
+  "quality": "high",
+  "prompt": "3A 次世代游戏角色概念图：人形战斗机器人敌人，身高约 1.9 米，军用风格，深灰与沙色涂装的装甲板、外露的液压关节与线缆、头部是带一道橙色发光传感器的窄面罩，装甲上有沙尘磨损、划痕、掉漆。标准 A-pose 站立，正面全身，纯浅灰色背景，均匀柔和的棚拍光，无投影，无特效，无文字。",
+  "_fp": "1c26ebdb21a7"
+ },
+ "resolved": {
+  "model": "gpt-image-2.5-flare",
+  "prompt": "3A 次世代游戏角色概念图：人形战斗机器人敌人，身高约 1.9 米，军用风格，深灰与沙色涂装的装甲板、外露的液压关节与线缆、头部是带一道橙色发光传感器的窄面罩，装甲上有沙尘磨损、划痕、掉漆。标准 A-pose 站立，正面全身，纯浅灰色背景，均匀柔和的棚拍光，无投影，无特效，无文字。",
+  "n": 1,
+  "quality": "high",
+  "moderation": "low",
+  "size": "16:9",
+  "resolution": "2k"
+ },
+ "actual": {
+  "task_id": "task_01M7W6SVKZ5R90R0787BP261RQ",
+  "width": 2048,
+  "height": 1152,
+  "alpha": false,
+  "cost": 0.03446,
+  "usage": {
+   "input_tokens": 138,
+   "input_tokens_details": {
+    "cached_tokens": 0,
+    "image_tokens": 0,
+    "text_tokens": 138
+   },
+   "output_tokens": 1413,
+   "output_tokens_details": {
+    "image_tokens": 1413,
+    "text_tokens": 0
+   },
+   "total_tokens": 1551
+  },
+  "warnings": [],
+  "created": "2026-11-20T18:07:55"
+ }
+}

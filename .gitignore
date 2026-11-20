@@ -1,0 +1,10 @@
+node_modules
+dist
+refs
+tools/.hi3d_token.json*
+assets/hi3d/*.glb
+*.log
+out/
+assets/hi3d/
+assets/baked/
+public/models/

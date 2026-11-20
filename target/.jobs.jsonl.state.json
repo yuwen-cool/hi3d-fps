@@ -1,0 +1,57 @@
+{
+ "t1-courtyard": {
+  "fp": "cd93fc923add",
+  "idem": "fbf63ab4-6524-4837-bf2f-2258d32941fb",
+  "task_id": "task_01M7W6SVBS46WPC4TCACH966RR",
+  "status": "done",
+  "error": null,
+  "files": [
+   {
+    "path": "./target/t1-courtyard.png",
+    "width": 2048,
+    "height": 1152,
+    "alpha": false,
+    "cost": 0.0348
+   }
+  ]
+ },
+ "t2-corridor": {
+  "fp": "7faf272811ce",
+  "idem": "bd969773-bf0b-4f1a-8f73-2fc36eb43a55",
+  "task_id": "task_01M7W6SVE4RW08YMV48Q1DQEJ0",
+  "status": "done",
+  "error": null,
+  "files": [
+   {
+    "path": "./target/t2-corridor.png",
+    "width": 2048,
+    "height": 1152,
+    "alpha": false,
+    "cost": 0.03461
+   }
+  ]
+ },
+ "t3-enemy": {
+  "fp": "1c26ebdb21a7",
+  "idem": "c06ecfee-7a43-4c6d-88e2-74b4a12d3852",
+  "task_id": "task_01M7W6SVKZ5R90R0787BP261RQ",
+  "status": "done",
+  "error": null,
+  "files": [
+   {
+    "path": "./target/t3-enemy.png",
+    "width": 2048,
+    "height": 1152,
+    "alpha": false,
+    "cost": 0.03446
+   }
+  ]
+ },
+ "t4-rifle": {
+  "fp": "faf51069ace1",
+  "idem": "590b0168-bb91-47dd-a5fc-941993793ef7",
+  "task_id": "task_01M7W6SVKN9S3VNQJWDPYMBY32",
+  "status": "failed",
+  "error": "生成失败：你的请求未通过内容安全审核，请调整提示词或输入素材后重试。本次未生成图片，但模型提供方仍会对已审核的输入收费，因此本任务只收取输入部分费用，不收输出费用。（失败任务不扣费）"
+ }
+}
