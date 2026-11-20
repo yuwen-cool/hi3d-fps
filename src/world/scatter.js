@@ -117,13 +117,16 @@ export async function dress(G, root) {
       // bias toward the sun-side arc (-x,-z) where the money shots look, but keep a ring all round
       const a = (rr() < 0.65 ? -2.45 + (rr() - 0.5) * 2.2 : rr() * 6.28), d = 70 + Math.pow(rr(), 0.8) * 120;
       const x = Math.cos(a) * d - 2, z = Math.sin(a) * d - 12; const kind = rr();
-      if (kind < 0.3) { const h = 22 + rr() * 30, r = 1.4 + rr() * 2.4; C(r, r * 0.9, h, x, z); for (let k = 1; k < 5; k++) C(r * 1.25, r * 1.25, 0.6, x, z + 0, 12), sg[sg.length - 1].translate(0, h * k / 5 - 0.3, 0); }
+      if (kind < 0.3) { const h = 22 + rr() * 30, r = 1.4 + rr() * 2.4; C(r, r * 0.9, h, x, z);
+        for (let k = 1; k < 6; k++) { C(r * 1.45, r * 1.45, 0.35, x, z, 16); sg[sg.length - 1].translate(0, h * k / 6 - 0.2, 0); for (let p = 0; p < 6; p++) { const pa = p * 1.05; Bx(0.08, 1.1, 0.08, x + Math.cos(pa) * r * 1.42, h * k / 6 + 0.55, z + Math.sin(pa) * r * 1.42); } } // catwalk rings + rail posts
+        for (let p = 0; p < 3; p++) { const pa = rr() * 6.28; C(0.22, 0.22, h * (0.6 + rr() * 0.35), x + Math.cos(pa) * (r + 0.4), z + Math.sin(pa) * (r + 0.4), 8); } // riser pipes
+        C(r * 0.5, r * 0.3, 3, x, z, 10); sg[sg.length - 1].translate(0, h, 0); }
       else if (kind < 0.45) { const h = 35 + rr() * 30; C(0.9, 0.6, h, x, z, 10); }                              // flare / chimney stack
       else if (kind < 0.7) { const r = 6 + rr() * 9, h = 6 + rr() * 8; C(r, r, h, x, z, 24); Bx(r * 0.2, 0.5, r * 2.1, x, h + 0.25, z, rr() * 3); } // storage tank
       else if (kind < 0.85) { const w = 6 + rr() * 6, h = 14 + rr() * 16, ry = rr() * 3; for (const [ox, oz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const lx = Math.cos(ry) * ox * w / 2 - Math.sin(ry) * oz * w / 2, lz = Math.sin(ry) * ox * w / 2 + Math.cos(ry) * oz * w / 2; Bx(0.5, h, 0.5, x + lx, h / 2, z + lz, ry); } for (let y = 4; y < h; y += 4.5) Bx(w + 0.6, 0.4, w + 0.6, x, y, z, ry); } // lattice frame
       else { const L = 20 + rr() * 30, ry = rr() * 3; Bx(L, 0.8, 1.6, x, 7 + rr() * 4, z, ry); Bx(0.6, 9, 0.6, x, 4.5, z, ry); } // pipe bridge
     }
-    const fm = triplanarMaterial('rusty_metal_02', { metres: 4, cls: 'rust', tint: 0x7a6658 });
+    const fm = triplanarMaterial('rusty_metal_02', { metres: 2.2, cls: 'rust', tint: 0x4e4038 });
     const far = new THREE.Mesh(mergeGeometries(sg.map((g) => g.index ? g.toNonIndexed() : g), false), fm); far.name = 'far_skyline'; far.castShadow = false; far.receiveShadow = false; root.add(far);
   }
   // ---- pipe runs (procedural): horizontal runs on the gantry + along the workshop wall, with flanges ----
@@ -143,6 +146,8 @@ export async function dress(G, root) {
   pipe(V(13.6, 3.9, 0.5), V(13.6, 3.9, -24.5), 0.18); pipe(V(13.7, 4.4, 0.5), V(13.7, 4.4, -24.5), 0.12);
   // overhead crossings between rack and workshop
   pipe(V(-7, 5.2, -11.2), V(13.5, 5.2, -11.2), 0.24); pipe(V(-7, 5.6, -11.9), V(13.5, 5.6, -11.9), 0.16);
+  // under the workshop roof: a pipe bundle and a cable tray hugging the ceiling
+  for (const [x, y, r] of [[14.6, 4.75, 0.14], [14.95, 4.8, 0.09], [19.3, 4.7, 0.18], [18.9, 4.82, 0.1]]) pipe(V(x, y, 0.2), V(x, y, -24.2), r);
   // ground-level runs (cover + trip hazards) on sleepers
   pipe(V(-20, 0.45, -28.5), V(12, 0.45, -28.5), 0.32); pipe(V(-20, 0.4, -29.4), V(12, 0.4, -29.4), 0.26);
   const pm = new THREE.Mesh(mergeGeometries(pg.map((g) => g.index ? g.toNonIndexed() : g), false), pipeMat); pm.castShadow = pm.receiveShadow = true; pm.name = 'pipes'; root.add(pm);

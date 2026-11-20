@@ -11,7 +11,7 @@ export const CLASSES = {
   concrete:{ macro: [0.22, 0.12, 0.35, 0.40], dust: [0.55, 0.70] },
   paint:   { macro: [0.18, 0.16, 0.40, 0.45], dust: [0.45, 0.60] },
   ground:  { macro: [0.10, 0.08, 0.15, 0.00], dust: [0.00, 0.00] },
-  robot:   { macro: [0.08, 0.10, 1.20, 0.25], dust: [0.30, 0.40], rim: [1.0, 0.62, 0.36, 0.55] }, // rim keeps backlit robots readable
+  robot:   { macro: [0.08, 0.10, 1.20, 0.25], dust: [0.30, 0.40], rim: [1.0, 0.62, 0.36, 0.85] }, // rim keeps backlit robots readable
   weapon:  { macro: [0.06, 0.06, 6.0, 0.00], dust: [0.10, 0.00] },
   plant:   { macro: [0.10, 0.05, 1.0, 0.00], dust: [0.20, 0.20] },
 };

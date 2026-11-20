@@ -113,5 +113,11 @@
   "name": "scaffold",
   "quality": "high_quality",
   "prompt": "Game environment asset concept: a tall rusted steel lattice flare stack / pipe tower about 14 m high with ladders and a small platform near the top, abandoned desert oil refinery, rust, faded paint."
+ },
+ {
+  "name": "arm_l",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game first-person viewmodel asset: a single left forearm and hand in a tactical combat glove (black synthetic leather palm, dark olive knuckle pads) with a rolled-up dark olive ripstop sleeve with visible fabric folds and a velcro strap at the wrist, hand curled palm-up in a C-shaped grip as if holding the underside of a rifle handguard from below, thumb along one side, four fingers wrapped around the other side; forearm extends straight back from the wrist about 30 cm and is cut off cleanly at the elbow. No weapon. Side view."
  }
 ]

@@ -10,7 +10,7 @@ import { patchMaterial } from '../mats/patch.js';
 // upper-body aim/shoot layers.
 const CFG = { hp: 140, headR: 0.15, shotDmg: 5, burst: 4, burstGap: 0.11, cool: [1.6, 2.8], tele: 0.5, spreadFar: 0.06, spreadNear: 0.03,
   run: 4.2, walk: 1.6, accel: 7, turn: 3.0, range: [8, 20], sight: 48, fovCos: Math.cos(1.75), react: 0.55, height: 1.9, maxTokens: 2, tokenGap: 1.1 };
-const HOLD = { fwd: 0.28, down: -0.1, inward: -0.08, rBack: -0.05, rUp: 0.04, lFwd: 0.32, lUp: -0.03, lSide: 0.0, twist: -0.2, lPole: 0.25 };
+const HOLD = { fwd: 0.3, down: -0.15, inward: -0.08, rBack: -0.05, rUp: 0.04, lFwd: 0.32, lUp: -0.03, lSide: 0.0, twist: -0.2, lPole: 0.25 };
 const UPPER = /^(spine|neck|head|clavicle|upperarm|lowerarm|hand|index|middle|ring|pinky|thumb)/;
 function subClip(c, upper, name) { return new THREE.AnimationClip(name, c.duration, c.tracks.filter((t) => UPPER.test(t.name.split('.')[0]) === upper)); }
 
@@ -18,7 +18,7 @@ export async function createEnemies(G) {
   const R = G.R, P = G.phys, scene = R.scene, rnd = G.rng;
   const { gltf, clips } = await loadRobotRig(); G.HOLD = HOLD;
   const src = gltf.scene;
-  src.traverse((m) => { if (m.isMesh) { m.castShadow = m.receiveShadow = true; m.frustumCulled = false; patchMaterial(m.material, 'robot'); m.material.emissiveIntensity = 4.5; } });
+  src.traverse((m) => { if (m.isMesh) { m.castShadow = m.receiveShadow = true; m.frustumCulled = false; patchMaterial(m.material, 'robot'); m.material.color.multiplyScalar(1.7); m.material.emissiveIntensity = 4.5; } });
   const L = {}, U = {};
   for (const n of ['Jog', 'Walk', 'Strafe_left', 'Strafe_right', 'Walk_Backwards', 'Sprint', 'Pistol_Idle', 'Idle_A', 'Run_Stealth']) if (clips[n]) L[n] = subClip(clips[n], false, n + '_L');
   for (const n of ['Pistol_Aim_Neutral', 'Pistol_Shoot', 'Pistol_Idle', 'Pistol_Reload', 'Jog', 'Walk', 'Sprint']) if (clips[n]) U[n] = subClip(clips[n], true, n + '_U');

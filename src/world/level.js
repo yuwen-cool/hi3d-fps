@@ -142,6 +142,8 @@ export async function buildLevel(G) {
     place('stairs', -12.5, -19.5, Math.PI / 2, { s: 1.0 }),
     place('wall_broken', 16.9, -24.1, 0, { s: 1.4, col: false }),
     ...[-2.2, -6.4, -10.6, -14.8, -19.0, -23.0].map((z) => place('wall_broken', C.maxX - 0.22, z, -Math.PI / 2, { s: 1.15, col: false })),
+    // inner face of the workshop wall: same rusted panel kit as the outer wall so both sides of the corridor read
+    ...[[-22, 0.95], [-15.5, 1.0], [-7.3, 1.08], [-1.3, 0.62]].map(([z, s]) => place('wall_broken', C.minX + 0.22, z, Math.PI / 2, { s, col: false })),
     ...[-3.5, -9.5, -15.5, -21.5].map((z) => place('lamp', C.maxX - 0.3, z, -Math.PI / 2, { y: 3.2, col: false })),
     place('drums', 18.6, -12.5, 1.1), place('valves', 18.5, -17.5, -1.4), place('rubble', 15.4, -8, 0.5, { colH: 0.4, surface: 'concrete' }), place('rubble', 18.2, -3.5, 2, { colH: 0.4, surface: 'concrete' }),
   ];

@@ -35,7 +35,7 @@ export function pickTier(gl) {
 
 // Tuning table: one place for every look parameter (see docs/SPEC.md §2.4).
 export const TUNE = {
-  volSunScale: 1.5, volAmbient: 0.07, volSigma: 0.0042, volMaxD: 170, volFarHaze: 0.22, volInteriorDust: 6, volHeightFall: 5.5, volBase: 0.3,
+  volSunScale: 1.5, volAmbient: 0.07, volSigma: 0.0038, volMaxD: 170, volFarHaze: 0.22, volInteriorDust: 3.5, volHeightFall: 5.5, volBase: 0.3,
   aoRadius: 0.9, aoIntensity: 1.6, aoStrength: 0.95,
   bloom: 0.065, bloomMix: 0.62, streak: 0.03, streakThresh: 2.2,
   key: 0.15, minExp: 0.6, maxExp: 1.4, adaptTau: 1.5, manualExp: 1.0,

@@ -220,9 +220,9 @@ void main(){
         }
       }
       // miss: fall back to a dim sky-ish tint so puddles never read as holes
-      vec3 fall = col.rgb * 0.35 + vec3(0.06, 0.055, 0.05) * uExposureHint;
+      vec3 fall = col.rgb * 0.15;
       vec3 rc = mix(fall, refl, hit);
-      col.rgb = mix(col.rgb, col.rgb * 0.55 + rc * F * 1.5, m);
+      col.rgb = mix(col.rgb, col.rgb * 0.3 + rc * F * 1.7, m);
     }
   }
   if (uUseVol == 1) col.rgb = col.rgb * vS.a + vS.rgb;
