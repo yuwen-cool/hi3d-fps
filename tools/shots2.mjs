@@ -12,7 +12,7 @@ const shots = {
     perFrame: `const G=__G,c=G.R.camera,B=G.boss.S;c.position.set(-20.6+t*0.06,2.4,-12-t*0.08);c.lookAt(B.pos.x,9,B.pos.z-1);if(Math.abs(t-0.9)<0.009)G.env.strike(new G.THREE.Vector3(-62,45,-30));` },
   // 2. dusk close fight: riflemen + a charger, robots burst apart, a grenade for the last two
   p2_dusk: { seconds: 6, warm: 20, setup: `${bot}const ps=G.player.s;ps.pos.set(-6,ps.pos.y,-4);ps.yaw=-0.4;ps.pitch=0;
-    for(const [x,z,k] of [[-3.5,-11,'rifle'],[-8.5,-12,'rifle'],[-1,-17,'charger']]){const e=G.enemies.spawn(new T.Vector3(x,0,z),{yaw:2.8,kind:k});e.lastKnown=ps.pos.clone();e.state='engage';e.mode='aim';}
+    for(const [x,z,k,d] of [[-3.5,-10,'rifle',0],[-8.5,-11,'rifle',0.35],[-1,-15,'charger',0.6]]){const e=G.enemies.spawn(new T.Vector3(x,0,z),{yaw:2.8,kind:k});e.lastKnown=ps.pos.clone();e.state='engage';e.sees=true;e.mode='burst';e.burstN=0;e.shotT=d;}
     G.events.on('enemy:killed',()=>{G.hitstop(0.05);G.player.addShake(0.3);if(G.enemies.alive===0)G.slowmo(0.9,0.28);});`,
     perFrame: `const G=__G;G.auto.str=Math.sin(t*0.9)>0?1:-1;if(Math.abs(t-3.6)<0.009){G.botFire=false;G.auto.gl=true;}if(t>4.1)G.botFire=true;` },
   // 3. the wall arrives: timelapse of the front rolling over the refinery from the gantry roof
@@ -20,7 +20,7 @@ const shots = {
     perFrame: `const G=__G,c=G.R.camera;G.env.S.front=230-t*36;c.position.set(4-t*0.3,13,8+t*0.2);c.lookAt(-26,9,-44);if(Math.abs(t-3.2)<0.009)G.env.strike(new G.THREE.Vector3(-60,50,-70));if(Math.abs(t-4.6)<0.009)G.env.strike(new G.THREE.Vector3(-35,45,-50));` },
   // 4. fighting inside the storm: plasma tracers, chargers out of the sand, lightning
   p2_storm: { seconds: 6, warm: 30, setup: `${bot}Object.assign(G.env.S,{front:-60,storm:1,night:0});const ps=G.player.s;ps.pos.set(2,ps.pos.y,-2);ps.yaw=0.3;
-    for(const [x,z,k] of [[-2,-11,'rifle'],[3,-14,'charger'],[-5,-15,'charger'],[5,-10,'rifle']]){const e=G.enemies.spawn(new T.Vector3(x,0,z),{yaw:3,kind:k});e.lastKnown=ps.pos.clone();e.state='engage';}
+    for(const [x,z,k,d] of [[-2,-10,'rifle',0],[3,-13,'charger',0.3],[-5,-13,'charger',0.5],[5,-9,'rifle',0.2]]){const e=G.enemies.spawn(new T.Vector3(x,0,z),{yaw:3,kind:k});e.lastKnown=ps.pos.clone();e.state='engage';e.sees=true;e.mode='burst';e.burstN=0;e.shotT=d;}
     G.events.on('enemy:killed',()=>{G.hitstop(0.05);G.player.addShake(0.3);});`,
     perFrame: `const G=__G;G.auto.str=Math.sin(t*1.1)>0?1:-1;if(Math.abs(t-1.8)<0.009)G.env.strike(new G.THREE.Vector3(-14,40,-24));if(Math.abs(t-4.4)<0.009)G.env.strike(new G.THREE.Vector3(12,40,-30));` },
   // 5. lightning takes the storage tank by the spawn

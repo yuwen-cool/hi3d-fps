@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite --port 5320 --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --port 5321 --host 127.0.0.1",
+    "flowtest": "node tools/flowtest.mjs"
   },
   "keywords": [],
   "author": "",

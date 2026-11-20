@@ -64,12 +64,12 @@ export function createEnv(G) {
     skySun.copy(sunCol0).multiplyScalar((1 - 0.8 * k) * Math.pow(1 - n, 3));
     R.scene.environmentIntensity = TUNE.envIntensity * (1 - 0.5 * k) * lerp(1, 0.1, n) + S.flash * 0.5;
     // volume: denser sand inside the storm, colour shifts brown, ambient scatter carries the storm's own glow
-    vol.uStorm.value.set(dir.x, dir.y, S.front, 26 * S.storm);
+    vol.uStorm.value.set(dir.x, dir.y, S.front, 18 * S.storm);
     vol.uFogCol.value.copy(base.fog).lerp(STORM.fog, Math.max(k, 0.4 * S.storm)).lerp(NIGHT.fog, n);
     vol.uSunScale.value = base.sunScale * (1 - 0.75 * k) * (1 - n);
     vol.uAmbient.value = base.amb * (1 + 3.5 * k) * lerp(1, 0.35, n) + S.flash * 0.25;
     vol.uHorizon.value.copy(base.vhor).lerp(STORM.hor, k).lerp(NIGHT.hor, n);
-    ex.uKey.value = base.key * lerp(1, 0.55, n) * (1 - 0.15 * k);
+    ex.uKey.value = base.key * lerp(1, 0.72, n) * (1 - 0.1 * k);
     ex.uMaxE.value = lerp(lerp(base.maxE, 2.0, k), 3.2, n);
     // far wall: stands on the front while it is far, hands over to the volume as it gets close
     const fd = S.front - u;

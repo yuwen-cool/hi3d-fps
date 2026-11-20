@@ -9,8 +9,8 @@ import { createWreck } from './wreck.js';
 // positions scored away from teammates and into line of sight, telegraph -> burst -> cool).
 // Animation: Mesh2Motion clips retargeted at load, split into lower-body locomotion and
 // upper-body aim/shoot layers.
-const CFG = { hp: 140, headR: 0.15, shotDmg: 5, burst: 4, burstGap: 0.11, cool: [1.6, 2.8], tele: 0.5, spreadFar: 0.06, spreadNear: 0.03,
-  run: 4.2, walk: 1.6, accel: 7, turn: 3.0, range: [6, 14], sight: 48, fovCos: Math.cos(1.75), react: 0.55, height: 1.9, maxTokens: 2, tokenGap: 1.1 };
+const CFG = { hp: 140, headR: 0.15, shotDmg: 5, burst: 4, burstGap: 0.11, cool: [1.0, 1.9], tele: 0.35, spreadFar: 0.06, spreadNear: 0.03,
+  run: 4.2, walk: 1.6, accel: 7, turn: 3.0, range: [6, 14], sight: 48, fovCos: Math.cos(1.75), react: 0.55, height: 1.9, maxTokens: 3, tokenGap: 0.7 };
 // kinds: riflemen hold 6-14 m and trade bursts; chargers sprint in and fire on the move (orange visor)
 const KINDS = { rifle: {}, charger: { hp: 110, run: 5.6, range: [2.5, 6], burst: 7, burstGap: 0.075, cool: [0.6, 1.1], tele: 0.3, visor: [2.2, 0.55, 0.12] } };
 const HOLD = { fwd: 0.3, down: -0.15, inward: -0.08, rBack: -0.05, rUp: 0.04, lFwd: 0.32, lUp: -0.03, lSide: 0.0, twist: -0.2, lPole: 0.25 };

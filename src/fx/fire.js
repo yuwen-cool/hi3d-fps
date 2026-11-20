@@ -42,7 +42,7 @@ export function createFire(G) {
   function flames(f, dt) {
     const fx = G.fxs, k = f.age < 0.4 ? f.age / 0.4 : 1, end = f.life - f.age < 2 ? Math.max(0, (f.life - f.age) / 2) : 1, s = f.size * k * end;
     if (s < 0.02) return;
-    f.acc += dt * (f.dir ? 70 : 34 + 30 * s);
+    f.acc += dt * (f.dir ? 70 : 44 + 40 * s);
     while (f.acc > 1) { f.acc -= 1;
       if (f.dir) { // jet: fast tongues along the nozzle direction, bending upward
         _v.copy(f.dir).multiplyScalar(5 + rnd() * 4).add(V((rnd() - 0.5) * 1.2, 1 + rnd(), (rnd() - 0.5) * 1.2));
@@ -51,7 +51,7 @@ export function createFire(G) {
         const a = rnd() * 6.28, r = Math.sqrt(rnd()) * 0.35 * s;
         _p.set(f.pos.x + Math.cos(a) * r, f.pos.y + 0.05, f.pos.z + Math.sin(a) * r);
         const core = r < 0.15 * s;
-        fx.emit(false, { pos: _p, vel: V((rnd() - 0.5) * 0.4, 1.4 + rnd() * 1.6 * s, (rnd() - 0.5) * 0.4), life: 0.35 + rnd() * 0.4, size: (core ? 0.3 : 0.22) * s, size1: 0.04, stretch: 0.22 * s, col: core ? [22, 12, 4] : [12, 3.8, 0.8], drag: 1.5, rise: 2.5, soft: true });
+        fx.emit(false, { pos: _p, vel: V((rnd() - 0.5) * 0.4, 1.4 + rnd() * 1.6 * s, (rnd() - 0.5) * 0.4), life: 0.45 + rnd() * 0.45, size: (core ? 0.42 : 0.3) * s, size1: 0.06, stretch: 0.32 * s, col: core ? [22, 12, 4] : [12, 3.8, 0.8], drag: 1.5, rise: 2.5, soft: true });
       }
     }
     if (f.smoke && rnd() < dt * (3 + 4 * s)) fx.emit(true, { pos: V(f.pos.x, f.pos.y + 0.9 * s, f.pos.z), vel: V(0.4 + (rnd() - 0.5) * 0.5, 1.1 + rnd() * 0.6, 0.2 + (rnd() - 0.5) * 0.5), life: 3.5 + rnd() * 2, size: 0.3 * s, size1: 2.2 * s, col: fx.litColor([0.05, 0.045, 0.04]), alpha: 0.6, soft: true, drag: 0.5, rise: 0.5, spin: 0.4 });

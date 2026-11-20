@@ -8,7 +8,7 @@ const out = process.argv[2] || 'out/flow'; mkdirSync(out, { recursive: true });
 const b = await chromium.launch({ channel: 'chrome', headless: true, args: ['--mute-audio', '--use-angle=metal', '--enable-gpu'] });
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } });
 const logs = []; p.on('pageerror', (e) => logs.push(e.message)); p.on('console', (m) => { if (m.type() === 'error' && !m.text().includes('404')) logs.push(m.text().slice(0, 300)); });
-await p.goto('http://127.0.0.1:5320/?shot=1&god=1&record=1');
+await p.goto((process.env.BASE || 'http://127.0.0.1:5320') + '/?shot=1&god=1&record=1');
 await p.waitForFunction(() => window.__ready, null, { timeout: 120000 });
 await p.evaluate(() => {
   const G = __G, T = G.THREE; G.god = true; G.tl = []; G.snap = [];

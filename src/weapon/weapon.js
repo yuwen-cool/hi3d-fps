@@ -176,7 +176,7 @@ export async function createWeapon(G) {
     flash.rotation.z = Math.random() * Math.PI * 2; const fs = (0.8 + Math.random() * 0.5) * THREE.MathUtils.lerp(1, 0.62, ads); flash.scale.set(fs, fs, fs * (0.8 + Math.random() * 0.5));
     cam.updateMatrixWorld(true);
     vmToWorld(muzzleLocal, _m);
-    R.flash(_m, 0xffb060, 45, 9, 0.05);
+    R.flash(_m, 0xffb060, 20, 8, 0.05);
     R.fx.flash = 1;
     // hitscan with spread
     const spread = S.spread;

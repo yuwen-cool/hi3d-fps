@@ -43,9 +43,14 @@ export async function createColossus(G) {
   const cores = coreLocal.map((p) => { const l = new THREE.PointLight(0xff7a20, 0, 9, 2); root.add(l); R.volLights.push(l); return { local: p, hp: CFG.coreHp, alive: true, light: l, w: V(0, 0, 0) }; });
   // beam: an additive cylinder from the muzzle to the hit point
   const beamMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, uniforms: { uI: { value: 0 }, uT: { value: 0 } },
-    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'varying vec2 vUv; uniform float uI, uT; void main(){ float r = abs(vUv.x - 0.5) * 2.0; float core = exp(-r * r * 14.0) * 3.0 + exp(-r * r * 2.5); float fl = 0.8 + 0.2 * sin(vUv.y * 90.0 - uT * 60.0); gl_FragColor = vec4(vec3(1.0, 0.55, 0.22) * core * fl * uI + vec3(1.0, 0.9, 0.8) * exp(-r * r * 60.0) * uI * 4.0, 1.0); }' });
-  const beamGeo = new THREE.CylinderGeometry(0.25, 0.25, 1, 12, 1, true); beamGeo.translate(0, 0.5, 0); beamGeo.rotateX(Math.PI / 2);
+    vertexShader: 'varying vec2 vUv; varying vec3 vN, vV; void main(){ vUv = uv; vec4 mv = modelViewMatrix * vec4(position, 1.0); vN = normalize(normalMatrix * normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+    fragmentShader: `varying vec2 vUv; varying vec3 vN, vV; uniform float uI, uT;
+      float h(float n){ return fract(sin(n) * 43758.5453); }
+      void main(){ float f = abs(dot(normalize(vN), normalize(vV)));          // 1 at the beam's centre line as seen, 0 at its silhouette
+        float n = 0.75 + 0.25 * sin(vUv.y * 140.0 - uT * 90.0) * sin(vUv.y * 37.0 + uT * 23.0) + 0.15 * (h(floor(vUv.y * 300.0) + floor(uT * 30.0)) - 0.5);
+        vec3 c = vec3(1.0, 0.45, 0.15) * pow(f, 2.0) * 2.2 * n + vec3(1.0, 0.92, 0.8) * pow(f, 14.0) * 6.0;
+        gl_FragColor = vec4(c * uI, 1.0); }` });
+  const beamGeo = new THREE.CylinderGeometry(0.32, 0.32, 1, 16, 1, true); beamGeo.translate(0, 0.5, 0); beamGeo.rotateX(Math.PI / 2);
   const beam = new THREE.Mesh(beamGeo, beamMat); beam.frustumCulled = false; beam.visible = false; scene.add(beam);
   const muzzleLight = new THREE.PointLight(0xff8a30, 0, 16, 2); scene.add(muzzleLight); R.volLights.push(muzzleLight);
 
