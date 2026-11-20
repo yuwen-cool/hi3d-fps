@@ -68,6 +68,18 @@ export function createAudio(G) {
   function wind(len = 6) { const b = ctx.createBuffer(2, SR * len, SR); for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); let y = 0, z = 0; for (let i = 0; i < d.length; i++) { const t = i / SR; const g = 0.5 + 0.5 * Math.sin(t * 2 * Math.PI / len + ch) * Math.sin(t * 1.3 + ch * 2); y += 0.02 * ((R() * 2 - 1) - y); z += 0.2 * (y - z); d[i] = z * (0.4 + 0.6 * g) * 3; } } return b; }
   function hitmark(weak) { return buf(0.12, (d, sr) => { for (let i = 0; i < d.length; i++) { const t = i / sr; d[i] = Math.sin(2 * Math.PI * (weak ? 2600 : 1900) * t) * Math.exp(-t / 0.03); } }); }
 
+  // ---- phase-2 sounds: storm, fire, colossus, launcher, big set pieces ----
+  function thunder(close) { return buf(5, (d, sr) => { let y = 0; const k = 1 - Math.exp(-2 * Math.PI * 160 / sr); const cracks = Array.from({ length: 6 }, () => [R() * 1.5, 0.3 + R() * 0.7]);
+    for (let i = 0; i < d.length; i++) { const t = i / sr; y += k * ((R() * 2 - 1) - y); let a = Math.exp(-t / 1.6) * Math.min(1, t * 6); for (const [c, g] of cracks) a += g * Math.exp(-Math.abs(t - c) / 0.18) * (t > c ? 1 : 0.2); d[i] = y * a * 3 + (close && t < 0.12 ? (R() * 2 - 1) * Math.exp(-t / 0.03) * 0.8 : 0); } }); }
+  function rumble(len, f0, f1, decay) { return buf(len, (d, sr) => { let ph = 0; for (let i = 0; i < d.length; i++) { const t = i / sr; ph += 2 * Math.PI * (f1 + (f0 - f1) * Math.exp(-t * 6)) / sr; d[i] = Math.sin(ph) * env(t, 0.006, decay) + (R() * 2 - 1) * env(t, 0.002, decay * 0.3) * 0.5; } lpf(d, 900, sr); }); }
+  function clank() { return buf(0.9, (d, sr) => { const fs = [180, 260, 410, 640].map((f) => f * (0.9 + R() * 0.2)); for (let i = 0; i < d.length; i++) { const t = i / sr; let x = 0; fs.forEach((f, k) => { x += Math.sin(2 * Math.PI * f * t) * Math.exp(-t / (0.25 - k * 0.04)); }); d[i] = x * 0.4 + (R() * 2 - 1) * env(t, 0.001, 0.02); } }); }
+  function whine(len, f0, f1) { return buf(len, (d, sr) => { let ph = 0; for (let i = 0; i < d.length; i++) { const t = i / sr, k = t / len; ph += 2 * Math.PI * (f0 + (f1 - f0) * k * k) / sr; d[i] = (Math.sin(ph) + 0.4 * Math.sin(ph * 2.01) + 0.25 * (R() * 2 - 1) * k) * Math.min(1, t * 4) * (k < 0.95 ? 1 : (1 - k) * 20); } }); }
+  function roar(len) { return buf(len, (d, sr) => { let y = 0; for (let i = 0; i < d.length; i++) { const t = i / sr; y += 0.2 * ((R() * 2 - 1) - y); d[i] = (y * 1.4 + Math.sin(2 * Math.PI * 95 * t) * 0.5 * (0.7 + 0.3 * Math.sin(t * 60)) + Math.sin(2 * Math.PI * 190 * t) * 0.25) * Math.min(1, t * 12) * Math.min(1, (len - t) * 6); } }); }
+  function thoomp() { return buf(0.5, (d, sr) => { for (let i = 0; i < d.length; i++) { const t = i / sr; d[i] = Math.sin(2 * Math.PI * (120 * Math.exp(-t * 14) + 50) * t) * env(t, 0.002, 0.09) + (R() * 2 - 1) * env(t, 0.001, 0.03) * 0.6; } lpf(d, 1800, sr); }); }
+  function hiss(len) { return buf(len, (d, sr) => { for (let i = 0; i < d.length; i++) { const t = i / sr; d[i] = (R() * 2 - 1) * Math.min(1, t * 10) * Math.min(1, (len - t) * 3); } hpf(d, 2500, sr); }); }
+  function whoomp() { return buf(1.2, (d, sr) => { let y = 0; for (let i = 0; i < d.length; i++) { const t = i / sr; y += 0.05 * ((R() * 2 - 1) - y); d[i] = y * 6 * env(t, 0.08, 0.35); } }); }
+  function crackleLoop(len = 4) { const b = ctx.createBuffer(1, SR * len, SR), d = b.getChannelData(0); let y = 0; for (let i = 0; i < d.length; i++) { y += 0.08 * ((R() * 2 - 1) - y); d[i] = y * 0.6 + (R() < 0.0009 ? (R() * 2 - 1) * 0.9 : 0) + (R() < 0.004 ? (R() * 2 - 1) * 0.3 : 0); } return b; }
+  function howlLoop(len = 8) { const b = ctx.createBuffer(2, SR * len, SR); for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); let y = 0, z = 0; for (let i = 0; i < d.length; i++) { const t = i / SR; const g = 0.55 + 0.45 * Math.sin(t * 2 * Math.PI / len * 3 + ch) * Math.sin(t * 1.7 + ch * 2); y += 0.03 * ((R() * 2 - 1) - y); z += 0.25 * ((R() * 2 - 1) - z); d[i] = (y * 3 + z * 0.35) * g; } } return b; }
   const V = (n, f) => Array.from({ length: n }, (_, i) => f(i));
   const S = {
     shot: V(4, (i) => gunshot([1, 0.955, 1.045, 0.985][i], [1, 1.12, 0.9, 1.05][i])),
@@ -78,6 +90,8 @@ export function createAudio(G) {
     clink: V(4, clink), impMetal: V(3, () => impact('metal')), impConc: V(3, () => impact('concrete')), impSand: V(3, () => impact('sand')), impRobot: V(3, () => impact('robot')),
     boom: [boom()], whiz: V(3, whiz), servo: [servo()], tele: [tele()], death: V(2, death), hurt: V(3, hurt), ring: [ring()], hit: [hitmark(false)], hitWeak: [hitmark(true)],
     eShot: V(3, (i) => gunshot([0.82, 0.86, 0.79][i], 0.75)),
+    thunderNear: [thunder(true)], thunderFar: V(2, () => thunder(false)), bossStep: V(3, () => rumble(1.4, 70, 32, 0.45)), clank: V(3, clank),
+    charge: [whine(1.6, 140, 900)], beam: [roar(1.9)], gl: [thoomp()], hiss: [hiss(1.2)], whoomp: [whoomp()], bigBoom: [rumble(4, 60, 24, 1.4)], groan: [whine(3.2, 90, 40)],
   };
   const idx = {};
   const pick = (k) => { const a = S[k]; idx[k] = ((idx[k] || 0) + 1 + (a.length > 2 && R() < 0.3 ? 1 : 0)) % a.length; return a[idx[k]]; };
@@ -100,7 +114,7 @@ export function createAudio(G) {
   function startMusic() {
     const out = ctx.createGain(); out.gain.value = 0; out.connect(musicDuck); mus.out = out;
     const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 700; lp.Q.value = 0.7; lp.connect(out); mus.lp = lp;
-    for (const [f, det] of [[55, 0], [82.4, 4], [110, -6], [130.8, 7], [164.8, -3]]) { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = det; const g = ctx.createGain(); g.gain.value = 0.05; o.connect(g); g.connect(lp); o.start(); }
+    mus.osc = []; for (const [f, det] of [[55, 0], [82.4, 4], [110, -6], [130.8, 7], [164.8, -3]]) { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.detune.value = det; const g = ctx.createGain(); g.gain.value = 0.05; o.connect(g); g.connect(lp); o.start(); mus.osc.push(o); }
     const lfo = ctx.createOscillator(); lfo.frequency.value = 0.07; const lg = ctx.createGain(); lg.gain.value = 280; lfo.connect(lg); lg.connect(lp.frequency); lfo.start();
   }
   function pulse() { // low tom + noise hat, only in combat
@@ -130,6 +144,24 @@ export function createAudio(G) {
   ev.on('player:hit', (e) => { play('hurt', { bus: dry, gain: 0.5 + e.dmg / 40 }); muffle = Math.max(muffle, Math.min(0.7, Math.max(0.2, e.dmg / 40))); if (e.dmg >= 6 && ringCd <= 0) { ringCd = 1.8; play('ring', { bus: dry, gain: 0.25 }); } });
   ev.on('explosion', (e) => { play('boom', { pos: e.pos, ref: 12, roll: 0.5, gain: 0.6 + 0.25 * e.size }); musDuckV = Math.min(musDuckV, 0.4); });
   ev.on('player:dead', () => { muffle = 1; });
+  ev.on('thunder', (e) => setTimeout(() => play(e.delay < 0.25 ? 'thunderNear' : 'thunderFar', { bus: dry, gain: Math.max(0.35, 1.1 - e.delay * 0.5), jitter: 0.08 }), e.delay * 1000));
+  ev.on('boss:step', (e) => { play('bossStep', { pos: e.pos, ref: 25, roll: 0.4, gain: 1.2, jitter: 0.1 }); play('clank', { pos: e.pos, ref: 18, roll: 0.5, gain: 0.5, jitter: 0.12 }); });
+  ev.on('boss:charge', () => { const B = G.boss?.S; play('charge', { pos: B?.pos, ref: 25, roll: 0.3, gain: 1 }); });
+  ev.on('boss:beam', (e) => play('beam', { pos: e.pos, ref: 30, roll: 0.25, gain: 1.2 }));
+  ev.on('boss:dying', (e) => play('groan', { pos: e.pos, ref: 30, roll: 0.3, gain: 1 }));
+  ev.on('gl:fire', () => play('gl', { gain: 1 }));
+  ev.on('leak', (e) => play('hiss', { pos: e.pos, ref: 4, gain: 0.7, every: 0.2 }));
+  ev.on('ignite', (e) => play('whoomp', { pos: e.pos, ref: 6, gain: 1 }));
+  for (const n of ['tank:boom', 'tower:down', 'boss:dead']) ev.on(n, (e) => { play('bigBoom', { bus: dry, gain: 1.1 }); musDuckV = 0.2; });
+  ev.on('tower:fall', (e) => play('groan', { pos: e.pos, ref: 40, roll: 0.2, gain: 1.1, rate: 0.7 }));
+  // per-act score: the pad's chord and the pulse tempo follow the story
+  const CHORDS = { 1: [55, 82.4, 110, 130.8, 164.8], 2: [51.9, 77.8, 103.8, 123.5, 155.6], 3: [43.7, 65.4, 87.3, 103.8, 130.8] }; let bpm = 92;
+  ev.on('flow:act', (e) => { const c = CHORDS[e.act]; if (c && mus.osc) mus.osc.forEach((o, i) => o.frequency.setTargetAtTime(c[i], ctx.currentTime, 2.5)); bpm = [92, 92, 104, 118][e.act] || 92; });
+  ev.on('boss:spawn', () => { combat = 1; });
+  // storm howl and fire crackle beds
+  const beds = {};
+  function startBeds() { if (beds.on || ctx.state !== 'running') return; beds.on = true;
+    for (const [k, b] of [['howl', howlLoop()], ['crackle', crackleLoop()]]) { const src = ctx.createBufferSource(); src.buffer = b; src.loop = true; const g = ctx.createGain(); g.gain.value = 0; src.connect(g); g.connect(amb); src.start(); beds[k] = g; } }
 
   function update(dt) {
     const cam = G.R.camera; const p = cam.getWorldPosition(new G.THREE.Vector3()); const f = cam.getWorldDirection(new G.THREE.Vector3());
@@ -142,7 +174,12 @@ export function createAudio(G) {
     const engaged = G.enemies?.list?.some((e) => e.alive && e.state === 'engage');
     combat += ((engaged ? 1 : 0) - combat) * Math.min(1, dt * (engaged ? 0.6 : 0.15));
     if (mus.out) { musicLvl += (0.55 + 0.45 * combat - musicLvl) * Math.min(1, dt * 0.5); mus.out.gain.value = musicLvl; mus.lp.frequency.value = 500 + 1600 * combat; }
-    if (combat > 0.3) { pulseT -= dt; if (pulseT <= 0) { pulseT = 60 / 92; pulse(); } }
+    if (combat > 0.3) { pulseT -= dt; if (pulseT <= 0) { pulseT = 60 / bpm; pulse(); } }
+    startBeds();
+    if (beds.on) {
+      const inside = G.env?.S?.inside || 0, storm = G.env?.S?.storm || 0; beds.howl.gain.value += (inside * 1.3 + storm * 0.15 - beds.howl.gain.value) * Math.min(1, dt * 1.5);
+      let fd = 1e9; for (const f of G.fire?.fires || []) fd = Math.min(fd, f.pos.distanceTo(p) / Math.max(0.5, f.size)); beds.crackle.gain.value += (Math.min(1, 3 / (1 + fd)) * 0.9 - beds.crackle.gain.value) * Math.min(1, dt * 3);
+    }
   }
   return { update, ctx, play };
 }
