@@ -93,6 +93,16 @@ export function createAudio(G) {
     thunderNear: [thunder(true)], thunderFar: V(2, () => thunder(false)), bossStep: V(3, () => rumble(1.4, 70, 32, 0.45)), clank: V(3, clank),
     charge: [whine(1.6, 140, 900)], beam: [roar(1.9)], gl: [thoomp()], hiss: [hiss(1.2)], whoomp: [whoomp()], bigBoom: [rumble(4, 60, 24, 1.4)], groan: [whine(3.2, 90, 40)],
   };
+  // ---- recorded/generated samples (public/sfx/index.json: { key: [file, ...] }) replace the synthesised
+  // variants per key; loops (wind, howl, crackle, music_act1..3) are picked up by the beds and score.
+  const SMP = {};
+  fetch('/sfx/index.json').then((r) => (r.ok ? r.json() : {})).then(async (idxJson) => {
+    await Promise.all(Object.entries(idxJson).map(async ([k, files]) => {
+      const bufs = (await Promise.all(files.map((f) => fetch('/sfx/' + f).then((r) => r.arrayBuffer()).then((a) => ctx.decodeAudioData(a)).catch(() => null)))).filter(Boolean);
+      if (!bufs.length) return; SMP[k] = bufs; if (S[k]) S[k] = bufs;
+    }));
+    G.events.emit('audio:samples', { keys: Object.keys(SMP) });
+  }).catch(() => {});
   const idx = {};
   const pick = (k) => { const a = S[k]; idx[k] = ((idx[k] || 0) + 1 + (a.length > 2 && R() < 0.3 ? 1 : 0)) % a.length; return a[idx[k]]; };
   const last = {};
@@ -108,7 +118,7 @@ export function createAudio(G) {
   }
   // ambience: wind bed
   let windSrc = null;
-  function startAmb() { if (windSrc || ctx.state !== 'running') return; windSrc = ctx.createBufferSource(); windSrc.buffer = wind(); windSrc.loop = true; const g = ctx.createGain(); g.gain.value = 0.5; windSrc.connect(g); g.connect(amb); windSrc.start(); startMusic(); }
+  function startAmb() { if (windSrc || ctx.state !== 'running') return; windSrc = ctx.createBufferSource(); windSrc.buffer = SMP.wind?.[0] || wind(); windSrc.loop = true; const g = ctx.createGain(); g.gain.value = 0.5; windSrc.connect(g); g.connect(amb); windSrc.start(); startMusic(); }
   // music: slow dark pad + pulse that rises in combat (procedural, no samples)
   let musicLvl = 0, combat = 0, pulseT = 0; const mus = {};
   function startMusic() {
@@ -156,12 +166,20 @@ export function createAudio(G) {
   ev.on('tower:fall', (e) => play('groan', { pos: e.pos, ref: 40, roll: 0.2, gain: 1.1, rate: 0.7 }));
   // per-act score: the pad's chord and the pulse tempo follow the story
   const CHORDS = { 1: [55, 82.4, 110, 130.8, 164.8], 2: [51.9, 77.8, 103.8, 123.5, 155.6], 3: [43.7, 65.4, 87.3, 103.8, 130.8] }; let bpm = 92;
-  ev.on('flow:act', (e) => { const c = CHORDS[e.act]; if (c && mus.osc) mus.osc.forEach((o, i) => o.frequency.setTargetAtTime(c[i], ctx.currentTime, 2.5)); bpm = [92, 92, 104, 118][e.act] || 92; });
+  const loops = {}; // act -> { src, g }
+  function playAct(a) {
+    const b = SMP['music_act' + a]?.[0]; if (!b || ctx.state !== 'running') return false;
+    const t = ctx.currentTime;
+    for (const [k, l] of Object.entries(loops)) { l.g.gain.setTargetAtTime(0, t, 1.2); l.src.stop(t + 6); delete loops[k]; }
+    const src = ctx.createBufferSource(); src.buffer = b; src.loop = true; const g = ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(0.8, t, 1.5); src.connect(g); g.connect(musicDuck); src.start(); loops[a] = { src, g };
+    if (mus.out) mus.out.gain.setTargetAtTime(0, t, 1.0); mus.sampled = true; return true;
+  }
+  ev.on('flow:act', (e) => { if (playAct(e.act)) return; const c = CHORDS[e.act]; if (c && mus.osc) mus.osc.forEach((o, i) => o.frequency.setTargetAtTime(c[i], ctx.currentTime, 2.5)); bpm = [92, 92, 104, 118][e.act] || 92; });
   ev.on('boss:spawn', () => { combat = 1; });
   // storm howl and fire crackle beds
   const beds = {};
   function startBeds() { if (beds.on || ctx.state !== 'running') return; beds.on = true;
-    for (const [k, b] of [['howl', howlLoop()], ['crackle', crackleLoop()]]) { const src = ctx.createBufferSource(); src.buffer = b; src.loop = true; const g = ctx.createGain(); g.gain.value = 0; src.connect(g); g.connect(amb); src.start(); beds[k] = g; } }
+    for (const [k, b] of [['howl', SMP.howl?.[0] || howlLoop()], ['crackle', SMP.crackle?.[0] || crackleLoop()]]) { const src = ctx.createBufferSource(); src.buffer = b; src.loop = true; const g = ctx.createGain(); g.gain.value = 0; src.connect(g); g.connect(amb); src.start(); beds[k] = g; } }
 
   function update(dt) {
     const cam = G.R.camera; const p = cam.getWorldPosition(new G.THREE.Vector3()); const f = cam.getWorldDirection(new G.THREE.Vector3());
@@ -173,8 +191,8 @@ export function createAudio(G) {
     ringCd -= dt;
     const engaged = G.enemies?.list?.some((e) => e.alive && e.state === 'engage');
     combat += ((engaged ? 1 : 0) - combat) * Math.min(1, dt * (engaged ? 0.6 : 0.15));
-    if (mus.out) { musicLvl += (0.55 + 0.45 * combat - musicLvl) * Math.min(1, dt * 0.5); mus.out.gain.value = musicLvl; mus.lp.frequency.value = 500 + 1600 * combat; }
-    if (combat > 0.3) { pulseT -= dt; if (pulseT <= 0) { pulseT = 60 / bpm; pulse(); } }
+    if (mus.out && !mus.sampled) { musicLvl += (0.55 + 0.45 * combat - musicLvl) * Math.min(1, dt * 0.5); mus.out.gain.value = musicLvl; mus.lp.frequency.value = 500 + 1600 * combat; }
+    if (combat > 0.3 && !mus.sampled) { pulseT -= dt; if (pulseT <= 0) { pulseT = 60 / bpm; pulse(); } }
     startBeds();
     if (beds.on) {
       const inside = G.env?.S?.inside || 0, storm = G.env?.S?.storm || 0; beds.howl.gain.value += (inside * 1.3 + storm * 0.15 - beds.howl.gain.value) * Math.min(1, dt * 1.5);

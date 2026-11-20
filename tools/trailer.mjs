@@ -2,7 +2,7 @@
 // node tools/trailer.mjs [out.mp4]   (expects out/rec/<shot>.mp4 from tools/record.mjs)
 import { chromium } from 'playwright';
 import { execSync } from 'node:child_process';
-import { mkdirSync, existsSync } from 'node:fs';
+import { mkdirSync, existsSync, writeFileSync } from 'node:fs';
 
 const out = process.argv[2] || 'out/trailer/sandline_trailer.mp4';
 const dir = 'out/trailer'; mkdirSync(dir, { recursive: true });
@@ -39,5 +39,7 @@ for (let i = 1; i < seg.length; i++) {
   filter += `${last}[${i}:v]xfade=transition=fade:duration=${F}:offset=${(acc - F).toFixed(3)}${o};`;
   acc += dur(seg[i]) - F; last = o;
 }
+// timeline for the audio mix: where each recorded clip starts in the cut
+{ let off = 0; const tl = seg.map((f, i) => { const d = dur(f), o = off; off += d - F; return { seg: f.replace(`${dir}/`, '').replace('.mp4', ''), offset: +o.toFixed(3), dur: +d.toFixed(3) }; }); writeFileSync(`${dir}/timeline.json`, JSON.stringify(tl, null, 1)); }
 execSync(`ffmpeg -y -loglevel error ${seg.map((s) => `-i ${s}`).join(' ')} -filter_complex "${filter.slice(0, -1)}" -map "[v]" -r 60 -c:v libx264 -preset slow -crf 17 -pix_fmt yuv420p -movflags +faststart ${out}`);
 console.log(out, acc.toFixed(1) + 's');
