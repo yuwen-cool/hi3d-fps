@@ -3,13 +3,16 @@ import { clone as skClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { loadRobotRig } from './anim.js';
 import { alignedGun } from '../weapon/align.js';
 import { patchMaterial } from '../mats/patch.js';
+import { createWreck } from './wreck.js';
 
 // Hi3D combat robots. AI layer follows docs/SPEC.md §6.1 (perception, attack tokens, firing
 // positions scored away from teammates and into line of sight, telegraph -> burst -> cool).
 // Animation: Mesh2Motion clips retargeted at load, split into lower-body locomotion and
 // upper-body aim/shoot layers.
 const CFG = { hp: 140, headR: 0.15, shotDmg: 5, burst: 4, burstGap: 0.11, cool: [1.6, 2.8], tele: 0.5, spreadFar: 0.06, spreadNear: 0.03,
-  run: 4.2, walk: 1.6, accel: 7, turn: 3.0, range: [8, 20], sight: 48, fovCos: Math.cos(1.75), react: 0.55, height: 1.9, maxTokens: 2, tokenGap: 1.1 };
+  run: 4.2, walk: 1.6, accel: 7, turn: 3.0, range: [6, 14], sight: 48, fovCos: Math.cos(1.75), react: 0.55, height: 1.9, maxTokens: 2, tokenGap: 1.1 };
+// kinds: riflemen hold 6-14 m and trade bursts; chargers sprint in and fire on the move (orange visor)
+const KINDS = { rifle: {}, charger: { hp: 110, run: 5.6, range: [2.5, 6], burst: 7, burstGap: 0.075, cool: [0.6, 1.1], tele: 0.3, visor: [2.2, 0.55, 0.12] } };
 const HOLD = { fwd: 0.3, down: -0.15, inward: -0.08, rBack: -0.05, rUp: 0.04, lFwd: 0.32, lUp: -0.03, lSide: 0.0, twist: -0.2, lPole: 0.25 };
 const UPPER = /^(spine|neck|head|clavicle|upperarm|lowerarm|hand|index|middle|ring|pinky|thumb)/;
 function subClip(c, upper, name) { return new THREE.AnimationClip(name, c.duration, c.tracks.filter((t) => UPPER.test(t.name.split('.')[0]) === upper)); }
@@ -18,10 +21,12 @@ export async function createEnemies(G) {
   const R = G.R, P = G.phys, scene = R.scene, rnd = G.rng;
   const { gltf, clips } = await loadRobotRig(); G.HOLD = HOLD;
   const src = gltf.scene;
+  let skinSrc = null; src.traverse((m) => { if (m.isSkinnedMesh) skinSrc = m; });
   src.traverse((m) => { if (m.isMesh) { m.castShadow = m.receiveShadow = true; m.frustumCulled = false; patchMaterial(m.material, 'robot'); m.material.color.multiplyScalar(1.7); m.material.emissiveIntensity = 4.5; } });
   const L = {}, U = {};
   for (const n of ['Jog', 'Walk', 'Strafe_left', 'Strafe_right', 'Walk_Backwards', 'Sprint', 'Pistol_Idle', 'Idle_A', 'Run_Stealth']) if (clips[n]) L[n] = subClip(clips[n], false, n + '_L');
   for (const n of ['Pistol_Aim_Neutral', 'Pistol_Shoot', 'Pistol_Idle', 'Pistol_Reload', 'Jog', 'Walk', 'Sprint']) if (clips[n]) U[n] = subClip(clips[n], true, n + '_U');
+  const wreck = createWreck(G, skinSrc);
   const gunA = await alignedGun('rifle_v1'); const gunSrc = gunA.group;
   const list = [], tokens = { n: 0, last: 0 }; let gripFit = null;
   // ---------- nav grid ----------
@@ -58,7 +63,9 @@ export async function createEnemies(G) {
     const o = skClone(src); o.scale.setScalar(CFG.height);
     const root = new THREE.Group(); root.add(o); root.position.copy(pos); scene.add(root);
     const bones = {}; o.traverse((b) => { if (b.isBone) bones[b.name] = b; });
-    const mats = []; o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); patchMaterial(m.material, 'robot'); mats.push(m.material); } });
+    const kind = opts.kind || 'rifle', c = { ...CFG, ...KINDS[kind] };
+    let skinned = null;
+    const mats = []; o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); patchMaterial(m.material, 'robot'); if (c.visor) m.material.emissive.setRGB(...c.visor); mats.push(m.material); } if (m.isSkinnedMesh) skinned = m; });
     // rifle in the right hand
     const gun = gunSrc.clone(true); gun.scale.setScalar(1.12); scene.add(gun); // world-space each frame; 1.12x keeps human proportions on a 1.9 m robot
     gun.userData.fit = true;
@@ -68,7 +75,7 @@ export async function createEnemies(G) {
     const death = {}; for (const n of ['Death_A', 'Death_B', 'Death_C', 'Death_D']) if (clips[n]) { const a = mixer.clipAction(clips[n]); a.setLoop(THREE.LoopOnce); a.clampWhenFinished = true; death[n] = a; }
     const hitA = clips.Hit_Chest ? mixer.clipAction(subClip(clips.Hit_Chest, true, 'Hit_U')) : null; if (hitA) { hitA.setLoop(THREE.LoopOnce); }
     const e = {
-      root, o, bones, mats, mixer, act, death, hitA, gun, hp: CFG.hp, alive: true, state: opts.state || 'patrol', seeT: 0, lostT: 0, think: rnd() * 0.15,
+      root, o, skinned, kind, c, bones, mats, mixer, act, death, hitA, gun, hp: c.hp, alive: true, state: opts.state || 'patrol', seeT: 0, lostT: 0, think: rnd() * 0.15,
       vel: new THREE.Vector3(), yaw: opts.yaw ?? Math.PI, wp: [], goal: null, repath: 0, mode: 'move', modeT: 0, burstN: 0, shotT: 0, token: false,
       lastKnown: null, home: pos.clone(), patrolT: 0, hitSpr: { p: 0, pv: 0, r: 0, rv: 0 }, curL: null, curU: null, deadT: 0, id: list.length, glow: 0,
     };
@@ -98,12 +105,12 @@ export async function createEnemies(G) {
   function pickSpot(e) {
     const pp = G.player.s.pos; const cands = [];
     for (const c of G.level.cover) cands.push({ p: c, pri: -2 });
-    for (let i = 0; i < 7; i++) { const a = rnd() * 6.28, r = CFG.range[0] + rnd() * (CFG.range[1] - CFG.range[0]); cands.push({ p: new THREE.Vector3(pp.x + Math.cos(a) * r, 0, pp.z + Math.sin(a) * r), pri: 0 }); }
+    for (let i = 0; i < 7; i++) { const a = rnd() * 6.28, r = e.c.range[0] + rnd() * (e.c.range[1] - e.c.range[0]); cands.push({ p: new THREE.Vector3(pp.x + Math.cos(a) * r, 0, pp.z + Math.sin(a) * r), pri: 0 }); }
     const base = Math.atan2(e.root.position.z - pp.z, e.root.position.x - pp.x);
     for (let i = 0; i < 5; i++) { const a = base + (i - 2) * 0.65, r = 12; cands.push({ p: new THREE.Vector3(pp.x + Math.cos(a) * r, 0, pp.z + Math.sin(a) * r), pri: 0 }); }
     let best = null, bs = 1e9;
     for (const c of cands) {
-      const d = c.p.distanceTo(pp); if (d < CFG.range[0] || d > CFG.range[1] + 4 || P.blocked(c.p.x, c.p.z, 0.45)) continue;
+      const d = c.p.distanceTo(pp); if (d < e.c.range[0] || d > e.c.range[1] + 4 || P.blocked(c.p.x, c.p.z, 0.45)) continue;
       const B_ = G.level.layout.bounds; if (c.p.x < B_.minX + 1 || c.p.x > B_.maxX - 1 || c.p.z < B_.minZ + 1 || c.p.z > B_.maxZ - 1) continue;
       let s = c.p.distanceTo(e.root.position) * 0.9 + c.pri + rnd() * 3;
       const dirC = c.p.clone().sub(pp).normalize();
@@ -127,9 +134,9 @@ export async function createEnemies(G) {
     const pc = G.player.s.pos.clone().setY(G.player.s.pos.y + 1.1); const t = pc.clone().sub(m).dot(dir); const closest = m.clone().addScaledVector(dir, t);
     const hitP = t > 0 && closest.distanceTo(pc) < 0.55 && (!hw || hw.distance > t);
     const end = hitP ? closest : hw ? hw.point : m.clone().addScaledVector(dir, 120);
-    G.fxs?.tracer(m, end);
-    R.flash(m, 0xffb060, 16, 7, 0.05);
-    G.fxs?.emit(false, { pos: m, life: 0.05, size: 0.55, size1: 0.2, col: [14, 8, 3] });
+    G.fxs?.tracer(m, end, true);
+    R.flash(m, 0x8fc4ff, 18, 7, 0.05);
+    G.fxs?.emit(false, { pos: m, life: 0.06, size: 0.6, size1: 0.2, col: [7, 11, 22] });
     if (hitP) G.player.damage(CFG.shotDmg, e.root.position.clone());
     else if (hw) G.fxs?.impact(hw, dir);
     // near miss whiz
@@ -148,12 +155,8 @@ export async function createEnemies(G) {
   }
   function kill(e, dir, weak) {
     e.alive = false; e.state = 'dead'; e.deadT = 0; if (e.token) { e.token = false; tokens.n--; }
-    // fall direction relative to the robot's facing
-    const local = dir.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), -e.yaw);
-    const name = Math.abs(local.x) > Math.abs(local.z) ? (local.x > 0 ? 'Death_B' : 'Death_C') : (local.z > 0 ? 'Death_A' : 'Death_D');
-    const a = e.death[name] || Object.values(e.death)[0];
-    e.mixer.stopAllAction(); if (a) { a.reset().play(); }
-    e.knock = dir.clone().setY(0).normalize().multiplyScalar(0.6);
+    e.knock = null;
+    wreck.spawn(e, dir, weak); e.root.visible = false;
     const hp = e.bones.head.getWorldPosition(new THREE.Vector3());
     G.fxs?.electric(weak ? hp : e.bones.spine_03.getWorldPosition(new THREE.Vector3()));
     const core = e.bones.spine_03.getWorldPosition(new THREE.Vector3());
@@ -250,6 +253,7 @@ export async function createEnemies(G) {
   }
   // ---------- update ----------
   function update(dt) {
+    wreck.update(dt);
     const pp = G.player.s.pos, pdead = G.player.s.dead;
     for (const e of list) {
       // PropertyMixer only writes a bone when its sampled value changes, so constant tracks would let
@@ -258,15 +262,10 @@ export async function createEnemies(G) {
       e.mixer.update(dt);
       for (let i = 0; i < e.pb.length; i++) e.pq[i].copy(e.pb[i].quaternion);
       if (!e.alive) {
-        e.deadT += dt; if (e.knock && e.deadT < 0.4) e.root.position.addScaledVector(e.knock, dt * (1 - e.deadT / 0.4));
-        // wreck: electrical sputter + smoke for a few seconds
-        if (e.deadT < 4 && G.fxs) {
-          if (rnd() < dt * 6) { const c = e.bones.spine_03.getWorldPosition(new THREE.Vector3()); for (let i = 0; i < 5; i++) G.fxs.emit(false, { pos: c, vel: new THREE.Vector3((rnd() - 0.5) * 6, 2 + rnd() * 4, (rnd() - 0.5) * 6), life: 0.2 + rnd() * 0.3, size: 0.01, stretch: 0.06, col: [8, 11, 18], grav: 9.8 }); R.flash(c, 0x9fd8ff, 3, 2.5, 0.06); }
-          if (rnd() < dt * 9) { const c = e.bones.spine_02.getWorldPosition(new THREE.Vector3()); G.fxs.emit(true, { pos: c, vel: new THREE.Vector3(0.3, 0.8, 0.2), life: 2.6, size: 0.15, size1: 0.9, col: G.fxs.litColor([0.1, 0.09, 0.085]), alpha: 0.45, soft: true, drag: 0.8, rise: 0.4 }); }
-        }
+        e.deadT += dt;
         if (e.deadT < 0.05) e.gunV = new THREE.Vector3((rnd() - 0.5) * 2, 2, (rnd() - 0.5) * 2);
         if (e.gun.position.y > 0.05) { e.gunV.y -= 9.8 * dt; e.gun.position.addScaledVector(e.gunV, dt); e.gun.rotateX(dt * 3); } 
-        if (e.deadT > 12) { e.root.position.y -= dt * 0.22; if (e.deadT > 15) { e.root.visible = false; e.gun.visible = false; } }
+        if (e.deadT > 15) e.gun.visible = false;
         continue;
       }
       if (e.puppet) { // scripted (trailer / showcase): pose only, aim where told
@@ -290,18 +289,19 @@ export async function createEnemies(G) {
       let aiming = false;
       if (e.state === 'engage' && !pdead) {
         e.modeT += dt;
+        if (e.mode === 'move' && e.kind === 'charger' && e.sees && dist < 12) { e.shotT -= dt; if (e.shotT <= 0) { shoot(e); e.shotT = 0.16 + rnd() * 0.12; } }
         if (e.mode === 'move') {
           if (!e.wp.length || e.modeT > 7) { e.mode = 'aim'; e.modeT = 0; }
-          if (e.goal && pp.distanceTo(e.goal) > 0 && (e.goal.distanceTo(pp) < CFG.range[0] - 3)) { setGoal(e, pickSpot(e)); }
+          if (e.goal && pp.distanceTo(e.goal) > 0 && (e.goal.distanceTo(pp) < e.c.range[0] - 3)) { setGoal(e, pickSpot(e)); }
         } else {
           aiming = true;
           if (e.mode === 'aim') {
             const facing = Math.abs(angleDiff(Math.atan2(toP.x, toP.z), e.yaw)) < 0.14;
             if (facing && e.sees && tokens.n < CFG.maxTokens && G.time - tokens.last > CFG.tokenGap / 2) { tokens.n++; tokens.last = G.time; e.token = true; e.mode = 'tele'; e.modeT = 0; G.events.emit('enemy:tele', { e }); }
             if (!e.sees && e.modeT > 1.5) { e.mode = 'move'; e.modeT = 0; setGoal(e, pickSpot(e)); }
-          } else if (e.mode === 'tele') { e.glow = Math.min(1, e.modeT / CFG.tele); if (e.modeT >= CFG.tele) { e.mode = 'burst'; e.modeT = 0; e.burstN = 0; e.shotT = 0; } }
-          else if (e.mode === 'burst') { e.shotT -= dt; if (e.shotT <= 0) { if (e.sees) shoot(e); e.burstN++; e.shotT = CFG.burstGap; if (e.burstN >= CFG.burst) { e.mode = 'cool'; e.modeT = 0; e.coolD = CFG.cool[0] + rnd() * (CFG.cool[1] - CFG.cool[0]); if (e.token) { e.token = false; tokens.n--; } } } }
-          else if (e.mode === 'cool') { if (e.modeT > e.coolD) { e.mode = (rnd() < 0.45 || (e.goal && e.goal.distanceTo(pp) > CFG.range[1] + 3) || !e.sees) ? 'move' : 'aim'; e.modeT = 0; if (e.mode === 'move') setGoal(e, pickSpot(e)); } }
+          } else if (e.mode === 'tele') { e.glow = Math.min(1, e.modeT / e.c.tele); if (e.modeT >= e.c.tele) { e.mode = 'burst'; e.modeT = 0; e.burstN = 0; e.shotT = 0; } }
+          else if (e.mode === 'burst') { e.shotT -= dt; if (e.shotT <= 0) { if (e.sees) shoot(e); e.burstN++; e.shotT = e.c.burstGap; if (e.burstN >= e.c.burst) { e.mode = 'cool'; e.modeT = 0; e.coolD = e.c.cool[0] + rnd() * (e.c.cool[1] - e.c.cool[0]); if (e.token) { e.token = false; tokens.n--; } } } }
+          else if (e.mode === 'cool') { if (e.modeT > e.coolD) { e.mode = (rnd() < 0.45 || (e.goal && e.goal.distanceTo(pp) > e.c.range[1] + 3) || !e.sees) ? 'move' : 'aim'; e.modeT = 0; if (e.mode === 'move') setGoal(e, pickSpot(e)); } }
         }
       }
       if (e.mode !== 'tele') e.glow = Math.max(0, e.glow - dt * 3);
@@ -311,7 +311,7 @@ export async function createEnemies(G) {
       const moving = e.state !== 'engage' || e.mode === 'move';
       if (moving && e.wp.length) {
         const wp = e.wp[0]; const d = wp.clone().sub(e.root.position).setY(0); if (d.length() < 0.55) e.wp.shift();
-        else tv.copy(d.normalize()).multiplyScalar(e.state === 'engage' ? CFG.run : e.state === 'investigate' || e.state === 'search' ? CFG.run * 0.6 : CFG.walk);
+        else tv.copy(d.normalize()).multiplyScalar(e.state === 'engage' ? e.c.run : e.state === 'investigate' || e.state === 'search' ? e.c.run * 0.6 : CFG.walk);
       }
       // separation
       for (const o of list) if (o !== e && o.alive) { const d = e.root.position.clone().sub(o.root.position).setY(0); const l = d.length(); if (l < 1.2 && l > 1e-3) tv.addScaledVector(d.normalize(), (1.2 - l) * 3); }

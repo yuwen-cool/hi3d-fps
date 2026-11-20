@@ -6,7 +6,9 @@ window.__errors = []; window.__frames = 0; window.__ready = false; window.__fata
 window.addEventListener('error', (e) => window.__errors.push(String(e.message)));
 window.addEventListener('unhandledrejection', (e) => window.__errors.push(String(e.reason)));
 
-const G = { THREE, params, events: events(), rng: rng(+(params.seed || 4207)), time: 0, modules: {}, err: {} };
+const G = { THREE, params, events: events(), rng: rng(+(params.seed || 4207)), time: 0, modules: {}, err: {}, stopT: 0, slowT: 0, slowK: 1 };
+G.hitstop = (s) => { G.stopT = Math.max(G.stopT, s); };
+G.slowmo = (s, k = 0.3) => { G.slowT = s; G.slowK = k; };
 window.__G = G;
 
 const loading = document.getElementById('loading');
@@ -33,8 +35,13 @@ async function boot() {
   const fixedDt = params.dt ? +params.dt : 0;
   const tick = (forceDt) => {
     const now = performance.now();
-    let dt = forceDt || fixedDt || Math.min((now - last) / 1000, 0.1); last = now;
-    G.time += dt; G.dt = dt;
+    const real = forceDt || fixedDt || Math.min((now - last) / 1000, 0.1); last = now;
+    // game time: hitstop (near-freeze for a few frames) and slow motion, both measured in real seconds
+    if (G.stopT > 0) G.stopT -= real;
+    if (G.slowT > 0) G.slowT -= real;
+    const slow = G.slowT > 0 ? THREE.MathUtils.lerp(1, G.slowK, Math.min(1, G.slowT / 0.25)) : 1;
+    const dt = real * (G.stopT > 0 ? 0.04 : slow);
+    G.time += dt; G.dt = dt; G.realDt = real;
     for (const [name, m] of Object.entries(G.modules)) {
       if (!m.update || G.err[name]) continue;
       try { m.update(dt); } catch (e) { G.err[name] = 1; console.error(`[${name}]`, e); window.__errors.push(`${name}: ${e.message}`); }

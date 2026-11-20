@@ -136,10 +136,15 @@ export function createFX(G) {
     for (let i = 0; i < 2; i++) chunk(p, cone(dir.clone().negate(), 1.4).multiplyScalar(3 + rnd() * 3), 0.02 + rnd() * 0.02, 0x2e2c2a);
     if ((G._lastHitLight || 0) + 0.09 < G.time) { G._lastHitLight = G.time; R.flash(p, 0xffb060, 8, 4.5, 0.05); }
   }
-  function tracer(from, to) {
+  // tracer: a fast bright bolt plus a thin fading filament along the whole path so the shot line reads
+  // for a few frames. Robots fire blue-white plasma, the player's rounds are warm.
+  function tracer(from, to, enemy = false) {
     const d = to.clone().sub(from); const len = d.length(); d.normalize();
     if (len < 2) return;
-    emit(add, { pos: from.clone().addScaledVector(d, Math.min(2.5, len * 0.3)), vel: d.clone().multiplyScalar(260), life: Math.min(0.25, (len - 2) / 260), size: 0.022, stretch: 1.4, col: [16, 9.5, 5], alpha: 1 });
+    const col = enemy ? [7, 12, 26] : [16, 9.5, 5];
+    emit(add, { pos: from.clone().addScaledVector(d, Math.min(2.5, len * 0.3)), vel: d.clone().multiplyScalar(180), life: Math.max(0.05, Math.min(0.3, (len - 2) / 180)), size: enemy ? 0.04 : 0.03, stretch: 2.0, col, alpha: 1 });
+    const mid = from.clone().addScaledVector(d, len * 0.5);
+    emit(add, { pos: mid, vel: d.clone().multiplyScalar(10.01), life: enemy ? 0.22 : 0.12, size: enemy ? 0.009 : 0.006, stretch: len * 0.5, col: enemy ? [1.2, 2.2, 5] : [2, 1.2, 0.6], drag: 0 });
   }
   function muzzleSmoke(p, heat) { emit(alpha, { pos: p, vel: V((rnd() - 0.5) * 0.3, 0.6, (rnd() - 0.5) * 0.3), life: 1.3, size: 0.1 + heat * 0.06, size1: 0.5, col: litColor([0.5, 0.48, 0.46]), alpha: 0.22, soft: true, drag: 1.2, rise: 0.3 }); }
   function explosion(p, size = 1) {

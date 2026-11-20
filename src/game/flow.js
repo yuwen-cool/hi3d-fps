@@ -1,27 +1,32 @@
 import * as THREE from 'three';
 
 // Match flow: title -> intro -> patrol + 3 waves -> extraction. Death -> retry.
-const SPAWNS = [[-9, -26], [2, -29], [11, -27], [-16, -21], [17, -21], [-3, -18], [8, -12], [-14, -3], [16, -3], [0, -25]];
-const WAVES = [{ n: 2 }, { n: 3 }, { n: 4 }];
+const SPAWNS = [[-9, -26], [2, -29], [11, -27], [-16, -21], [17, -21], [-3, -18], [8, -12], [-14, -3], [16, -3], [0, -25], [-8, -10], [7, -9], [-12, -6], [12, -7], [0, -14], [-6, -17], [9, -17]];
+// ch = how many of the wave are chargers (they come in last, after the riflemen have pinned you)
+const WAVES = [{ n: 3, ch: 0 }, { n: 4, ch: 1 }, { n: 5, ch: 2 }];
 
 export function createFlow(G) {
   const S = { state: G.params.shot ? 'play' : 'title', wave: -1, waveT: 0, kills: 0, t: 0, extract: new THREE.Vector3(-17, 0, 4), msg: '', msgT: 0, startT: 0 };
   const E = () => G.enemies;
   function say(m, t = 3) { S.msg = m; S.msgT = t; G.events.emit('flow:msg', { m, t }); }
-  function spawnWave(n) {
-    const pp = G.player.s.pos; const cand = SPAWNS.map(([x, z]) => new THREE.Vector3(x, 0, z)).filter((p) => p.distanceTo(pp) > 16 && !G.phys.blocked(p.x, p.z, 0.45));
+  function spawnWave(n, ch = 0) {
+    const pp = G.player.s.pos; const cand = SPAWNS.map(([x, z]) => new THREE.Vector3(x, 0, z)).filter((p) => p.distanceTo(pp) > 10 && !G.phys.blocked(p.x, p.z, 0.45));
     cand.sort(() => G.rng() - 0.5);
-    for (let i = 0; i < n && i < cand.length; i++) setTimeout(() => { const e = E()?.spawn(cand[i], { yaw: Math.atan2(pp.x - cand[i].x, pp.z - cand[i].z) }); if (e && S.wave > 0) { e.lastKnown = pp.clone(); e.state = 'investigate'; } }, i * 850);
+    for (let i = 0; i < n && i < cand.length; i++) setTimeout(() => { const e = E()?.spawn(cand[i], { yaw: Math.atan2(pp.x - cand[i].x, pp.z - cand[i].z), kind: i >= n - ch ? 'charger' : 'rifle' }); if (e && S.wave > 0) { e.lastKnown = pp.clone(); e.state = 'investigate'; } }, i * 850);
   }
   function start() {
     if (S.state === 'play') return;
     S.state = 'play'; S.startT = S.t; S.wave = -1; S.waveT = 3;
     // opening patrol: two robots wandering in the far yard
-    E()?.spawn(new THREE.Vector3(-6, 0, -24), { yaw: 0.3 }); E()?.spawn(new THREE.Vector3(6, 0, -22), { yaw: -0.4 });
+    E()?.spawn(new THREE.Vector3(-5, 0, -12), { yaw: 0.3 }); E()?.spawn(new THREE.Vector3(6, 0, -10), { yaw: -0.4 });
     say('CLEAR THE REFINERY', 3.5);
     G.events.emit('flow:start');
   }
-  G.events.on('enemy:killed', () => { S.kills++; });
+  // kill feel: a few frames of hitstop and a shake on every kill, slow motion on the wave's last one
+  G.events.on('enemy:killed', () => {
+    S.kills++; G.hitstop(0.055); G.player.addShake(0.32);
+    if (S.state === 'play' && (E()?.alive ?? 1) === 0) { G.slowmo(0.9, 0.28); G.events.emit('flow:lastkill'); }
+  });
   G.events.on('player:dead', () => { S.state = 'dead'; S.deadT = 0; say('KIA — CLICK TO RETRY', 99); });
   addEventListener('mousedown', () => { if (S.state === 'title') start(); else if (S.state === 'dead' && S.deadT > 1.5) location.reload(); });
   if (G.params.shot && !G.params.noenemies) setTimeout(start, 0);
@@ -34,7 +39,7 @@ export function createFlow(G) {
       S.waveT -= dt;
       if (S.waveT <= 0) {
         S.wave++;
-        if (S.wave < WAVES.length) { spawnWave(WAVES[S.wave].n); say(`WAVE ${S.wave + 1} / ${WAVES.length}`, 2.5); S.waveT = 4; }
+        if (S.wave < WAVES.length) { spawnWave(WAVES[S.wave].n, WAVES[S.wave].ch); say(`WAVE ${S.wave + 1} / ${WAVES.length}`, 2.5); S.waveT = 4; }
         else if (S.state === 'play') { S.state = 'extract'; say('AREA CLEAR — REACH EXTRACTION', 4); G.events.emit('flow:extract'); }
       }
     }

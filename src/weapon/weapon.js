@@ -111,6 +111,11 @@ export async function createWeapon(G) {
   // anodised/polymer (albedo ~0.05-0.1) and the look comes from crisp specular, so darken + tighten roughness.
   const finish = (o, k, r) => o.traverse((m) => { if (!m.isMesh) return; m.material = m.material.clone(); m.material.userData = { ...m.material.userData }; m.material.color.multiplyScalar(k); m.material.roughness = r; m.material.metalness = 0.25; m.material.envMapIntensity = 1.1; }); // anodised/polymer: mostly dielectric, no chrome
   finish(holder, +(T.wk || 0.38), +(T.wr || 0.74));
+  // the tan stock sits closest to the camera and blows out in sun: darken it with vertex colour by gun-space depth
+  gun.updateMatrixWorld(true);
+  holder.traverse((m) => { if (!m.isMesh) return; m.geometry = m.geometry.clone(); const a = m.geometry.attributes.position, c = new Float32Array(a.count * 3), v = new THREE.Vector3();
+    for (let i = 0; i < a.count; i++) { v.fromBufferAttribute(a, i).applyMatrix4(m.matrixWorld); gun.worldToLocal(v); const k = 1 - 0.65 * THREE.MathUtils.smoothstep(v.z, 0.0, 0.1); c[i * 3] = c[i * 3 + 1] = c[i * 3 + 2] = k; }
+    m.geometry.setAttribute('color', new THREE.BufferAttribute(c, 3)); m.material.vertexColors = true; });
   if (mag) finish(mag, +(T.wk || 0.38) * 0.8, +(T.wr || 0.74) + 0.08);
   root.traverse((o) => { o.layers.set(1); if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; o.frustumCulled = false; } }); // shade comes from the renderer's sun-visibility ray
   // muzzle flash meshes
@@ -118,7 +123,16 @@ export async function createWeapon(G) {
   const flash = new THREE.Group(); flash.position.copy(muzzleLocal); gun.add(flash);
   const petals = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.26), fm); flash.add(petals);
   const petals2 = new THREE.Mesh(new THREE.PlaneGeometry(0.18, 0.18), fm); petals2.position.z = -0.03; flash.add(petals2);
-  for (const r of [0, Math.PI / 2]) { const j = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.13), fj); j.position.z = -0.17; j.rotation.set(0, Math.PI / 2, r); flash.add(j); }
+  for (const r of [0, Math.PI / 3, -Math.PI / 3]) { const j = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.13), fj); j.position.z = -0.17; j.rotation.set(0, Math.PI / 2, r); flash.add(j); }
+  // volumetric core: an open cone (base at the muzzle, tip forward) so the flash has depth from any angle
+  const coneG = new THREE.CylinderGeometry(0.0, 0.055, 0.3, 14, 1, true); coneG.translate(0, 0.15, 0); coneG.rotateX(-Math.PI / 2);
+  const fc = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false, uniforms: { uI: fm.uniforms.uI, uSeed: fm.uniforms.uSeed },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: `varying vec2 vUv; uniform float uI, uSeed;
+    void main(){ float along = vUv.y; float n = 0.55 + 0.45 * sin(vUv.x * 31.4 + uSeed * 7.0) * sin(along * 18.0 - uSeed * 3.0);
+      float e = pow(1.0 - along, 1.6) * n * 1.6; vec3 c = mix(vec3(1.0, 0.45, 0.12), vec3(1.0, 0.92, 0.75), clamp(e - 0.5, 0.0, 1.0));
+      gl_FragColor = vec4(c * e * uI, 1.0); }` });
+  flash.add(new THREE.Mesh(coneG, fc));
   flash.traverse((o) => { o.layers.set(1); o.renderOrder = 10; }); flash.visible = false;
   // reflex reticle: projected dot, only readable down the sight axis
   const dotMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending, toneMapped: false, uniforms: { uA: { value: 0 } },
@@ -159,7 +173,7 @@ export async function createWeapon(G) {
     // flash
     S.flashDur = 0.036 + Math.random() * 0.02; S.flashT = S.flashDur;
     fm.uniforms.uSeed.value = fj.uniforms.uSeed.value = Math.random() * 100;
-    flash.rotation.z = (Math.random() - 0.5) * 0.4; const fs = (0.8 + Math.random() * 0.5) * THREE.MathUtils.lerp(1, 0.62, ads); flash.scale.set(fs, fs, fs * (0.8 + Math.random() * 0.5));
+    flash.rotation.z = Math.random() * Math.PI * 2; const fs = (0.8 + Math.random() * 0.5) * THREE.MathUtils.lerp(1, 0.62, ads); flash.scale.set(fs, fs, fs * (0.8 + Math.random() * 0.5));
     cam.updateMatrixWorld(true);
     vmToWorld(muzzleLocal, _m);
     R.flash(_m, 0xffb060, 45, 9, 0.05);
