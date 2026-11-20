@@ -40,3 +40,6 @@
 {"name": "container", "step": "model", "task": "67e1d29ee56449e78d2369fe45674da7", "points": 45}
 {"name": "sandbags", "step": "image", "task": "ef60759ea9664069b5a94da92d2a609a", "points": 6}
 {"name": "scaffold", "step": "image", "task": "b6f35ea655234117bf34abdd2257616f", "points": 6}
+{"name": "scaffold", "step": "model", "task": "952450c8214e4412af35d318489890df", "points": 45}
+{"name": "sandbags", "step": "model", "task": "ac88499022d14f70a0360315b387c027", "points": 45}
+{"name": "spool", "step": "model", "task": "2d65b8811f1f4efd85916884b16a3b95", "points": 45}

@@ -1,0 +1,1 @@
+{"url": "/?shot=1&noenemies=1&nohud=1&q=ultra", "seconds": 6, "setup": "const G=__G;G.camLocked=true;G.viewModelVisible=false;window.__c=G.R.camera;", "perFrame": "const c=__c;const k=t/6;const e=k*k*(3-2*k);c.position.set(2-e*9,0.9+e*1.6,1-e*9);c.lookAt(-15+e*2,4.5+e*0.5,-24);", "name": "s1_fly"}

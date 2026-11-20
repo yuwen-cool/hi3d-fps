@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { instance, setRendererCaps } from './assets.js';
-import { makeGround } from './ground.js';
+import { makeGround, PADS } from './ground.js';
 import { triplanarMaterial } from '../mats/triplanar.js';
 import { dress } from './scatter.js';
 import { INTERIOR } from '../mats/patch.js';
@@ -62,6 +62,7 @@ export async function buildLevel(G) {
   // ---------- corridor / workshop (interior volume) ----------
   const C = LAYOUT.corridor;
   INTERIOR.min.set(C.minX + 0.15, -1, C.minZ + 0.15); INTERIOR.max.set(C.maxX - 0.15, C.h - 0.1, C.maxZ - 0.15);
+  G.R.setWet(PADS, new THREE.Vector4(C.minX + 0.2, C.minZ + 0.2, C.maxX - 0.2, C.maxZ - 0.2)); // leaking roof: puddled slab
   const wallT = 0.25;
   // outer wall x = maxX, inner wall x = minX with two openings (z in [-5,-2.6] and [-20,-17.6])
   wall.push(boxGeo(wallT, C.h, C.maxZ - C.minZ, C.maxX, C.h / 2, (C.minZ + C.maxZ) / 2));
@@ -149,6 +150,12 @@ export async function buildLevel(G) {
   for (const [x, z] of shrubs) jobs.push(place('shrub', x, z, x * 1.7, { col: false, s: 0.8 + ((x * z) % 0.4 + 0.4) * 0.6, surface: 'wood' }));
   await Promise.all(jobs);
 
+  // practical lights for the workshop lamps: warm, unshadowed, with a hot bulb so bloom picks them up
+  const bulbM = new THREE.MeshBasicMaterial({ color: new THREE.Color(9, 5.2, 2.4), toneMapped: false });
+  for (const z of [-3.5, -9.5, -15.5, -21.5]) {
+    const l = new THREE.PointLight(new THREE.Color(1.0, 0.6, 0.3), 9, 8.5, 2); l.position.set(C.maxX - 0.75, 3.05, z); root.add(l);
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), bulbM); b.position.set(C.maxX - 0.48, 3.12, z); root.add(b);
+  }
   G.level = { root, cover: [], layout: LAYOUT, explosives };
   await dress(G, root);
   R.fitShadow(new THREE.Box3(new THREE.Vector3(-62, -1, -84), new THREE.Vector3(42, 30, 22)));

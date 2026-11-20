@@ -62,6 +62,15 @@ export function createRenderer(G, canvas) {
   sun.shadow.mapSize.set(tier.shadow, tier.shadow);
   sun.shadow.bias = -0.00012; sun.shadow.normalBias = 0.025; sun.shadow.radius = 2.2;
   scene.add(sun, sun.target);
+  // warm bounce from the sunlit sand + dusty sky fill: keeps shadows from going cold-blue
+  const hemi = new THREE.HemisphereLight(new THREE.Color(0.46, 0.42, 0.40), new THREE.Color(0.70, 0.46, 0.28), 0.7); scene.add(hemi);
+  // lights are layer-filtered like meshes: the view-model pass (layer 1) must see the sun, fill and flashes too
+  sun.layers.enable(1); hemi.layers.enable(1);
+  const _vmP = new THREE.Vector3(); let vmSun = 1, vmSunT = 1;
+  // view-model reflector: a soft camera-space fill (layer 1 only) from behind-left-above, so the gun's
+  // machining still reads when the player looks straight into the dusk sun
+  const vmFill = new THREE.DirectionalLight(new THREE.Color(1.0, 0.86, 0.72), 1.6); vmFill.layers.set(1); scene.add(vmFill, vmFill.target);
+  const _vmFillDir = new THREE.Vector3(-0.55, 0.65, 0.55).normalize();
   G.sun = { light: sun, dir: sunDir, col: sunCol };
   // fit the ortho shadow box around a world AABB
   function fitShadow(box) {
@@ -88,7 +97,7 @@ export function createRenderer(G, canvas) {
 
   // point light pool (fixed count: no shader recompiles)
   const lights = [];
-  for (let i = 0; i < 6; i++) { const l = new THREE.PointLight(0xffffff, 0, 12, 2); l.castShadow = false; scene.add(l); lights.push({ l, ttl: 0, life: 1, i0: 0 }); }
+  for (let i = 0; i < 6; i++) { const l = new THREE.PointLight(0xffffff, 0, 12, 2); l.castShadow = false; l.layers.enable(1); scene.add(l); lights.push({ l, ttl: 0, life: 1, i0: 0 }); }
   let nextLight = 0;
   function flash(pos, color, intensity, dist, ttl) {
     const s = lights[nextLight]; nextLight = (nextLight + 1) % lights.length;
@@ -117,7 +126,7 @@ export function createRenderer(G, canvas) {
       uHeightFall: { value: TUNE.volHeightFall }, uBase: { value: TUNE.volBase }, uSteps: { value: tier.vol },
       uInterior: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uInteriorSize: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uInteriorCount: { value: 0 }, uInteriorDust: { value: TUNE.volInteriorDust },
     }),
-    comp: pass(S.COMPOSITE, { tColor: { value: null }, tDepth: { value: null }, tZ: { value: null }, tAO: { value: null }, tVol: { value: null }, uHalfRes: { value: new THREE.Vector2() }, uAOStrength: { value: TUNE.aoStrength }, uExposureHint: { value: 1 }, uUseAO: { value: 1 }, uUseVol: { value: 1 } }),
+    comp: pass(S.COMPOSITE, { tColor: { value: null }, tDepth: { value: null }, tZ: { value: null }, tAO: { value: null }, tVol: { value: null }, uHalfRes: { value: new THREE.Vector2() }, uAOStrength: { value: TUNE.aoStrength }, uExposureHint: { value: 1 }, uUseAO: { value: 1 }, uUseVol: { value: 1 }, uUseSSR: { value: 1 }, uProjV: { value: new THREE.Vector4() }, uCamMat: { value: new THREE.Matrix4() }, uViewUp: { value: new THREE.Vector3() }, uPads: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(1e5, 1e5, 1e5, 1e5)) }, uCorr: { value: new THREE.Vector4(1e5, 1e5, 1e5, 1e5) }, uTime: { value: 0 } }),
     down: pass(S.BLOOM_DOWN, { tSrc: { value: null }, uSrcPx: { value: new THREE.Vector2() }, uFirst: { value: 0 } }),
     up: pass(S.BLOOM_UP, { tSrc: { value: null }, tHigh: { value: null }, uSrcPx: { value: new THREE.Vector2() }, uMix: { value: TUNE.bloomMix } }),
     streak: pass(S.STREAK, { tSrc: { value: null }, uStep: { value: new THREE.Vector2() }, uThresh: { value: TUNE.streakThresh }, uFirst: { value: 1 } }),
@@ -215,10 +224,18 @@ export function createRenderer(G, canvas) {
     renderer.render(scene, camera);
     // view model: own camera, compressed depth range so it never clips into walls
     if (G.viewModelVisible !== false) {
+      // the view model takes no shadow-map lookups (self-shadow acne, hard world shadows across the hands);
+      // instead one ray toward the sun tells whether the player stands in shade and the sun eases down
+      if (G.phys && (frameNo & 3) === 0) { _vmP.copy(camera.position).y -= 0.15; vmSunT = G.phys.raycast(_vmP, sunDir, 120) ? 0.22 : 1; }
+      vmSun += (vmSunT - vmSun) * Math.min(1, dt * 6);
+      vmFill.intensity = 1.6 * (0.35 + 0.65 * vmSun);
+      vmFill.target.position.copy(camera.position); vmFill.position.copy(_vmFillDir).applyQuaternion(camera.quaternion).add(camera.position);
+      vmFill.target.updateMatrixWorld(); vmFill.updateMatrixWorld();
+      const prevSun = sun.intensity; sun.intensity = prevSun * vmSun;
       const prevEnv = scene.environmentIntensity; scene.environmentIntensity = prevEnv * TUNE.viewFill;
       const bg = scene.background; scene.background = null;
       gl.depthRange(0, 0.05);
-      try { renderer.render(scene, viewCam); } finally { gl.depthRange(0, 1); scene.environmentIntensity = prevEnv; scene.background = bg; }
+      try { renderer.render(scene, viewCam); } finally { gl.depthRange(0, 1); scene.environmentIntensity = prevEnv; scene.background = bg; sun.intensity = prevSun; }
     }
     G.stats.calls = renderer.info.render.calls; G.stats.tris = renderer.info.render.triangles;
 
@@ -255,6 +272,7 @@ export function createRenderer(G, canvas) {
     const c = M.comp.uniforms;
     c.tColor.value = T.scene.texture; c.tDepth.value = T.scene.depthTexture; c.tZ.value = T.z.texture; c.tAO.value = T.aoA.texture; c.tVol.value = T.volA.texture;
     c.uHalfRes.value.set(hw, hh); c.uUseAO.value = post.ao ? 1 : 0; c.uUseVol.value = post.vol ? 1 : 0; c.uNear.value = camera.near; c.uFar.value = camera.far;
+    c.uProjV.value.copy(projV); c.uCamMat.value.copy(camera.matrixWorld); c.uViewUp.value.set(0, 1, 0).transformDirection(camera.matrixWorldInverse); c.uTime.value = time;
     run(M.comp, T.comp);
     // bloom
     let src = T.comp;
@@ -285,7 +303,10 @@ export function createRenderer(G, canvas) {
   }
 
   G.stats = { calls: 0, tris: 0 };
+  // wet zones are set by the level once it exists (pads + interior slab)
+  const setWet = (pads, corr) => { pads.forEach((p, i) => M.comp.uniforms.uPads.value[i].copy(p)); M.comp.uniforms.uCorr.value.copy(corr); };
   return {
+    setWet,
     renderer, scene, camera, viewCam, sun, sky, pmrem, flash, frame, resize, fitShadow, rebuildEnv, setInteriors, fx, post, tier, M, gl,
     get res() { return T ? [T.scene.width, T.scene.height] : [0, 0]; }, get scale() { return dynScale; },
     readExposure() { const b = new Uint16Array(4); renderer.readRenderTargetPixels(T.expA, 0, 0, 1, 1, b); return THREE.DataUtils.fromHalfFloat(b[0]); },

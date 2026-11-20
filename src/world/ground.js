@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+// concrete pads (minX, minZ, maxX, maxZ): ground shader blends to concrete; post SSR puts puddles on them
+export const PADS = [new THREE.Vector4(-10, -26, 6, -14), new THREE.Vector4(-20, -9, -8, 2), new THREE.Vector4(6, -30, 13, -20), new THREE.Vector4(-3, -8, 12, 1)];
 import { patchMaterial } from '../mats/patch.js';
 
 const tl = new THREE.TextureLoader();
@@ -19,7 +21,7 @@ export function makeGroundMaterial(set = 'gravelly_sand', set2 = 'sandy_gravel_0
   });
   const t2 = { d: tex(set2 + '_diff', true, 1), n: tex(set2 + '_nor', false, 1), a: tex(set2 + '_arm', false, 1) };
   const t3 = { d: tex('concrete_floor_worn_001_diff', true, 1), n: tex('concrete_floor_worn_001_nor', false, 1), a: tex('concrete_floor_worn_001_arm', false, 1) };
-  const pads = [new THREE.Vector4(-10, -26, 6, -14), new THREE.Vector4(-20, -9, -8, 2), new THREE.Vector4(6, -30, 13, -20), new THREE.Vector4(-3, -8, 12, 1)];
+  const pads = PADS;
   const u = { uGTile: { value: 1 / metres }, uG2d: { value: t2.d }, uG2n: { value: t2.n }, uG2a: { value: t2.a }, uG3d: { value: t3.d }, uG3n: { value: t3.n }, uG3a: { value: t3.a }, uPads: { value: pads } };
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
@@ -56,7 +58,7 @@ float gPath(){ float a = abs(sin(vGW.x * 0.11 + 1.3) * 6.0 - vGW.z - 12.0); retu
       .replace('#include <roughnessmap_fragment>', `
   vec4 ga = mix(gSample(roughnessMap, gUv), gSample(uG2a, gUv * 0.8), gm);
   ga = mix(ga, gSample(uG3a, gUv * 1.3), gp);
-  float roughnessFactor = mix(roughness * ga.g, 0.12, go);`)
+  float roughnessFactor = mix(max(roughness * ga.g, 0.82), 0.16, go);`)
       .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = 0.0;')
       .replace('#include <normal_fragment_maps>', `
   vec3 gn = mix(mix(gSample(normalMap, gUv).xyz, gSample(uG2n, gUv * 0.8).xyz, gm), gSample(uG3n, gUv * 1.3).xyz, gp) * 2.0 - 1.0;

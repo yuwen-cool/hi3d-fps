@@ -10,14 +10,15 @@ import { patchMaterial } from '../mats/patch.js';
 // upper-body aim/shoot layers.
 const CFG = { hp: 140, headR: 0.15, shotDmg: 5, burst: 4, burstGap: 0.11, cool: [1.6, 2.8], tele: 0.5, spreadFar: 0.06, spreadNear: 0.03,
   run: 4.2, walk: 1.6, accel: 7, turn: 3.0, range: [8, 20], sight: 48, fovCos: Math.cos(1.75), react: 0.55, height: 1.9, maxTokens: 2, tokenGap: 1.1 };
+const HOLD = { fwd: 0.28, down: -0.1, inward: -0.08, rBack: -0.05, rUp: 0.04, lFwd: 0.32, lUp: -0.03, lSide: 0.0, twist: -0.2, lPole: 0.25 };
 const UPPER = /^(spine|neck|head|clavicle|upperarm|lowerarm|hand|index|middle|ring|pinky|thumb)/;
 function subClip(c, upper, name) { return new THREE.AnimationClip(name, c.duration, c.tracks.filter((t) => UPPER.test(t.name.split('.')[0]) === upper)); }
 
 export async function createEnemies(G) {
   const R = G.R, P = G.phys, scene = R.scene, rnd = G.rng;
-  const { gltf, clips } = await loadRobotRig();
+  const { gltf, clips } = await loadRobotRig(); G.HOLD = HOLD;
   const src = gltf.scene;
-  src.traverse((m) => { if (m.isMesh) { m.castShadow = m.receiveShadow = true; m.frustumCulled = false; patchMaterial(m.material, 'robot'); m.material.emissiveIntensity = 2.5; } });
+  src.traverse((m) => { if (m.isMesh) { m.castShadow = m.receiveShadow = true; m.frustumCulled = false; patchMaterial(m.material, 'robot'); m.material.emissiveIntensity = 4.5; } });
   const L = {}, U = {};
   for (const n of ['Jog', 'Walk', 'Strafe_left', 'Strafe_right', 'Walk_Backwards', 'Sprint', 'Pistol_Idle', 'Idle_A', 'Run_Stealth']) if (clips[n]) L[n] = subClip(clips[n], false, n + '_L');
   for (const n of ['Pistol_Aim_Neutral', 'Pistol_Shoot', 'Pistol_Idle', 'Pistol_Reload', 'Jog', 'Walk', 'Sprint']) if (clips[n]) U[n] = subClip(clips[n], true, n + '_U');
@@ -59,7 +60,7 @@ export async function createEnemies(G) {
     const bones = {}; o.traverse((b) => { if (b.isBone) bones[b.name] = b; });
     const mats = []; o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); patchMaterial(m.material, 'robot'); mats.push(m.material); } });
     // rifle in the right hand
-    const gun = gunSrc.clone(true); scene.add(gun); // placed in world space each frame (robust to any clip)
+    const gun = gunSrc.clone(true); gun.scale.setScalar(1.12); scene.add(gun); // world-space each frame; 1.12x keeps human proportions on a 1.9 m robot
     gun.userData.fit = true;
     gun.traverse((m) => { if (m.isMesh) m.castShadow = true; });
     const mixer = new THREE.AnimationMixer(o);
@@ -71,6 +72,9 @@ export async function createEnemies(G) {
       vel: new THREE.Vector3(), yaw: opts.yaw ?? Math.PI, wp: [], goal: null, repath: 0, mode: 'move', modeT: 0, burstN: 0, shotT: 0, token: false,
       lastKnown: null, home: pos.clone(), patrolT: 0, hitSpr: { p: 0, pv: 0, r: 0, rv: 0 }, curL: null, curU: null, deadT: 0, id: list.length, glow: 0,
     };
+    // bones edited procedurally after the mixer (stance twist, aim pitch, hit springs, arm IK)
+    e.pb = ['spine_02', 'spine_03', 'neck_01', 'head', 'upperarm_l', 'lowerarm_l', 'upperarm_r', 'lowerarm_r'].map((n) => bones[n]);
+    e.pq = e.pb.map((b) => b.quaternion.clone());
     play(e, 'L', 'Pistol_Idle', 0); play(e, 'U', 'Pistol_Idle', 0);
     list.push(e); return e;
   }
@@ -186,23 +190,73 @@ export async function createEnemies(G) {
   }
   // ---------- rifle placement: grip in the right hand, muzzle along the aim line ----------
   const _gp = new THREE.Vector3(), _gl = new THREE.Vector3(), _gm = new THREE.Matrix4(), _up = new THREE.Vector3(0, 1, 0);
-  function placeGun(e, aim) {
+  // Rifle hold: the clip library only has pistol poses, so the rifle is shouldered procedurally
+  // (stock in the right shoulder pocket, bore along the aim line) and both arms are solved onto it
+  // with analytic two-bone IK (right hand on the pistol grip, left hand on the handguard).
+  const UPV = new THREE.Vector3(0, 1, 0);
+  const _ia = new THREE.Vector3(), _ib = new THREE.Vector3(), _ic = new THREE.Vector3(), _it = new THREE.Vector3(), _el = new THREE.Vector3();
+  const _q = new THREE.Quaternion(), _pq = new THREE.Quaternion(), _wq = new THREE.Quaternion(), _rt = new THREE.Vector3(), _upw = new THREE.Vector3();
+  function rotateBoneWorld(bone, from, to) {
+    _q.setFromUnitVectors(from.normalize(), to.normalize());
+    bone.getWorldQuaternion(_wq); _wq.premultiply(_q);
+    bone.parent.getWorldQuaternion(_pq); bone.quaternion.copy(_pq.invert().multiply(_wq));
+    bone.updateMatrixWorld(true);
+  }
+  function yawBoneWorld(bone, ang) {
+    _q.setFromAxisAngle(UPV, ang); bone.getWorldQuaternion(_wq); _wq.premultiply(_q);
+    bone.parent.getWorldQuaternion(_pq); bone.quaternion.copy(_pq.invert().multiply(_wq)); bone.updateMatrixWorld(true);
+  }
+  function ik2(up, lo, hand, target, pole) {
+    up.getWorldPosition(_ia); lo.getWorldPosition(_ib); hand.getWorldPosition(_ic);
+    const l1 = _ia.distanceTo(_ib), l2 = _ib.distanceTo(_ic);
+    const d = THREE.MathUtils.clamp(_ia.distanceTo(target), Math.abs(l1 - l2) + 1e-3, l1 + l2 - 1e-3);
+    const ax = _it.copy(target).sub(_ia).normalize();
+    const cosA = (l1 * l1 + d * d - l2 * l2) / (2 * l1 * d), sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
+    const pp = pole.clone().addScaledVector(ax, -pole.dot(ax)).normalize();
+    _el.copy(_ia).addScaledVector(ax, l1 * cosA).addScaledVector(pp, l1 * sinA);
+    rotateBoneWorld(up, _ib.clone().sub(_ia), _el.clone().sub(_ia));
+    lo.getWorldPosition(_ib); hand.getWorldPosition(_ic);
+    const tgt = _ia.clone().addScaledVector(ax, d);
+    rotateBoneWorld(lo, _ic.clone().sub(_ib), tgt.sub(_ib));
+  }
+  function placeGun(e, aim, at) {
+    const B_ = e.bones;
+    // bladed rifle stance: torso turns so the support shoulder comes forward, head counter-turns onto the target
     e.o.updateMatrixWorld(true);
-    e.bones.hand_r.getWorldPosition(_gp); e.bones.hand_l.getWorldPosition(_gl);
+    yawBoneWorld(B_.spine_02, HOLD.twist * 0.55); yawBoneWorld(B_.spine_03, HOLD.twist * 0.45); yawBoneWorld(B_.neck_01, -HOLD.twist * 0.7); yawBoneWorld(B_.head, -HOLD.twist * 0.3);
+    e.o.updateMatrixWorld(true);
+    B_.upperarm_r.getWorldPosition(_gp);
     let dir;
-    if (aim && !G.player.s.dead) dir = playerEye().clone().sub(_gp).normalize();
-    else dir = new THREE.Vector3(Math.sin(e.yaw), -0.55, Math.cos(e.yaw)).normalize();
-    _gm.lookAt(new THREE.Vector3(0, 0, 0), dir.clone().negate(), _up); // -Z of the gun -> dir
+    if (at) dir = at.clone().sub(_gp).normalize();
+    else if (aim && !G.player.s.dead) dir = playerEye().clone().sub(_gp).normalize();
+    else dir = new THREE.Vector3(Math.sin(e.yaw), -0.62, Math.cos(e.yaw)).normalize();
+    // keep the bore within a believable cone of the torso's facing
+    const f = new THREE.Vector3(Math.sin(e.yaw), 0, Math.cos(e.yaw));
+    const h = dir.clone().setY(0); if (h.lengthSq() < 1e-4) h.copy(f); h.normalize();
+    if (h.dot(f) < 0.8) { h.lerp(f, 0.6).normalize(); dir.set(h.x * Math.hypot(dir.x, dir.z), dir.y, h.z * Math.hypot(dir.x, dir.z)).normalize(); }
+    _rt.crossVectors(dir, UPV).normalize(); _upw.crossVectors(_rt, dir).normalize();
+    _gm.lookAt(new THREE.Vector3(0, 0, 0), dir.clone().negate(), _upw); // -Z of the gun -> dir
     e.gun.quaternion.setFromRotationMatrix(_gm);
-    e.gun.position.copy(_gp).addScaledVector(dir, 0.04).y += 0.02;
+    // pistol grip sits ahead of and below the shoulder pocket, pulled toward the chest centreline
+    e.gun.position.copy(_gp).addScaledVector(dir, HOLD.fwd).addScaledVector(_upw, HOLD.down).addScaledVector(_rt, HOLD.inward);
     e.gun.visible = e.root.visible;
+    e.gun.updateMatrixWorld(true);
+    // right hand -> grip (wrist sits slightly behind/above the grip origin)
+    const rT = e.gun.position.clone().addScaledVector(dir, HOLD.rBack).addScaledVector(_upw, HOLD.rUp);
+    ik2(B_.upperarm_r, B_.lowerarm_r, B_.hand_r, rT, _upw.clone().multiplyScalar(-1).addScaledVector(_rt, 0.7).addScaledVector(dir, -0.3));
+    // left hand -> handguard
+    const lT = e.gun.position.clone().addScaledVector(dir, HOLD.lFwd).addScaledVector(_upw, HOLD.lUp).addScaledVector(_rt, HOLD.lSide);
+    ik2(B_.upperarm_l, B_.lowerarm_l, B_.hand_l, lT, _upw.clone().multiplyScalar(-1).addScaledVector(_rt, -HOLD.lPole).addScaledVector(dir, 0.15));
   }
   // ---------- update ----------
-  const UPV = new THREE.Vector3(0, 1, 0);
   function update(dt) {
     const pp = G.player.s.pos, pdead = G.player.s.dead;
     for (const e of list) {
+      // PropertyMixer only writes a bone when its sampled value changes, so constant tracks would let
+      // last frame's procedural edits pile up: restore the pure animated pose before sampling.
+      for (let i = 0; i < e.pb.length; i++) e.pb[i].quaternion.copy(e.pq[i]);
       e.mixer.update(dt);
+      for (let i = 0; i < e.pb.length; i++) e.pq[i].copy(e.pb[i].quaternion);
       if (!e.alive) {
         e.deadT += dt; if (e.knock && e.deadT < 0.4) e.root.position.addScaledVector(e.knock, dt * (1 - e.deadT / 0.4));
         // wreck: electrical sputter + smoke for a few seconds
@@ -214,6 +268,10 @@ export async function createEnemies(G) {
         if (e.gun.position.y > 0.05) { e.gunV.y -= 9.8 * dt; e.gun.position.addScaledVector(e.gunV, dt); e.gun.rotateX(dt * 3); } 
         if (e.deadT > 12) { e.root.position.y -= dt * 0.22; if (e.deadT > 15) { e.root.visible = false; e.gun.visible = false; } }
         continue;
+      }
+      if (e.puppet) { // scripted (trailer / showcase): pose only, aim where told
+        e.root.rotation.y = e.yaw; play(e, 'L', e.puppetL || 'Pistol_Idle'); play(e, 'U', e.puppetU || 'Pistol_Aim_Neutral', 0.25);
+        e.o.updateMatrixWorld(true); placeGun(e, false, e.puppetAim); for (const m of e.mats) m.emissiveIntensity = 4.5 + e.glow * 14; continue;
       }
       const toP = _v.copy(pp).sub(e.root.position); toP.y = 0; const dist = toP.length();
       // perception
@@ -277,7 +335,7 @@ export async function createEnemies(G) {
       const hs = e.hitSpr; for (let k = 0; k < 3; k++) { const h = dt / 3; hs.pv += (-hs.p * 300 - hs.pv * 20) * h; hs.p += hs.pv * h; hs.rv += (-hs.r * 300 - hs.rv * 20) * h; hs.r += hs.rv * h; }
       if (e.state === 'engage') { const pitch = Math.atan2(playerEye().y - 1.5, Math.max(1, dist)); e.bones.spine_02.rotateX(-pitch * 0.5); e.bones.spine_03.rotateX(-pitch * 0.5); }
       e.bones.spine_02.rotateX(hs.p * 0.6); e.bones.spine_03.rotateZ(hs.r * 0.5); e.bones.neck_01.rotateX(hs.p * 0.4);
-      for (const m of e.mats) m.emissiveIntensity = 2.5 + e.glow * 14;
+      for (const m of e.mats) m.emissiveIntensity = 4.5 + e.glow * 14;
       placeGun(e, aiming || e.state === 'engage');
     }
   }

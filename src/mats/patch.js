@@ -11,7 +11,7 @@ export const CLASSES = {
   concrete:{ macro: [0.22, 0.12, 0.35, 0.40], dust: [0.55, 0.70] },
   paint:   { macro: [0.18, 0.16, 0.40, 0.45], dust: [0.45, 0.60] },
   ground:  { macro: [0.10, 0.08, 0.15, 0.00], dust: [0.00, 0.00] },
-  robot:   { macro: [0.08, 0.10, 1.20, 0.25], dust: [0.30, 0.40] },
+  robot:   { macro: [0.08, 0.10, 1.20, 0.25], dust: [0.30, 0.40], rim: [1.0, 0.62, 0.36, 0.55] }, // rim keeps backlit robots readable
   weapon:  { macro: [0.06, 0.06, 6.0, 0.00], dust: [0.10, 0.00] },
   plant:   { macro: [0.10, 0.05, 1.0, 0.00], dust: [0.20, 0.20] },
 };
@@ -35,6 +35,7 @@ const FRAG_DECL = /* glsl */`
 varying vec3 vSlWP; varying vec3 vSlWN;
 uniform vec4 uSlMacro;   // albedoVar, roughVar, freq (1/m), grime
 uniform vec4 uSlDust;    // amount, splashBand, -, -
+uniform vec4 uSlRim;     // rim colour, strength
 uniform vec3 uSlDustCol;
 uniform vec3 uSlInMin, uSlInMax;
 float slInterior(vec3 p){ vec3 d = max(uSlInMin - p, p - uSlInMax); return 1.0 - smoothstep(0.0, 1.2, max(max(d.x, d.y), d.z)); }
@@ -74,6 +75,12 @@ const FRAG_ROUGH = /* glsl */`
 
 const AO_SNIP = `
 { float slIn = slInterior(vSlWP); reflectedLight.indirectDiffuse *= mix(1.0, 0.28, slIn); reflectedLight.indirectSpecular *= mix(1.0, 0.22, slIn); }`;
+// silhouette rim (view-space fresnel), only for classes that set `rim`; scaled down indoors
+const RIM_SNIP = `
+#ifdef USE_SL_RIM
+{ float fr = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0); outgoingLight += uSlRim.rgb * uSlRim.a * fr * mix(1.0, 0.35, slInterior(vSlWP)); }
+#endif
+`;
 export function patchMaterial(mat, cls = 'default', over = {}) {
   if (mat.userData.slPatched) return mat;
   const c = { ...CLASSES[cls] || CLASSES.default, ...over };
@@ -81,20 +88,23 @@ export function patchMaterial(mat, cls = 'default', over = {}) {
     uSlMacro: { value: new THREE.Vector4(...c.macro) },
     uSlDust: { value: new THREE.Vector4(c.dust[0], c.dust[1], 0, 0) },
     uSlDustCol: { value: DUST_COLOR }, uSlInMin: { value: INTERIOR.min }, uSlInMax: { value: INTERIOR.max },
+    uSlRim: { value: new THREE.Vector4(...(c.rim || [0, 0, 0, 0])) },
   };
   mat.userData.slPatched = true; mat.userData.sl = u;
   const prev = mat.onBeforeCompile;
   mat.onBeforeCompile = (sh, r) => {
     prev?.call(mat, sh, r);
     Object.assign(sh.uniforms, u);
+    if (c.rim) sh.fragmentShader = '#define USE_SL_RIM\n' + sh.fragmentShader;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>' + VERT_DECL).replace('#include <worldpos_vertex>', VERT_BODY);
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + FRAG_DECL)
       .replace('#include <map_fragment>', FRAG_ALBEDO).replace('#include <normal_fragment_maps>', FRAG_ROUGH)
       .replace('#include <aomap_fragment>', '#include <aomap_fragment>' + AO_SNIP).replace('// SL_AO', AO_SNIP)
-      .replace('// SL_MAP', FRAG_ALBEDO.replace('#include <map_fragment>', '')).replace('// SL_NRM', FRAG_ROUGH.replace('#include <normal_fragment_maps>', ''));
+      .replace('// SL_MAP', FRAG_ALBEDO.replace('#include <map_fragment>', '')).replace('// SL_NRM', FRAG_ROUGH.replace('#include <normal_fragment_maps>', ''))
+      .replace('#include <opaque_fragment>', RIM_SNIP + '#include <opaque_fragment>');
   };
   const prevKey = mat.customProgramCacheKey.bind(mat);
-  mat.customProgramCacheKey = () => prevKey() + '|sl1';
+  mat.customProgramCacheKey = () => prevKey() + '|sl1' + (c.rim ? 'r' : '');
   mat.needsUpdate = true;
   return mat;
 }

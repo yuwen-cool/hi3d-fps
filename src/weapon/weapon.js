@@ -1,12 +1,13 @@
 import * as THREE from 'three';
 import { instance, MODELS } from '../world/assets.js';
+import { patchMaterial } from '../mats/patch.js';
 
 // First-person rifle. Viewmodel lives on layer 1 under the world camera and is drawn by the
 // view camera with depthRange(0,0.05) (never clips into walls). Motion is all springs.
 // Numbers: docs/SPEC.md §4.
 const W = {
   rpm: 720, dmg: 26, range: 300, mag: 30, reserve: 150,
-  hip: new THREE.Vector3(0.25, -0.21, -0.42), hipR: new THREE.Euler(0.07, 0.24, -0.08),
+  hip: new THREE.Vector3(0.26, -0.225, -0.48), hipR: new THREE.Euler(0.07, 0.24, -0.08),
   sprintP: new THREE.Vector3(-0.035, 0.004, 0.03), sprintR: new THREE.Euler(-0.04, 0.62, 0.26),
   reloadP: new THREE.Vector3(-0.02, 0.06, 0.0), reloadR: new THREE.Euler(0.28, 0.16, -0.48),
   adsZ: -0.135, tactical: 2.1, empty: 2.72,
@@ -81,10 +82,11 @@ export async function createWeapon(G) {
   const gloves = {};
   // left hand = the right-hand fist model mirrored (a closed grip reads better than the open palm)
   for (const [n, src] of [['glove_r', 'glove_r'], ['glove_l', T.lhand || 'glove_r']]) {
-    try { const o = await instance(src); if (n === 'glove_l' && src === 'glove_r') { o.scale.x *= -1; o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.side = THREE.DoubleSide; } }); } o.traverse((m) => { if (m.isMesh) { if (n === 'glove_r' || src !== 'glove_r') m.material = m.material.clone(); m.material.color.multiplyScalar(0.55); } }); gloves[n] = o; gun.add(o); } catch { /* optional */ }
+    try { const o = await instance(src); if (n === 'glove_l' && src === 'glove_r') { o.scale.x *= -1; o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.side = THREE.DoubleSide; } }); } o.traverse((m) => { if (m.isMesh) { if (n === 'glove_r' || src !== 'glove_r') m.material = m.material.clone(); m.material.color.multiplyScalar(0.42); } }); gloves[n] = o; gun.add(o); } catch { /* optional */ }
   }
+  const sleeveMat = patchMaterial(new THREE.MeshStandardMaterial({ color: new THREE.Color(0.022, 0.024, 0.02), roughness: 0.95, side: THREE.DoubleSide }), 'weapon');
   // auto-orient gloves: find cuff->fingertip axis (cuff end = fatter cross-section), then aim it
-  function orientGlove(o, dir, roll, pos) {
+  function orientGlove(o, dir, roll, pos, sleeve = false) {
     o.updateMatrixWorld(true); o.position.set(0, 0, 0); o.rotation.set(0, 0, 0); o.updateMatrixWorld(true);
     const P = []; o.traverse((m) => { if (m.isMesh) { const a = m.geometry.attributes.position; for (let i = 0; i < a.count; i += 5) P.push(new THREE.Vector3().fromBufferAttribute(a, i).applyMatrix4(m.matrixWorld)); } });
     const bx = new THREE.Box3().setFromPoints(P); const sz = bx.getSize(new THREE.Vector3()); const c = bx.getCenter(new THREE.Vector3());
@@ -97,17 +99,33 @@ export async function createWeapon(G) {
     const rollG = new THREE.Group(); rollG.add(mid); rollG.rotation.z = roll;
     const aimG = new THREE.Group(); aimG.add(rollG); aimG.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), dir.clone().normalize());
     o.add(aimG); o.position.copy(pos);
+    if (!sleeve) return;
+    // sleeve: tapered fabric tube from the cuff down-left-back toward the (off-screen) elbow,
+    // so the glove reads as a forearm reaching under the handguard
+    o.updateMatrixWorld(true); // parented to the glove so it follows the reload reach (o is unrotated, maybe x-mirrored)
+    const cuff = o.worldToLocal(rollG.localToWorld(new THREE.Vector3(0, 0, -L * 0.3)));
+    const elbowDir = new THREE.Vector3(-0.32 * Math.sign(o.scale.x), -0.55, 0.62).normalize();
+    const len = 0.5, sl = new THREE.CylinderGeometry(0.043, 0.054, len, 22, 8, true);
+    const pa = sl.attributes.position; for (let i = 0; i < pa.count; i++) { const y = pa.getY(i), a = Math.atan2(pa.getZ(i), pa.getX(i)); const k = (y + len / 2) / len; const w = 1 + (0.05 * Math.sin(a * 3 + y * 38) + 0.03 * Math.sin(a * 7 - y * 21)) * Math.min(1, k * 5); pa.setX(i, pa.getX(i) * w); pa.setZ(i, pa.getZ(i) * w); }
+    sl.translate(0, len / 2, 0); sl.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), elbowDir)); sl.translate(cuff.x, cuff.y, cuff.z);
+    sl.computeVertexNormals();
+    const sm = new THREE.Mesh(sl, sleeveMat); sm.frustumCulled = false; o.add(sm);
   }
   const gp = (k, d) => (T[k] ? T[k].split(',').map(Number) : d);
   const gR = gp('gr', [-0.25, 0.55, -0.6, 1.6, 0.03, -0.07, 0.06]), gL = gp('gl', [1, 0.2, -0.25, 0, 0.02, -0.055, -0.02]);
   if (gloves.glove_r) orientGlove(gloves.glove_r, new THREE.Vector3(gR[0], gR[1], gR[2]), gR[3], new THREE.Vector3(gR[4], gR[5], gR[6]));
   const lHome = new THREE.Vector3(gL[4], gL[5], muzzleLocal.z * 0.55 + gL[6]);
-  if (gloves.glove_l) orientGlove(gloves.glove_l, new THREE.Vector3(gL[0], gL[1], gL[2]), gL[3], lHome);
+  if (gloves.glove_l) orientGlove(gloves.glove_l, new THREE.Vector3(gL[0], gL[1], gL[2]), gL[3], lHome, true);
   // magazine (rifle2 has an empty magwell)
   let mag = null;
   if (gunName === 'rifle2') { try { mag = await instance('mag'); gun.add(mag); mag.position.set(0, -0.2, -0.13); mag.rotation.set(-0.12, Math.PI / 2, 0); } catch { /* */ } }
   const magHome = mag ? { p: mag.position.clone(), r: mag.rotation.clone() } : null;
-  root.traverse((o) => { o.layers.set(1); if (o.isMesh) { o.castShadow = false; o.receiveShadow = true; o.frustumCulled = false; } });
+  // finish: the de-lit Hi3D albedo reads as pale grey plastic up close. Real rifle furniture is near-black
+  // anodised/polymer (albedo ~0.05-0.1) and the look comes from crisp specular, so darken + tighten roughness.
+  const finish = (o, k, r) => o.traverse((m) => { if (!m.isMesh) return; m.material = m.material.clone(); m.material.userData = { ...m.material.userData }; m.material.color.multiplyScalar(k); m.material.roughness = r; m.material.envMapIntensity = 1.6; });
+  finish(holder, +(T.wk || 0.28), +(T.wr || 0.56));
+  if (mag) finish(mag, +(T.wk || 0.28) * 0.8, +(T.wr || 0.56) + 0.1);
+  root.traverse((o) => { o.layers.set(1); if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; o.frustumCulled = false; } }); // shade comes from the renderer's sun-visibility ray
   // muzzle flash meshes
   const fm = flashMaterial(), fj = flashMaterial(); fj.uniforms.uKind.value = 1;
   const flash = new THREE.Group(); flash.position.copy(muzzleLocal); gun.add(flash);

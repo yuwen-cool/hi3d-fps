@@ -152,7 +152,22 @@ void main(){
 export const COMPOSITE = COMMON + /* glsl */`
 uniform sampler2D tColor, tDepth, tZ, tAO, tVol; uniform vec2 uHalfRes;
 uniform float uAOStrength, uExposureHint; uniform int uUseAO, uUseVol;
+// wet ground: puddles on the concrete pads / corridor slab, screen-space reflections of the floor plane
+uniform int uUseSSR; uniform vec4 uProjV; uniform mat4 uCamMat; uniform vec3 uViewUp; uniform vec4 uPads[4]; uniform vec4 uCorr; uniform float uTime;
 out vec4 o;
+float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash12(i), hash12(i + vec2(1, 0)), f.x), mix(hash12(i + vec2(0, 1)), hash12(i + vec2(1, 1)), f.x), f.y); }
+float wetMask(vec3 w){
+  if (w.y > 0.11 || w.y < -0.05) return 0.0;
+  float n = vn(w.xz * 0.55) * 0.55 + vn(w.xz * 1.9 + 7.0) * 0.3 + vn(w.xz * 6.0) * 0.15;
+  vec2 dc = max(uCorr.xy - w.xz, w.xz - uCorr.zw);
+  float inC = step(max(dc.x, dc.y), 0.0);
+  float pad = 0.0; for (int i = 0; i < 4; i++) { vec4 r = uPads[i]; vec2 c = (r.xy + r.zw) * 0.5, h = (r.zw - r.xy) * 0.5; vec2 d = abs(w.xz - c) - h + 0.4; pad = max(pad, step(max(d.x, d.y), 0.0)); }
+  float m = inC * smoothstep(0.5, 0.56, n) + pad * (1.0 - inC) * smoothstep(0.6, 0.66, n);
+  return m;
+}
+vec3 viewPos(vec2 uv, float z){ return vec3((uv * 2.0 - 1.0) * uProjV.xy * z, -z); }
+vec2 toUv(vec3 p){ return 0.5 + 0.5 * p.xy / (-p.z) / uProjV.xy; }
 void main(){
   vec4 col = texture(tColor, vUv);
   float d = texture(tDepth, vUv).r;
@@ -172,6 +187,43 @@ void main(){
     float lit = smoothstep(0.16, 0.85, luma(col.rgb) * uExposureHint);
     float a = mix(1.0, aoS.r, uAOStrength * (1.0 - 0.8 * lit));
     col.rgb *= mix(vec3(a), vec3(1.0), vec3(0.0, 0.03, 0.07));
+  }
+  if (uUseSSR == 1) {
+    vec3 vp = viewPos(vUv, zc); vec3 wp = (uCamMat * vec4(vp, 1.0)).xyz;
+    float m = wetMask(wp);
+    if (m > 0.001) {
+      vec3 V = normalize(vp);
+      // faint ripple perturbation keeps the mirror from looking like glass
+      vec2 rp = vec2(vn(wp.xz * 9.0 + uTime * 0.6), vn(wp.xz * 9.0 + 31.0 - uTime * 0.5)) - 0.5;
+      vec3 N = normalize(uViewUp + vec3(rp.x, 0.0, rp.y) * 0.025);
+      vec3 R = reflect(V, N);
+      float cosT = clamp(-dot(V, N), 0.0, 1.0);
+      float F = 0.05 + 0.95 * pow(1.0 - cosT, 4.0);
+      vec3 refl = vec3(0.0); float hit = 0.0;
+      {
+        float stepL = 0.06 * zc + 0.05, jit = ign(gl_FragCoord.xy);
+        vec3 p = vp + R * stepL * jit;
+        for (int i = 0; i < 40; i++) {
+          p += R * stepL; stepL *= 1.07;
+          if (p.z > -uNear) break;
+          vec2 uv = toUv(p); if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) break;
+          float sd = texture(tDepth, uv).r; if (sd < 0.05) continue;
+          float sz = linZ(sd), dz = -p.z - sz;
+          if (dz > 0.0 && dz < stepL * 1.6 + 0.08 * sz) {
+            // refine
+            vec3 a = p - R * stepL, b = p;
+            for (int k = 0; k < 5; k++) { vec3 c = (a + b) * 0.5; float cz = linZ(texture(tDepth, toUv(c)).r); if (-c.z > cz) b = c; else a = c; }
+            vec2 hu = toUv(b); refl = texture(tColor, hu).rgb;
+            vec2 e = min(hu, 1.0 - hu); hit = smoothstep(0.0, 0.08, min(e.x, e.y)) * (1.0 - smoothstep(0.6, 1.0, float(i) / 40.0));
+            break;
+          }
+        }
+      }
+      // miss: fall back to a dim sky-ish tint so puddles never read as holes
+      vec3 fall = col.rgb * 0.35 + vec3(0.06, 0.055, 0.05) * uExposureHint;
+      vec3 rc = mix(fall, refl, hit);
+      col.rgb = mix(col.rgb, col.rgb * 0.55 + rc * F * 1.5, m);
+    }
   }
   if (uUseVol == 1) col.rgb = col.rgb * vS.a + vS.rgb;
   o = vec4(max(col.rgb, 0.0), 1.0);
