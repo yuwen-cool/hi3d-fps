@@ -20,7 +20,9 @@ const RADIO = {
   storm: 'Here it comes. You will not see them in that — use your scan.',
   wave: 'Another group, inside the sand. Ping them before they ping you.',
   passing: 'Storm is passing... wait. Something big on the west ridge.',
-  boss: 'That is not on any manifest. Hit the coolant cores on its belly.',
+  boss: 'That is not on any manifest. Its cores are armoured — take out a knee.',
+  legdown: 'Leg is gone! The armour blew — the cores are open, hit them!',
+  overload: 'It is overloading — it is stuck on the flare line. Light it. Now!',
   core: 'One core down! It is venting — hit the other one.',
   dead: 'It is down. Get to extraction, west gate. Go.',
   won: 'Got you. Bringing you home.',
@@ -78,6 +80,7 @@ export function createFlow(G) {
     later(0.7, () => { say('deploy'); say('valve'); });
     // the colossus is already out there: a silhouette walking along the storm front, lit by the lightning
     later(9, () => {
+      if (S.act !== 1) return;
       // out in the open desert to the west (low wall, nothing in the way), pacing north-south along the dunes
       const a = V(-82, 0, -50), b = V(-82, 0, 30);
       G.boss?.spawnDistant(a.clone().lerp(b, 0.4), 0, [b, a], 2.3); S.horizon = { t: 0, said: false, bolt: 2 };
@@ -101,31 +104,52 @@ export function createFlow(G) {
   }
   G.events.on('player:dead', () => { S.state = 'dead'; S.deadT = 0; G.obj = null; });
   G.events.on('boss:core', () => { S.cores++; obj({ count: [S.cores, 2] }); if (S.cores === 1) say('core'); });
+  G.events.on('boss:leg', () => { obj({ count: [1, 1] }); hud()?.banner?.('LEG DESTROYED', { kind: 'good', sub: 'ARMOUR BREACHED — CORES EXPOSED', dur: 3 }); later(1.4, () => { say('legdown'); obj({ line: 'DESTROY THE COOLANT CORES', count: [0, 2], unit: 'CORES' }); S.bossPhase = 'cores'; }); });
+  G.events.on('boss:overload', () => { S.bossPhase = 'trap'; say('overload'); hud()?.banner?.('IT IS OVERLOADING', { kind: 'crit', sub: 'IGNITE THE FLARE LINE', dur: 3.2 }); G.audio?.play?.('alarm', { gain: 0.8 });
+    const ig = igniter(); if (ig) { ig.lamp.material.color.setRGB(9, 1.2, 0.2); obj({ line: 'IGNITE THE FLARE LINE', count: null, unit: null, marks: [{ p: ig.pos, label: 'F', name: 'IGNITER' }] }); } });
   G.events.on('boss:dead', () => { S.bossDead = true; S.towerT = 0; });
   G.events.on('scan:fire', () => { S.scanned = true; });
   if (G.params.shot && !G.params.noenemies) setTimeout(start, 0);
 
-  // ---------- valve interaction (hold E) ----------
+  // ---------- hold-E stations (valve A in act 1, the flare-line igniter in the finale) ----------
   const _f = new THREE.Vector3();
-  function valveTick(dt) {
-    const v = valveA(); if (!v || v.open) { G.interact = null; return; }
+  function holdTick(v, dt, { label, hold, col, done }) {
+    if (!v || v.open) return;
     const ps = G.player.s; const d = Math.hypot(ps.pos.x - v.pos.x, ps.pos.z - v.pos.z);
     _f.set(v.top.x - ps.pos.x, 0, v.top.z - ps.pos.z).normalize(); const look = -Math.sin(ps.yaw) * _f.x - Math.cos(ps.yaw) * _f.z;
     const near = d < 2.6 && look > 0.2 && !ps.dead;
     if (!v.glow) { v.glow = []; v.wheel?.traverse((m) => { if (m.isMesh && m.material.emissive) v.glow.push(m.material); }); }
-    const gk = d < 22 ? 0.55 + 0.45 * Math.sin(S.t * 5) : 0; for (const m of v.glow) { m.emissive.setRGB(1, 0.3, 0.04); m.emissiveIntensity = gk * 2.2; }
-    const U = G.interact || (G.interact = { label: 'HOLD — OPEN VALVE A', prog: 0 }); U.near = near;
-    const hold = near && (G.input.down('use') || G.auto?.use);
-    U.prog = THREE.MathUtils.clamp(U.prog + (hold ? dt / 1.6 : -dt * 1.5), 0, 1);
-    if (hold && v.wheel) { v.wheel.rotation.y -= dt * 4.2; if ((S.valveSnd = (S.valveSnd || 0) - dt) <= 0) { S.valveSnd = 1.1; G.audio?.play?.('valve', { pos: v.top, ref: 4, gain: 0.9 }); } }
-    if (!S.valveSaid && d < 16) { S.valveSaid = true; if (E()?.list.some((e) => e.alive && e.root.position.distanceTo(v.pos) < 9)) say('contact'); }
-    if (U.prog >= 1) {
-      v.open = true; G.interact = null; v.lamp.material.color.setRGB(0.6, 5, 1.2); for (const m of v.glow || []) m.emissiveIntensity = 0;
+    const gk = d < 26 ? 0.55 + 0.45 * Math.sin(S.t * 5) : 0; for (const m of v.glow) { m.emissive.setRGB(...col); m.emissiveIntensity = gk * 2.2; }
+    const U = G.interact && G.interact.v === v ? G.interact : (G.interact = { v, label, prog: 0 }); U.near = near;
+    const held = near && (G.input.down('use') || G.auto?.use);
+    U.prog = THREE.MathUtils.clamp(U.prog + (held ? dt / hold : -dt * 1.5), 0, 1);
+    if (held && v.wheel) { v.wheel.rotation.y -= dt * 4.2; if ((S.valveSnd = (S.valveSnd || 0) - dt) <= 0) { S.valveSnd = 1.1; G.audio?.play?.('valve', { pos: v.top, ref: 4, gain: 0.9 }); } }
+    if (U.prog >= 1) { v.open = true; G.interact = null; for (const m of v.glow) m.emissiveIntensity = 0; done(v); }
+  }
+  function valveTick(dt) {
+    const v = valveA(); if (!v || v.open) { if (G.interact?.v === v) G.interact = null; return; }
+    if (!S.valveSaid && Math.hypot(G.player.s.pos.x - v.pos.x, G.player.s.pos.z - v.pos.z) < 16) { S.valveSaid = true; if (E()?.list.some((e) => e.alive && e.root.position.distanceTo(v.pos) < 9)) say('contact'); }
+    holdTick(v, dt, { label: 'HOLD — OPEN VALVE A', hold: 1.6, col: [1, 0.3, 0.04], done: () => {
+      v.lamp.material.color.setRGB(0.6, 5, 1.2);
       G.audio?.play?.('pressure', { pos: v.top, ref: 10, gain: 1.1 }); G.audio?.play?.('objective', { gain: 0.8 }); G.player.addShake(0.25);
       for (let i = 0; i < 24; i++) G.fxs?.emit(true, { pos: v.top.clone().add(V(0, -0.5, 0)), vel: V((Math.random() - 0.5) * 3, 1.5 + Math.random() * 2, (Math.random() - 0.5) * 3), life: 1.6, size: 0.15, size1: 1.2, col: G.fxs.litColor([0.85, 0.85, 0.85]), alpha: 0.35, soft: true, drag: 1.5, rise: 0.8 });
       hud()?.banner?.('PRESSURE LINE A ONLINE', { kind: 'good', dur: 2.8 }); say('opened');
       obj({ count: [1, 1], marks: [] }); S.step = 'hold'; S.waveT = 2.5; G.events.emit('valve:open', { id: v.id });
-    }
+    } });
+  }
+  // the finale: the overloaded machine is stuck on the flare line's outlet; light it
+  const igniter = () => G.level.valves?.find((v) => v.id === 'IGN');
+  function ignite(v) {
+    const B = G.boss; const from = v.top.clone(); const to = B.hull.position.clone(); const dir = to.clone().sub(from).setY(0); const L = dir.length(); dir.normalize();
+    G.audio?.play?.('whoomp', { gain: 1.3 }); G.audio?.play?.('pressure', { gain: 1.2, rate: 1.3 }); G.player.addShake(0.5); G.R.fx.punch = 0.8;
+    hud()?.banner?.('FLARE LINE IGNITED', { kind: 'good', dur: 2.5 }); G.events.emit('trap:ignite', {});
+    G.fire?.add(from.clone().addScaledVector(dir, 1.2).setY(1.1), { size: 2.6, life: 7, dir: dir.clone().add(V(0, 0.12, 0)), dmg: 0, smoke: false });
+    const n = Math.ceil((L - 2.5) / 1.5);
+    for (let i = 0; i <= n; i++) later(0.05 * i, () => { const p = from.clone().addScaledVector(dir, 2.5 + i * 1.5).setY(0.1); G.fire?.add(p, { size: 1.5 + i * 0.06, life: 30 + G.rng() * 20, dmg: 10 }); G.R.flash(p.clone().setY(1.5), 0xff9a40, 25, 8, 0.15); });
+    for (let i = 0; i < 6; i++) later(0.6 + i * 0.22, () => { G.fxs?.explosion(B.hull.position.clone().add(V((G.rng() - 0.5) * 7, (G.rng() - 0.3) * 4, (G.rng() - 0.5) * 7)), 1.2 + G.rng() * 0.8); G.player.addShake(0.35); });
+    // the line comes up under the machine: columns of fire around its feet, tall enough to read over the wall
+    for (let i = 0; i < 5; i++) later(0.35 + i * 0.08, () => { const a = i / 5 * Math.PI * 2; G.fire?.add(to.clone().add(V(Math.cos(a) * 3.5, 0, Math.sin(a) * 3.5)).setY(0.1), { size: 3.2, life: 40, dmg: 0 }); });
+    later(1.7, () => { G.boss.trapKill(); G.slowmo(2.2, 0.25); });
   }
 
   // the distillation column behind the colossus topples toward the yard
@@ -205,14 +229,20 @@ export function createFlow(G) {
     } else if (S.act === 3) {
       if (ev) { ev.night = sstep(S.actT, 0, 10); ev.storm = lerp(1, 0.3, sstep(S.actT, 0, 10)); ev.front = Math.min(ev.front, -140); }
       if (S.actT > 6 && !S.bossIn) {
-        S.bossIn = true; G.boss?.hideDistant(); G.boss?.spawn(V(-50, 0, -13), Math.PI / 2, BOSS_PATH); G.audio?.play?.('alarm', { gain: 0.9 });
+        S.bossIn = true; G.boss?.hideDistant(); G.boss?.spawn(V(-50, 0, -13), Math.PI / 2, BOSS_PATH); G.boss.S.trap = V(-31.5, 0, -4); G.audio?.play?.('alarm', { gain: 0.9 });
         revealBoss(() => {
           spawnWave(WAVES[3].n, WAVES[3].ch); hud()?.boot?.();
           hud()?.banner?.('WARNING // MASSIVE CONTACT', { kind: 'crit', sub: 'COLOSSUS — CLASS-IV SIEGE WALKER', dur: 3.5 });
-          say('boss'); obj({ line: 'DESTROY THE COOLANT CORES', count: [0, 2], unit: 'CORES' });
+          say('boss'); obj({ line: 'BREAK A LEG ACTUATOR', count: [0, 1], unit: 'LEGS' }); S.bossPhase = 'legs';
         });
       }
-      const B = G.boss?.S; if (B?.active && !B.dead) obj({ marks: [{ p: B.pos, label: '!', kind: 'boss', name: 'COLOSSUS' }] });
+      const B = G.boss?.S;
+      if (B?.active && !B.dead && S.bossPhase !== 'trap') {
+        // the weak points of the current phase are the marks (the two nearest), the machine itself on the compass
+        const pp = G.player.s.pos, wp = G.boss.targets().slice().sort((a, b) => a.distanceTo(pp) - b.distanceTo(pp)).slice(0, 2);
+        obj({ marks: [{ p: B.pos, label: '!', kind: 'boss', name: 'COLOSSUS' }, ...wp.map((p) => ({ p, label: '◎', kind: 'weak', name: S.bossPhase === 'cores' ? 'CORE' : 'KNEE' }))] });
+      }
+      if (S.bossPhase === 'trap' && !G.boss?.S.dead) holdTick(igniter(), dt, { label: 'HOLD — IGNITE THE FLARE LINE', hold: 1.0, col: [1, 0.08, 0.02], done: ignite });
       if (S.bossDead && clear && S.state === 'play' && (S.fell?.done || !G.level.fallTower)) {
         S.state = 'extract'; say('dead'); hud()?.banner?.('COLOSSUS DESTROYED', { kind: 'good', sub: 'REACH EXTRACTION — WEST GATE', dur: 3.5 });
         obj({ line: 'REACH EXTRACTION', count: null, marks: [{ p: S.extract, label: 'X', kind: 'ext', name: 'EXTRACTION' }] }); G.events.emit('flow:extract');
@@ -234,9 +264,10 @@ export function createFlow(G) {
       start: () => { later(0.35, () => G.env?.strike(B.hull.position.clone().add(V(-26, 42, 3)))); later(1.6, () => G.env?.strike(B.hull.position.clone().add(V(-18, 38, -12)))); G.player.addShake(0.4); },
       card: { cls: 'CLASS-IV SIEGE WALKER', name: 'COLOSSUS', threat: 'THREAT LEVEL: <b>EXTREME</b>', at: 1.1 },
       callouts: [
-        { label: 'COOLANT CORE', at: () => B.cores[0].light.position, t: 2.0, dx: -110, dy: -60 },
-        { label: 'COOLANT CORE', at: () => B.cores[1].light.position, t: 2.3, dx: 110, dy: -70 },
-        { label: 'BEAM EMITTER', at: () => B.muzzle(), t: 2.7, dx: 120, dy: 40 },
+        { label: 'LEG ACTUATOR', at: () => B.legs[0].k.w, t: 2.0, dx: -120, dy: -50 },
+        { label: 'LEG ACTUATOR', at: () => B.legs[1].k.w, t: 2.3, dx: 120, dy: -60 },
+        { label: 'COOLANT CORE // ARMOURED', at: () => B.cores[0].light.position, t: 2.6, dx: -130, dy: 60 },
+        { label: 'BEAM EMITTER', at: () => B.muzzle(), t: 2.9, dx: 120, dy: 40 },
       ],
       end: () => { G.R.scene.remove(key, rim); const ps = G.player.s, d = B.hull.position.clone().sub(G.R.camera.position); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch = THREE.MathUtils.clamp(Math.atan2(d.y - 2, Math.hypot(d.x, d.z)), -0.3, 0.5); done(); },
     });

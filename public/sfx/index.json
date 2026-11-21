@@ -252,5 +252,14 @@
  ],
  "vo_horizon": [
   "vo_horizon.mp3"
+ ],
+ "vo_ignited": [
+  "vo_ignited.mp3"
+ ],
+ "vo_legdown": [
+  "vo_legdown.mp3"
+ ],
+ "vo_overload": [
+  "vo_overload.mp3"
  ]
 }

@@ -111,7 +111,7 @@ export function createHUD(G) {
   const wEl = () => { const m = document.createElement('div'); m.className = 'wmk'; m.innerHTML = '<i class="d"></i><span class="l"></span><div class="r sh0"><span class="nm"></span><em></em></div>'; wmks.appendChild(m); return m; };
   let combatT = 0;
   const tags = qa('.tag'), useEl = q('.use'), useB = q('.use b'), usePb = q('.use .pb i'), hintEl = q('.hint'), ban = q('.ban'), rad = q('.rad'), radTx = q('.rad .box span'), radBars = qa('.rad .bars i');
-  const bossEl = q('.boss'), bossSeg = qa('.boss .bar i'), alertEl = q('.alert'), alertTx = q('.alert .at'), crack = q('.crack'), speed = q('.speed');
+  const bossLbl = q('.boss .t span'), bossEl = q('.boss'), bossSeg = qa('.boss .bar i'), alertEl = q('.alert'), alertTx = q('.alert .at'), crack = q('.crack'), speed = q('.speed');
   const set = (o, k, v) => { if (o['_' + k] !== v) { o['_' + k] = v; o[k] = v; } };
   const setTx = (node, v) => { if (node._t !== v) { node._t = v; node.textContent = v; } };
 
@@ -143,6 +143,7 @@ export function createHUD(G) {
   }
   G.events.on('flow:lastkill', () => { banner('WAVE CLEARED', { kind: 'good', dur: 2.2 }); setTimeout(() => G.audio?.vo?.('cleared'), 500); });
   G.events.on('boss:dead', () => setTimeout(() => G.audio?.vo?.('colossusdown'), 900));
+  G.events.on('trap:ignite', () => setTimeout(() => G.audio?.vo?.('ignited'), 300));
   G.events.on('od:start', () => { odf.classList.add('on'); odt.classList.add('on'); glitch(); });
   G.events.on('od:end', () => { odf.classList.remove('on'); odt.classList.remove('on'); });
   function addFeed(text, val, crit) {
@@ -307,7 +308,7 @@ export function createHUD(G) {
     if (U && U.near) { setTx(useB, U.label); usePb.style.width = `${Math.round((U.prog || 0) * 100)}%`; }
     // boss
     const B = G.boss?.S; bossEl.classList.toggle('on', !!(B?.active && !B.dead));
-    if (B?.active) { const n = Math.ceil(B.hp * bossSeg.length); bossSeg.forEach((s, i) => { const f = i < n; if (s._f !== f) { s._f = f; s.className = f ? '' : 'e'; } }); }
+    if (B?.active) { setTx(bossLbl, B.label || 'CLASS-IV SIEGE WALKER'); const n = Math.ceil(B.hp * bossSeg.length); bossSeg.forEach((s, i) => { const f = i < n; if (s._f !== f) { s._f = f; s.className = f ? '' : 'e'; } }); }
     // timers
     radioTick(dt);
     if (hintT > 0) { hintT -= dt; if (hintT <= 0) hintEl.classList.remove('on'); }

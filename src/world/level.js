@@ -165,7 +165,7 @@ export async function buildLevel(G) {
   }
   // pressure-line valve stations (act objectives): Hi3D station + its handwheel on a pivot so it can turn
   const valves = [];
-  for (const [id, x, z, ry] of [['A', -6.8, -25.2, 0.15]]) {
+  for (const [id, x, z, ry] of [['A', -6.8, -25.2, 0.15], ['IGN', -20.2, -4, Math.PI / 2]]) { // valve A (act 1) and the flare-line igniter (finale)
     if (!have.has('valve_station')) break;
     const st = await place('valve_station', x, z, ry, { surface: 'metal', shrink: 0.8 });
     const bb = new THREE.Box3().setFromObject(st); const top = new THREE.Vector3(); bb.getCenter(top); top.y = bb.max.y;
