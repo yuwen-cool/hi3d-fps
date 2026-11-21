@@ -441,6 +441,6 @@ export async function createEnemies(G) {
   }
   // something new lies on the ground (a fallen column): re-mark the cells under it
   function reblock(min, max) { const [i0, j0] = cell(min.x - 0.5, min.z - 0.5), [i1, j1] = cell(max.x + 0.5, max.z + 0.5); for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) block[j * NX + i] = P.blocked(B.minX + (i + 0.5) * CS, B.minZ + (j + 0.5) * CS, 0.42) ? 1 : 0; }
-  return { update, spawn, list, hitTest, damage, shieldBash, reblock, CFG, KINDS, path, alert, canReach: (a, b) => !!path(a, b), get alive() { return list.filter((e) => e.alive).length; } };
+  return { update, spawn, list, hitTest, damage, shieldBash, reblock, CFG, KINDS, path, alert, wreck, canReach: (a, b) => !!path(a, b), get alive() { return list.filter((e) => e.alive).length; } };
 }
 function angleDiff(a, b) { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }

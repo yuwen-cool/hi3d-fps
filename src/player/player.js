@@ -109,22 +109,26 @@ export function createPlayer(G) {
     if (s.dashT > 0) { s.vel.x = s.dashV.x; s.vel.z = s.dashV.z; }
     else if (sliding) { s.vel.x = s.slideDir.x * s.slideV + _w.x * 0.15; s.vel.z = s.slideDir.z * s.slideV + _w.z * 0.15; }
     if (s.lungeT > 0) { s.vel.x = s.lungeV.x; s.vel.z = s.lungeV.z; }
-    // jump: coyote time + buffer
-    s.coyote = s.grounded ? MOVE.coyote : s.coyote - dt;
-    if (inputOn && I.pressed('jump')) s.jumpBuf = MOVE.buffer; else s.jumpBuf -= dt;
-    if (s.jumpBuf > 0 && s.coyote > 0 && s.crouch < 0.5) { s.vel.y = Math.sqrt(2 * MOVE.gravity * MOVE.jumpH); s.coyote = 0; s.jumpBuf = 0; G.events.emit('player:jump'); }
-    s.vel.y -= MOVE.gravity * dt;
-    const vyBefore = s.vel.y;
-    const h = THREE.MathUtils.lerp(MOVE.height, MOVE.crouchH, s.crouch);
-    const res = P.move(s.pos, s.vel, dt, MOVE.radius, h);
-    if (res.grounded && !s.grounded && s.airT > 0.12) {
-      const v = -vyBefore; s.dipV -= Math.min(v * 0.36, 3.2); if (v > 7.5) addShake(Math.min(0.5, (v - 7.5) * 0.06));
-      G.events.emit('player:land', { v }); s.landedV = v;
+    if (s.ride) { // carried by something (the colossus' back): it places us; WASD walks its deck, jump lets go
+      s.ride.step(dt, _w, inputOn && I.pressed('jump')); s.vel.y = 0; s.grounded = !!s.ride; s.airT = 0; s.speed = Math.hypot(_w.x, _w.z) * 0.75;
+    } else {
+      // jump: coyote time + buffer
+      s.coyote = s.grounded ? MOVE.coyote : s.coyote - dt;
+      if (inputOn && I.pressed('jump')) s.jumpBuf = MOVE.buffer; else s.jumpBuf -= dt;
+      if (s.jumpBuf > 0 && s.coyote > 0 && s.crouch < 0.5) { s.vel.y = Math.sqrt(2 * MOVE.gravity * MOVE.jumpH); s.coyote = 0; s.jumpBuf = 0; G.events.emit('player:jump'); }
+      s.vel.y -= MOVE.gravity * dt;
+      const vyBefore = s.vel.y;
+      const h = THREE.MathUtils.lerp(MOVE.height, MOVE.crouchH, s.crouch);
+      const res = P.move(s.pos, s.vel, dt, MOVE.radius, h);
+      if (res.grounded && !s.grounded && s.airT > 0.12) {
+        const v = -vyBefore; s.dipV -= Math.min(v * 0.36, 3.2); if (v > 7.5) addShake(Math.min(0.5, (v - 7.5) * 0.06));
+        G.events.emit('player:land', { v }); s.landedV = v;
+      }
+      s.grounded = res.grounded; s.airT = s.grounded ? 0 : s.airT + dt;
+      s.speed = Math.hypot(s.vel.x, s.vel.z);
+      // keep inside the yard
+      const B = G.level.layout.bounds; s.pos.x = THREE.MathUtils.clamp(s.pos.x, B.minX, B.maxX); s.pos.z = THREE.MathUtils.clamp(s.pos.z, B.minZ, B.maxZ);
     }
-    s.grounded = res.grounded; s.airT = s.grounded ? 0 : s.airT + dt;
-    s.speed = Math.hypot(s.vel.x, s.vel.z);
-    // keep inside the yard
-    const B = G.level.layout.bounds; s.pos.x = THREE.MathUtils.clamp(s.pos.x, B.minX, B.maxX); s.pos.z = THREE.MathUtils.clamp(s.pos.z, B.minZ, B.maxZ);
     // health regen
     s.hurtT += dt;
     if (!s.dead && s.hurtT > 2.8 && s.shield < s.maxShield) { s.shield = Math.min(s.maxShield, s.shield + 32 * dt); if (s.shield >= s.maxShield) G.events.emit('player:shieldUp'); }

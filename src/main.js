@@ -33,7 +33,12 @@ async function prewarm() {
   up(R.scene); up(R.camera);
   // the view model is drawn by its own camera with its own light set: one real frame with every gun showing
   const kits = G.weapon?.kits || []; const was = kits.map((k) => k.g.visible); kits.forEach((k) => { k.g.visible = true; });
+  // and the paths that first run mid-game: a robot breaking apart (debris), the x-ray layer (scan / overdrive)
+  const E = G.enemies, e0 = E?.list.find((e) => e.alive), nP = E?.wreck?.pieces.length ?? 0;
+  if (e0) { try { E.wreck.spawn(e0, new THREE.Vector3(0, 0, 1), false); } catch (err) { console.warn('prewarm wreck', err); } e0.scanT = 1; }
+  G.scan?.update?.(0);
   try { R.frame(1 / 60); } catch (e) { console.warn('prewarm frame', e); }
+  if (e0) { for (const p of E.wreck.pieces.splice(nP)) R.scene.remove(p.m); e0.root.visible = true; e0.scanT = 0; G.scan?.update?.(0); }
   kits.forEach((k, i) => { k.g.visible = was[i]; });
   if (R.M?.exp) R.M.exp.uniforms.uFirst.value = 1; // that frame must not seed auto-exposure
   for (const o of hidden) o.visible = false; R.scene.remove(tmp);
@@ -76,8 +81,9 @@ async function boot() {
       G.prof[name] = G.prof[name] * 0.95 + (performance.now() - t0) * 0.05; // CPU ms per module (smoothed)
     }
     const tr = performance.now();
-    try { R.frame(dt); } catch (e) { if (!G.err.render) { G.err.render = 1; console.error(e); window.__errors.push('render: ' + e.message); } }
+    if (!G.hangarOpen) try { R.frame(dt); } catch (e) { if (!G.err.render) { G.err.render = 1; console.error(e); window.__errors.push('render: ' + e.message); } }
     G.prof.render = G.prof.render * 0.95 + (performance.now() - tr) * 0.05;
+    try { G.poster?.grab(); } catch { /* a missed photo is not worth an error */ }
     window.__frames++;
     if (window.__frames === 4) window.__ready = true;
   };

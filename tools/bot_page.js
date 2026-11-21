@@ -55,6 +55,10 @@ window.__installBot = () => {
         const stand = ig.pos.clone().add(new T.Vector3(2.0, 0, 0)); go(ps, stand, dt); if (stand.distanceTo(ps.pos) < 1.2) { const d = ig.top.clone().sub(eye); ps.yaw = Math.atan2(-d.x, -d.z); }
         return;
       }
+      // the colossus is down on its knees: grapple onto its back, then shoot the cores from up there
+      if (G.grapple?.riding) { const c = G.boss.cores.filter((x) => x.alive && x.exposed).map((x) => x.light.position)[0]; if (c) { const d = c.clone().sub(eye); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)); burst += dt; G.auto = { fire: G.weapon.key === 'lance' ? true : (burst % 0.9) < 0.45 }; if (G.weapon.S.ammo === 0 && !G.weapon.S.reloading) G.weapon.startReload(); return; } }
+      if (G.grapple?.available?.() && G.grapple.S.mode === 'idle' && !window.__noGrapple) { const a = G.grapple.anchorWorld(); if (a.distanceTo(eye) < 34) { const d = a.clone().sub(eye); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)); G.auto = { grapple: true }; return; }
+        const h = G.boss.hull.position, dir = ps.pos.clone().sub(h).setY(0).normalize(); go(ps, h.clone().setY(0).addScaledVector(dir, 20), dt); return; }
       // the machine is up but no weak point in sight: work round to ~16 m from it along a real path (not a straight line into cover)
       if (!tgt && B.active && !B.dead && !B.distant) { const h = G.boss.hull.position, dir = ps.pos.clone().sub(h).setY(0).normalize(); go(ps, h.clone().setY(0).addScaledVector(dir, 16), dt); return; }
       G.auto = { fwd: Math.sin(t * 0.7) > 0.3 ? 1 : 0, str: Math.sin(t * 1.3) > 0 ? 1 : -1 };

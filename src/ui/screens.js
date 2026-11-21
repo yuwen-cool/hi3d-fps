@@ -92,9 +92,10 @@ export function createUI(G, boot) {
   let titleMenu = null;
   function openTitleMenu() {
     const cp = +G.params.cp || 0;
-    titleMenu = menu(G, title, [...(cp >= 2 ? [{ id: 'cp', label: `CONTINUE — ACT ${cp}` }] : []), { id: 'deploy', label: cp >= 2 ? 'NEW MISSION' : 'DEPLOY' }, { id: 'controls', label: 'CONTROLS' }, { id: 'settings', label: 'SETTINGS' }], (id) => {
+    titleMenu = menu(G, title, [...(cp >= 2 ? [{ id: 'cp', label: `CONTINUE — ACT ${cp}` }] : []), { id: 'deploy', label: cp >= 2 ? 'NEW MISSION' : 'DEPLOY' }, { id: 'controls', label: 'CONTROLS' }, { id: 'hangar', label: 'HI3D HANGAR' }, { id: 'settings', label: 'SETTINGS' }], (id) => {
       if (id === 'cp') deploy(cp);
-      if (id === 'deploy') deploy();
+      else if (id === 'deploy') deploy();
+      else if (id === 'hangar') { title.classList.add('hang'); import('./hangar.js').then(({ openHangar }) => openHangar(G, document.getElementById('ui'), () => title.classList.remove('hang'))); }
       else { const wm = title.querySelector('.wm'); wm.style.visibility = 'hidden'; panel(title, id, () => { wm.style.visibility = ''; }); }
     });
     title.querySelector('.mh').appendChild(titleMenu.el);
@@ -153,7 +154,12 @@ export function createUI(G, boot) {
     const go = (cp) => { const u = new URL(location.href); if (cp) u.searchParams.set('cp', cp); else u.searchParams.delete('cp'); location.href = u.toString(); };
     const items = kind !== 'won' && F.act >= 2 ? [{ id: 'cp', label: `RETRY — ACT ${F.act} CHECKPOINT` }, { id: 'again', label: 'RESTART MISSION' }, { id: 'title', label: 'TITLE SCREEN' }]
       : [{ id: 'again', label: kind === 'won' ? 'DEPLOY AGAIN' : 'RETRY' }, { id: 'title', label: 'TITLE SCREEN' }];
-    const m = menu(G, end, items, (id) => go(id === 'cp' ? F.act : 0));
+    // the battle report: the run's best moments as a poster beside the result, one click to save it
+    let poster = null;
+    if (G.poster?.count) { try { poster = G.poster.compose({ kind, time: `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`, kills: F.kills, acc: acc + '%', score: sc, grade });
+      const box = document.createElement('div'); box.className = 'poster'; const img = new Image(); img.src = poster.toDataURL('image/jpeg', 0.9); box.appendChild(img); end.appendChild(box); } catch (e) { console.warn('poster', e); poster = null; } }
+    if (poster) items.splice(items.length - 1, 0, { id: 'poster', label: 'SAVE REPORT' });
+    const m = menu(G, end, items, (id) => { if (id === 'poster') { poster.toBlob((b) => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'sandline-battle-report.png'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }); return; } go(id === 'cp' ? F.act : 0); });
     end.querySelector('.mh').appendChild(m.el);
     document.exitPointerLock?.(); G.hudHidden = true;
   }

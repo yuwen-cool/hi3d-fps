@@ -189,6 +189,11 @@
    "key": "gust",
    "v": "ctl",
    "text": "Next wall's coming in — get to cover!"
+  },
+  {
+   "key": "climb",
+   "v": "ctl",
+   "text": "It's on its knees — get a line on its back and finish it up close!"
   }
  ]
 }

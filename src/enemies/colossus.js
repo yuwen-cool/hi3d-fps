@@ -247,7 +247,7 @@ export async function createColossus(G) {
       return;
     }
     if (hit.core) {
-      const c = hit.core; c.hp -= dmg; c.flash = 0.08;
+      const c = hit.core; if (G.player.s.ride) dmg *= 2.2; c.hp -= dmg; c.flash = 0.08; /* point-blank from its back */
       for (let i = 0; i < 6; i++) G.fxs?.emit(false, { pos: hit.point, vel: V((rnd() - 0.5) * 8, rnd() * 6, (rnd() - 0.5) * 8), life: 0.3, size: 0.02, stretch: 0.08, col: [18, 9, 3], grav: 9.8 });
       if (c.hp <= 0 && c.alive) { c.alive = false; c.light.intensity = 0; c.mesh.visible = false; G.explosives?.blast(toWorld(c.local), 1.6, 4, 0); S.limp = Math.min(1, S.limp + 0.5); G.events.emit('boss:core', { left: cores.filter((x) => x.alive).length }); if (!cores.some((x) => x.alive)) overload(); }
     } else { G.fxs?.enemyHit?.(hit.point, V(0, 1, 0), false); }
@@ -308,7 +308,7 @@ export async function createColossus(G) {
         else if (d.length() < 1.5) S.wp = (S.wp + 1) % S.path.length; else S.vel.copy(d.normalize()).multiplyScalar(CFG.speed * (1 - 0.4 * S.limp) * (S.overload ? 0.7 : 1)); }
       if (S.overload) S.cool = 99;
       S.cool = (S.cool ?? 3) - dt;
-      if (!S.distant && !G.cinematic && S.cool <= 0 && toP.length() < 45) { S.phase = 'charge'; S.t = 0; G.events.emit('boss:charge', {}); }
+      if (!S.distant && !G.cinematic && !G.player.s.ride && S.cool <= 0 && toP.length() < 45) { S.phase = 'charge'; S.t = 0; G.events.emit('boss:charge', {}); }
     }
     const wantYaw = S.phase === 'walk' && (S.vel.lengthSq() > 0.01 || S.distant) ? (S.vel.lengthSq() > 0.01 ? Math.atan2(S.vel.x, S.vel.z) : S.yaw) : Math.atan2(toP.x, toP.z);
     let dy = wantYaw - S.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); S.turning = Math.abs(dy) > 0.05;

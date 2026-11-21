@@ -47,6 +47,7 @@ const RADIO = {
   tower: 'That column is coming down — get clear!',
   tankfarm: 'It is heading into the tank farm. West gate — move!',
   horizon: 'Eyes west. Something is walking out there.',
+  climb: "It's on its knees — get a line on its back and finish it up close!",
   lull: "It's thinning out — you've got a window. Push!",
   gust: "Next wall's coming in — get to cover!",
 };
@@ -188,7 +189,7 @@ export function createFlow(G) {
   G.events.on('boss:leg', () => { obj({ count: [1, 1] });
     // the machine buckles: a short side-on shot as it goes down on the knee and the armour blows off the cores
     const hp = G.boss.hull.position.clone(), cut = insert(hp, [0, 1, 2, 3, 4, 5, 6, 7].map((i) => V(Math.cos(i * 0.785) * 24, 3.5, Math.sin(i * 0.785) * 24)), { dur: 3.2, look: () => G.boss.hull.position.clone().add(V(0, -1.5, 0)) });
-    later(cut ? 3.2 : 0, () => hud()?.banner?.('LEG DESTROYED', { kind: 'good', sub: 'ARMOUR BREACHED — CORES EXPOSED', dur: 3 })); later(cut ? 3.4 : 1.4, () => { say('legdown'); obj({ line: 'DESTROY THE COOLANT CORES', count: [0, 2], unit: 'CORES' }); S.bossPhase = 'cores'; }); });
+    later(cut ? 3.2 : 0, () => hud()?.banner?.('LEG DESTROYED', { kind: 'good', sub: 'ARMOUR BREACHED — CORES EXPOSED', dur: 3 })); later(cut ? 3.4 : 1.4, () => { say('legdown'); later(4.5, () => { if (G.grapple?.available?.() && !G.grapple.riding) say('climb'); }); obj({ line: 'DESTROY THE COOLANT CORES', count: [0, 2], unit: 'CORES' }); S.bossPhase = 'cores'; }); });
   G.events.on('boss:overload', () => { S.bossPhase = 'trap'; say('overload'); hud()?.banner?.('IT IS OVERLOADING', { kind: 'crit', sub: 'IGNITE THE FLARE LINE', dur: 3.2 }); G.audio?.play?.('alarm', { gain: 0.8 });
     const ig = igniter(); if (ig) { ig.lamp.material.color.setRGB(9, 1.2, 0.2); obj({ line: 'IGNITE THE FLARE LINE', count: null, unit: null, marks: [{ p: ig.pos, label: 'F', name: 'IGNITER' }] }); } });
   G.events.on('boss:dead', () => { S.bossDead = true; });
@@ -412,7 +413,8 @@ export function createFlow(G) {
       if (B?.active && !B.dead && S.bossPhase !== 'trap') {
         // the weak points of the current phase are the marks (the two nearest), the machine itself on the compass
         const pp = G.player.s.pos, wp = G.boss.targets().slice().sort((a, b) => a.distanceTo(pp) - b.distanceTo(pp)).slice(0, 2);
-        obj({ marks: [{ p: B.pos, label: '!', kind: 'boss', name: 'COLOSSUS' }, ...wp.map((p) => ({ p, label: '◎', kind: 'weak', name: S.bossPhase === 'cores' ? 'CORE' : 'KNEE' }))] });
+        const gm = G.grapple?.available?.() && !G.grapple.riding ? [{ p: G.grapple.anchorWorld(), label: '⤒', kind: 'grap', name: 'GRAPPLE [E]' }] : [];
+        obj({ marks: [{ p: B.pos, label: '!', kind: 'boss', name: 'COLOSSUS' }, ...wp.map((p) => ({ p, label: '◎', kind: 'weak', name: S.bossPhase === 'cores' ? 'CORE' : 'KNEE' })), ...gm] });
       }
       if (S.bossPhase === 'trap' && !G.boss?.S.dead) holdTick(igniter(), dt, { label: 'HOLD — IGNITE THE FLARE LINE', hold: 1.0, col: [1, 0.08, 0.02], done: ignite });
       if (S.bossDead && clear && S.state === 'play') toExtract();

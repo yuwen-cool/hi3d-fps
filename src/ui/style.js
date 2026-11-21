@@ -75,7 +75,7 @@ export const CSS = `
 #hud .wmk .r>*{background:rgba(10,8,6,.62);padding:.05rem .35rem}
 #hud .wmk .r em{font-style:normal;font-family:var(--N);color:var(--o);font-size:1.1rem;margin-left:.3rem}
 #hud .wmk.boss .d{border-color:var(--red);background:rgba(255,59,43,.25)}#hud .wmk.boss .r em{color:var(--red)}
-#hud .wmk.ext .d{border-color:var(--bone)}
+#hud .wmk.ext .d{border-color:var(--bone)}#hud .wmk.grap .d{border-color:var(--cy);background:rgba(98,241,255,.18);box-shadow:0 0 .8rem rgba(98,241,255,.5)}#hud .wmk.grap .r em{color:var(--cy)}
 #hud .wmk.pulse .d{animation:wpul 1.4s ease-out infinite}
 @keyframes wpul{0%{box-shadow:0 0 0 0 rgba(255,106,20,.7)}100%{box-shadow:0 0 0 1.2rem rgba(255,106,20,0)}}
 
@@ -266,6 +266,29 @@ export const CSS = `
 #ui .end .stats div span{display:block;font-family:var(--B);font-weight:600;font-size:.85rem;letter-spacing:.25em;color:var(--bone2)}
 #ui .end .stats div b{font-family:var(--N);font-size:2.8rem;line-height:3rem;color:var(--o)}
 #ui .end .menu{width:20rem}
+#ui .title.hang>*{visibility:hidden}
+#ui .hangar{position:absolute;inset:0;z-index:30;background:radial-gradient(ellipse at 62% 55%,#2a221b 0%,#120f0c 55%,#0a0807 100%);color:var(--bone);animation:hgIn .45s var(--ease) both}
+@keyframes hgIn{from{opacity:0}to{opacity:1}}
+#ui .hangar .hh{position:absolute;left:4vw;top:5vh}#ui .hangar .hh .ov{font-family:var(--B);font-weight:600;font-size:1rem;letter-spacing:.38em;color:var(--o)}
+#ui .hangar .hh h2{margin:0;font-family:var(--H);font-weight:900;font-size:5.4rem;line-height:5rem}
+#ui .hangar .list{position:absolute;left:4vw;top:19vh;bottom:9vh;width:22rem;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--o) transparent;display:flex;flex-direction:column;gap:2px;padding-right:.6rem}
+#ui .hangar .list button{all:unset;cursor:pointer;display:grid;grid-template-columns:2.2rem 1fr;align-items:baseline;padding:.38rem .7rem;font-family:var(--H);font-weight:800;font-size:1.25rem;letter-spacing:.03em;color:var(--bone2);background:rgba(13,11,9,.45);border-left:3px solid transparent}
+#ui .hangar .list button .n{font-family:var(--B);font-size:.8rem;color:var(--o);opacity:.8}
+#ui .hangar .list button em{grid-column:2;font-style:normal;font-family:var(--B);font-weight:600;font-size:.78rem;letter-spacing:.16em;color:rgba(239,229,207,.45);text-transform:uppercase}
+#ui .hangar .list button:hover{color:var(--bone);background:rgba(255,106,20,.08)}#ui .hangar .list button.sel{color:var(--bone);background:rgba(255,106,20,.16);border-left-color:var(--o)}
+#ui .hangar .stage{position:absolute;left:calc(4vw + 24rem);right:3vw;top:10vh;bottom:9vh}
+#ui .hangar canvas{position:absolute;inset:0;width:100%;height:100%}
+#ui .hangar .concept{position:absolute;left:50%;top:46%;width:min(46%,34rem);transform:translate(-50%,-50%) scale(.96);opacity:0;transition:opacity .5s,transform .7s var(--ease);border:1px solid rgba(239,229,207,.3);box-shadow:0 1rem 3rem rgba(0,0,0,.6)}
+#ui .hangar .concept.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#ui .hangar .steps{position:absolute;right:0;top:0;display:flex;gap:1.4rem}
+#ui .hangar .steps div{opacity:.35;transition:opacity .3s;border-top:3px solid rgba(239,229,207,.4);padding-top:.4rem;min-width:9rem}
+#ui .hangar .steps div.on{opacity:1;border-top-color:var(--o)}
+#ui .hangar .steps b{display:block;font-family:var(--H);font-weight:900;font-size:1.3rem}#ui .hangar .steps span{font-family:var(--B);font-size:.9rem;letter-spacing:.06em;color:var(--bone2)}
+#ui .hangar .info{position:absolute;left:0;bottom:0}#ui .hangar .info b{display:block;font-family:var(--H);font-weight:900;font-size:3.2rem;line-height:3.2rem}
+#ui .hangar .info span{font-family:var(--B);font-weight:600;font-size:1rem;letter-spacing:.22em;color:var(--o)}
+#ui .hangar .foot{position:absolute;right:3vw;bottom:4vh;font-family:var(--B);font-weight:600;letter-spacing:.2em;font-size:.9rem;color:var(--bone2);display:flex;gap:.5rem;align-items:center}
+#ui .end .poster{position:absolute;right:4vw;top:50%;transform:translateY(-50%);width:44vw;max-width:56rem;box-shadow:0 1.2rem 3.5rem rgba(0,0,0,.7);animation:posterIn .9s var(--ease) .5s both}#ui .end .poster img{display:block;width:100%;border:1px solid rgba(239,229,207,.35)}
+@keyframes posterIn{from{opacity:0;transform:translateY(-46%) scale(.97)}to{opacity:1;transform:translateY(-50%) scale(1)}}
 
 /* ---------- cutscene: letterbox, boss card, callouts ---------- */
 #ui .cine{position:absolute;inset:0;pointer-events:none;display:none}
