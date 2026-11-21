@@ -47,6 +47,8 @@ const RADIO = {
   tower: 'That column is coming down — get clear!',
   tankfarm: 'It is heading into the tank farm. West gate — move!',
   horizon: 'Eyes west. Something is walking out there.',
+  lull: "It's thinning out — you've got a window. Push!",
+  gust: "Next wall's coming in — get to cover!",
 };
 const STORM_DIR = new THREE.Vector2(-0.627, -0.779); // where the storm (and the thing inside it) comes from
 
@@ -365,6 +367,12 @@ export function createFlow(G) {
     // ---- act II: front sweeps over (~24 s); waves 2 and 3 inside the storm; lightning takes the tank ----
     } else if (S.act === 2) {
       if (ev) ev.front = S.actT < 4.6 ? lerp(150, 85, S.actT / 4.6) : lerp(85, -140, sstep(S.actT, 4.6, 20)); // rolls in fast under the opening shot, then over the yard
+      // the storm breathes: once the front is over, every 46 s it thins for a few seconds (sun shafts, colour, sight lines
+      // for both sides), then a gust slams it shut with a bolt close by. Two minutes of one brown would be a slog.
+      if (ev && S.actT > 26) { const c = (S.actT - 26) % 46, l = c < 30 ? 0 : c < 33.5 ? sstep(c, 30, 33.5) : c < 41 ? 1 : 1 - sstep(c, 41, 43);
+        ev.storm = lerp(1, 0.38, l);
+        if (c > 31 && c < 40 && !S.lullOn) { S.lullOn = true; if (!S.lullSaid) { S.lullSaid = true; say('lull'); } hud()?.banner?.('VISIBILITY RISING', { kind: 'good', dur: 2.2, pri: 1 }); }
+        if (c > 40.6 && S.lullOn) { S.lullOn = false; if (!S.gustSaid) { S.gustSaid = true; say('gust'); } const pp = G.player.s.pos; G.env?.strike(V(pp.x + (G.rng() - 0.5) * 50, 40, pp.z - 25 - G.rng() * 20)); G.player.addShake(0.35); G.audio?.play?.('alarm', { gain: 0.35 }); } }
       // lightning takes the storage tank — when the player is looking at it (or soon after, regardless)
       const pp2 = G.player.s.pos, tk = !S.tankHit && G.level.explosives.filter((o) => o.userData.explosive?.big && !o.userData.explosive.dead && !o.userData.explosive.mega && o.position.x > -22).sort((a, b) => a.position.distanceTo(pp2) - b.position.distanceTo(pp2))[0];
       const strikeTank = (cine) => { S.tankHit = true; G.env?.strike(tk.position.clone().setY(30)); later(0.12, () => { G.explosives?.hurt(tk, 9999); G.slowmo(1.3, 0.3); G.player.addShake(0.6); if (!cine) G.player.assist?.(tk.position.clone().setY(5), 0.4, 1.6); }); };
@@ -386,7 +394,7 @@ export function createFlow(G) {
       if ((S.nightT && S.t > S.nightT) || S.actT > 190) toNight();
     // ---- act III: night falls on the burning yard; the colossus comes ----
     } else if (S.act === 3) {
-      if (ev) { ev.night = sstep(S.actT, 0, 10); ev.storm = lerp(1, 0.05, sstep(S.actT, 0, 10)); ev.front = Math.min(ev.front, -140); } // the storm blows out: a clear night, a little dust left
+      if (ev) { ev.night = sstep(S.actT, 0, 10); ev.storm = lerp(S.storm3 ?? 1, 0.05, sstep(S.actT, 0, 10)); ev.front = Math.min(ev.front, -140); } // the storm blows out: a clear night, a little dust left
       if (!S.bossIn && S.actT > 3 && !hostiles()) { const inC = G.player.s.pos.x < -22, line = inC ? 'TAKE COVER IN THE TANK FARM' : 'MOVE TO THE TANK FARM';
         if (G.obj?.line !== line) obj({ line, count: null, unit: null, marks: inC ? [] : [{ p: GATE_W, label: '▸', name: 'TANK FARM' }] }); }
       if (S.actT > 12 && !S.bossIn && (!hostiles() || S.actT > 35)) {
@@ -450,7 +458,7 @@ export function createFlow(G) {
   }
   // the storm blows out and night comes down first; the act card when it is dark; the machine once the yard is quiet
   function toNight() {
-    if (S.act !== 2) return; S.wave = 2; setAct(3); S.waveT = 7;
+    if (S.act !== 2) return; S.wave = 2; setAct(3); S.waveT = 7; S.storm3 = env()?.storm ?? 1; // night falls from wherever the storm is (mid-lull or not)
     obj({ act: 3, title: 'ACT 3 // NIGHT', line: hostiles() ? 'CLEAR THE LAST HOSTILES' : 'MOVE TO THE TANK FARM', count: null, unit: null, marks: hostiles() ? [] : [{ p: GATE_W, label: '▸', name: 'TANK FARM' }] }); say('passing');
     later(5, () => hud()?.banner?.('ACT 3 // NIGHT', { sub: 'THE STORM HAS PASSED', dur: 3.2, pri: 3 }));
   }

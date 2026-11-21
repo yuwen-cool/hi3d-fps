@@ -323,8 +323,22 @@ export async function createEnemies(G) {
     if (S_.m.position.y < 0.08) { S_.m.position.y = 0.08; S_.m.rotation.set(-Math.PI / 2 + 0.05, S_.m.rotation.y, 0); S_.rest = true; G.events.emit('shield:land', { pos: S_.m.position.clone() }); }
   }
   // ---------- update ----------
+  // eyes in the sand: inside the storm each robot's visor throws a small hot glow you can pick out before the body
+  // (walls still hide it: depth-tested; seeing through them is the scan's job). A fixed pool, created up front.
+  const eyeTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.1, 'rgba(255,255,255,0.55)'); g.addColorStop(0.4, 'rgba(255,255,255,0.07)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+  const eyes = Array.from({ length: 16 }, () => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: eyeTex, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, fog: false })); sp.visible = false; sp.renderOrder = 6; scene.add(sp); return sp; });
+  const EYE = { rifle: [6, 11, 20], charger: [20, 6, 1.5], heavy: [22, 2.5, 1.2] };
+  function eyeTick() {
+    const ins = G.env?.S.inside || 0; let n = 0;
+    if (ins > 0.05) for (const e of list) { if (!e.alive || !e.root.visible || n >= eyes.length) continue; const sp = eyes[n++];
+      e.bones.head.getWorldPosition(sp.position); sp.position.addScaledVector(fwd(e), 0.16 * (e.c?.scale || 1)).y += 0.05;
+      const k = ins * (0.85 + 0.15 * Math.sin(G.time * 9 + e.id)) * (1 + 0.8 * (e.glow || 0)); const col = EYE[e.kind] || EYE.rifle; sp.material.color.setRGB(col[0] * k, col[1] * k, col[2] * k);
+      sp.scale.setScalar(0.26 + 0.14 * ins); sp.visible = true; }
+    for (let i = n; i < eyes.length; i++) eyes[i].visible = false;
+  }
   function update(dt) {
-    wreck.update(dt); dt *= G.enemyTime ?? 1; // overdrive slows the robots, not the player
+    eyeTick(); wreck.update(dt); dt *= G.enemyTime ?? 1; // overdrive slows the robots, not the player
     const pp = G.player.s.pos, pdead = G.player.s.dead;
     for (const e of list) {
       // PropertyMixer only writes a bone when its sampled value changes, so constant tracks would let

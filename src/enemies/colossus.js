@@ -43,12 +43,12 @@ export async function createColossus(G) {
   root.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; } });
   // weak points glow from inside: a white-hot centre that falls off to deep orange at the rim, with slow plasma bands
   // (reads as a hot lens in an armoured socket, not a flat ball). uI = heat, flashes on a hit.
-  const hotMat = (bands) => new THREE.ShaderMaterial({ toneMapped: false, uniforms: { uI: { value: 1 }, uT: { value: 0 } },
+  const hotMat = (bands, hot = [4.6, 1.25, 0.22], rim = [0.9, 0.08, 0.01]) => new THREE.ShaderMaterial({ toneMapped: false, uniforms: { uI: { value: 1 }, uT: { value: 0 }, uHot: { value: new THREE.Vector3(...hot) }, uRim: { value: new THREE.Vector3(...rim) } },
     vertexShader: 'varying vec3 vN; varying vec3 vV; varying vec3 vL; void main(){ vL = position; vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = -mv.xyz; gl_Position = projectionMatrix * mv; }',
-    fragmentShader: `varying vec3 vN; varying vec3 vV; varying vec3 vL; uniform float uI, uT;
+    fragmentShader: `varying vec3 vN; varying vec3 vV; varying vec3 vL; uniform float uI, uT; uniform vec3 uHot, uRim;
       void main(){ float f = clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0); float c = pow(f, 2.2);
         float b = ${bands ? '0.7 + 0.3 * sin(vL.y * 5.0 - uT * 5.0) * sin(vL.y * 2.1 + uT * 1.7)' : '0.85 + 0.15 * sin(uT * 7.0)'};
-        vec3 col = mix(vec3(1.6, 0.22, 0.03), vec3(9.0, 4.2, 1.3), c) * b * uI;
+        vec3 col = mix(uRim, uHot, c) * b * uI;
         gl_FragColor = vec4(col, 1.0); }` });
   const armour = new THREE.MeshStandardMaterial({ color: 0x1e1b18, metalness: 0.85, roughness: 0.42 });
   // knee actuators: the first weak points (the cores start sealed inside the hull). A hot lens in a dark armoured collar.
@@ -59,6 +59,16 @@ export async function createColossus(G) {
     g.traverse((o) => { o.frustumCulled = false; }); // so the loading screen's warm-up frame compiles them for the HDR target
     g.visible = false; scene.add(g); L.k = { hp: CFG.kneeHp, alive: true, w: V(0, 0, 0), g, mat, flash: 0 };
   }
+  // the sensor head on the front of the hull: one burning optic that turns to follow you (Hi3D part)
+  const headG = new THREE.Group(); { // out in front of the hull's front face, at the height of its upper half
+    hullH.updateMatrixWorld(true); const inv = hullH.matrixWorld.clone().invert(), P = []; hull.traverse((m) => { if (m.isMesh) { const a = m.geometry.attributes.position; for (let i = 0; i < a.count; i += 7) P.push(V(0, 0, 0).fromBufferAttribute(a, i).applyMatrix4(m.matrixWorld).applyMatrix4(inv)); } });
+    const zmax = Math.max(...P.map((p) => p.z)), fr = P.filter((p) => p.z > zmax - 2.5 * K && Math.abs(p.x) < 2.5 * K), ys = fr.map((p) => p.y).sort((a, b) => a - b);
+    headG.position.set(0, ys[Math.floor(ys.length * 0.6)] - 0.5 * K, zmax + 0.9 * K); }
+  headG.scale.setScalar(K); hullH.add(headG);
+  const headM = await instance('colossus_head'); headM.rotation.y = Math.PI; headG.add(headM);
+  headM.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; } });
+  const eyeMat = hotMat(false, [5.5, 0.28, 0.06], [0.6, 0.0, 0.0]); const eye = new THREE.Mesh(new THREE.SphereGeometry(0.3, 20, 14), eyeMat); eye.position.set(0, 0.86, 1.85); eye.frustumCulled = false; headG.add(eye);
+  const _hl = V(0, 0, 0);
   // coolant cores (weak points) on the back of the hull, with their own glow light
   const coreLocal = [V(-2.9 * K, -0.4 * K, 0.6 * K), V(2.9 * K, -0.4 * K, 0.6 * K)];
   const cores = coreLocal.map((p) => { const l = { intensity: 0, position: new THREE.Vector3(), getWorldPosition: (o) => o.copy(l.position) }; /* the core's glow is its emissive + bloom; its 'light' is just a tracked point (every real light costs every pixel) */
@@ -101,6 +111,12 @@ export async function createColossus(G) {
     lamps.forEach((l, i) => { l.visible = on; if (!on) return; toWorld(lampLocal[i], l.position); l.material.opacity = 0.85 + 0.15 * Math.sin(t * 9 + i); });
     beacons.forEach((b, i) => { b.visible = on; if (!on) return; b.position.copy(legs[i].hip).add(V(0, 0.9 * K, 0)); b.material.opacity = Math.sin(t * 3.2 + (i % 2) * Math.PI) > 0.3 ? 1 : 0.08; });
     coneMat.uniforms.uA.value = 0.22 * THREE.MathUtils.smoothstep(night, 0.2, 0.9);
+    if (on) { // the head turns to the player (inside its arc), the eye burns hotter when the beam is coming
+      _hl.copy(G.player.s.pos); _hl.y += 1.6; hullH.worldToLocal(_hl); _hl.sub(headG.position);
+      const ty = THREE.MathUtils.clamp(Math.atan2(_hl.x, _hl.z), -0.6, 0.6), tp = THREE.MathUtils.clamp(-Math.atan2(_hl.y, Math.hypot(_hl.x, _hl.z)), -0.35, 0.3), dt = G.realDt || 1 / 60;
+      headG.rotation.y += (ty - headG.rotation.y) * Math.min(1, dt * 2.2); headG.rotation.x += (tp - headG.rotation.x) * Math.min(1, dt * 2.2);
+      eyeMat.uniforms.uT.value = t; eyeMat.uniforms.uI.value = S.phase === 'charge' ? 1.4 + 0.6 * Math.sin(t * 30) : S.overload ? 0.6 + 0.4 * Math.sin(t * 13) : 1.05; }
+    const rim = 0.16 * THREE.MathUtils.smoothstep(night, 0.2, 0.9) * (S.distant ? 0.5 : 1); for (const x of mats) { const u = x.m.userData.sl?.uSlRim; if (u) u.value.w = rim; } // its outline against the night sky
     cones.forEach((c, i) => { c.visible = on && night > 0.2; if (!c.visible) return; toWorld(lampLocal[i], _lp);
       _ld.copy(fwd()).applyAxisAngle(V(0, 1, 0), Math.sin(t * 0.45 + i * 1.3) * 0.45 + (i ? -0.12 : 0.12)).setY(-0.62).normalize(); // two beams sweeping the ground ahead of it
       const len = Math.min(42, (_lp.y + 0.5) / Math.max(0.2, -_ld.y)); c.position.copy(_lp); c.quaternion.copy(_lq.setFromUnitVectors(V(0, -1, 0), _ld)); c.scale.set(len * 0.24, len, len * 0.24); });
@@ -336,5 +352,5 @@ export async function createColossus(G) {
   }
   // what is worth shooting right now (world points), for markers and the test player
   function targets() { if (!S.active || S.dead || S.overload) return []; return S.legBroken ? cores.filter((c) => c.alive && c.exposed).map((c) => c.light.getWorldPosition(new THREE.Vector3())) : legs.filter((L) => L.k.alive).map((L) => L.k.w); }
-  return { spawn, spawnDistant, hideDistant, worldPos, muzzle, update, hitTest, damage, trapKill, targets, legs, S, root, cores, hull: hullH };
+  return { spawn, spawnDistant, hideDistant, worldPos, muzzle, update, hitTest, damage, trapKill, targets, legs, S, root, cores, hull: hullH, head: headG };
 }

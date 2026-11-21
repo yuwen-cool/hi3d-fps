@@ -12,6 +12,7 @@ export const CLASSES = {
   paint:   { macro: [0.18, 0.16, 0.40, 0.45], dust: [0.45, 0.60] },
   ground:  { macro: [0.10, 0.08, 0.15, 0.00], dust: [0.00, 0.00] },
   robot:   { macro: [0.08, 0.10, 1.20, 0.25], dust: [0.30, 0.40], rim: [1.0, 0.78, 0.58, 1.35] }, // rim keeps backlit robots readable
+  colossus:{ macro: [0.18, 0.16, 0.40, 0.45], dust: [0.45, 0.60], rim: [0.5, 0.64, 1.0, 0] }, // paint + a moonlit rim the machine turns up at night
   weapon:  { macro: [0.06, 0.06, 6.0, 0.00], dust: [0.10, 0.00] },
   plant:   { macro: [0.10, 0.05, 1.0, 0.00], dust: [0.20, 0.20] },
 };

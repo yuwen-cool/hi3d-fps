@@ -258,5 +258,11 @@
   "quality": "high_quality",
   "max_points": 90,
   "prompt": "Game asset concept: a stack of worn wooden shipping pallets with a few plastic-wrapped sacks and a cardboard box on top, frayed strapping, dusty and sun-bleached. Three-quarter view."
+ },
+ {
+  "name": "colossus_head",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: the armoured sensor head of a giant four-legged industrial walker mech, a heavy low wedge-shaped turret head built from oil-drilling equipment, one large round recessed optic socket in the front centre with a dark glass lens, small sensor pods and antennae on the sides, thick hydraulic neck cables at the back, rusted yellow and black hazard-striped armour plates, heavy bolts. Isolated single part, three-quarter front view."
  }
 ]

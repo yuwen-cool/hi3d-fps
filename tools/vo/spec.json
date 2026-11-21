@@ -179,6 +179,16 @@
    "key": "tankfarm",
    "v": "ctl",
    "text": "It is heading into the tank farm. West gate — move!"
+  },
+  {
+   "key": "lull",
+   "v": "ctl",
+   "text": "It's thinning out — you've got a window. Push!"
+  },
+  {
+   "key": "gust",
+   "v": "ctl",
+   "text": "Next wall's coming in — get to cover!"
   }
  ]
 }

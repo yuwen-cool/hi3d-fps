@@ -64,7 +64,7 @@ export function createEnv(G) {
     // sun: swallowed by the storm, then gone at night
     sun.intensity = base.sun * (1 - 0.93 * k) * (1 - n) * (1 - 0.82 * shade) + base.sun * 0.2 * n * (1 - k);
     sun.color.copy(base.sunCol).lerp(MOON, n);
-    hemi.intensity = base.hemi * (1 - 0.35 * k) * lerp(1, 0.55, n) + S.flash * 0.9; // night: a low blue fill, the floods and fires do the lighting
+    hemi.intensity = base.hemi * (1 + 0.5 * k) * lerp(1, 0.55, n) + S.flash * 0.9; // in the sand the light comes from everywhere (the air glows); night: a low blue fill, the floods and fires do the lighting
     hemi.color.copy(base.hemiSky).lerp(STORM.hemiSky, k).lerp(NIGHT.hemiSky, n);
     // sky dome
     sky.uZenith.value.copy(base.zen).lerp(STORM.zen, k).lerp(NIGHT.zen, n).multiplyScalar(1 + S.flash * 3);
@@ -73,7 +73,7 @@ export function createEnv(G) {
     sky.uDisk.value = base.disk * (1 - k) * (1 - n) * (1 - shade);
     sky.uMoon.value = sstep(n, 0.4, 1) * (1 - k);
     skySun.copy(sunCol0).multiplyScalar((1 - 0.8 * k) * Math.pow(1 - n, 3));
-    R.scene.environmentIntensity = TUNE.envIntensity * (1 - 0.5 * k) * lerp(1, 0.22, n) + S.flash * 0.5;
+    R.scene.environmentIntensity = TUNE.envIntensity * (1 - 0.25 * k) * lerp(1, 0.22, n) + S.flash * 0.5;
     // volume: denser sand inside the storm, colour shifts brown, ambient scatter carries the storm's own glow
     vol.uStorm.value.set(dir.x, dir.y, S.front, 24 * S.storm);
     R.fx.storm = k;
@@ -85,9 +85,10 @@ export function createEnv(G) {
     vol.uSunScale.value = base.sunScale * (1 - 0.75 * k) * (1 - n) * (1 - 0.93 * shade) + base.sunScale * 0.1 * n; // the wall stands between the sun and the air: no glowing haze, a looming mass
     if (Math.abs(n - lastN) > 0.004) { lastN = n; G.sun.dir.copy(SUN0).lerp(MOON_DIR, sstep(n, 0.1, 0.9)).normalize(); R.fitShadow(); }
     vol.uAmbient.value = base.amb * (1 + 3.5 * k) * lerp(1, 0.35, n) + S.flash * 0.25;
+    vol.uMS.value = k * (1 - n);
     vol.uHorizon.value.copy(base.vhor).lerp(STORM.hor, k).lerp(NIGHT.hor, n);
     ex.uKey.value = base.key * lerp(1, 0.62, n) * (1 - 0.1 * k);
-    ex.uMaxE.value = lerp(lerp(lerp(base.maxE, 1.6, shade * 0.85 * (1 - k)), 2.0, k), 2.2, n); // under the wall's shadow the eye must not adapt it back to daylight; inside, the storm's own level // a night that stays dark: exposure may not lift it back to dusk
+    ex.uMaxE.value = lerp(lerp(lerp(base.maxE, 1.6, shade * 0.85 * (1 - k)), 2.9, k), 2.2, n); // under the wall's shadow the eye must not adapt it back to daylight; inside, the storm's own level // a night that stays dark: exposure may not lift it back to dusk
     // far wall: stands on the front while it is far, hands over to the volume as it gets close
     const fd = S.front - u;
     wallMat.uniforms.uA.value = S.storm > 0 ? sstep(fd, 12, 55) * (1 - n) : 0;

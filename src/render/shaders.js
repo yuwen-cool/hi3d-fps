@@ -94,7 +94,7 @@ uniform sampler2DShadow tShadow;
 uniform mat4 uInvView, uShadowMat;
 uniform vec4 uProj;
 uniform vec3 uCamPos, uSunDir, uSunCol, uFogCol, uHorizon;
-uniform float uSigma, uMaxD, uAmbient, uFarHaze, uTime, uSunScale, uHeightFall, uBase;
+uniform float uSigma, uMaxD, uAmbient, uFarHaze, uTime, uSunScale, uHeightFall, uBase, uMS; // uMS: multiple scattering (thick sand lights its own shadows)
 uniform int uSteps;
 uniform vec4 uInterior[4]; uniform vec4 uInteriorSize[4]; uniform int uInteriorCount; uniform float uInteriorDust;
 // local lights scattering in the dust (fires, explosions, muzzle flashes, lightning): pos.xyz + range, colour*intensity
@@ -157,7 +157,7 @@ void main(){
       sh = mix(1.0, (s0 + s1) * 0.5, ef);
     }
     float nearW = mix(2.3, 0.55, smoothstep(4.0, 85.0, t));
-    vec3 L = uSunCol * uSunScale * sh * ph * 12.566 * nearW + uAmbient * uFogCol * (0.4 + 0.6 * sh);
+    vec3 L = uSunCol * uSunScale * sh * ph * 12.566 * nearW + uAmbient * uFogCol * mix(0.4 + 0.6 * sh, 1.25, uMS);
     for (int k = 0; k < 6; k++) { if (k >= uPLn) break; vec3 dl = p - uPL[k].xyz; float d2 = dot(dl, dl);
       L += uPLc[k] * (1.0 / (1.0 + d2)) * smoothstep(uPL[k].w * uPL[k].w, 0.0, d2); }
     float a = exp(-s * dt);
@@ -398,9 +398,9 @@ void main(){
   if (uStormLook > 0.001) { // inside the storm: a burnt-ochre duotone; only light sources (hot or cold) keep their colour
     float lo = luma(m);
     float hot = max(smoothstep(0.62, 0.95, lo), smoothstep(0.015, 0.1, m.b - m.r) * smoothstep(0.12, 0.35, lo));
-    vec3 duo = mix(vec3(0.035, 0.018, 0.008), vec3(1.0, 0.64, 0.34), smoothstep(0.0, 0.8, lo));
-    duo = mix(duo, duo * duo * (3.0 - 2.0 * duo), 0.5);
-    m = mix(m, mix(duo, m * 1.15, hot), uStormLook * 0.85);
+    vec3 duo = mix(vec3(0.07, 0.045, 0.03), vec3(1.0, 0.66, 0.36), smoothstep(0.0, 0.75, lo)); // shadows stay lifted: thick sand is lit from all sides
+    duo = mix(duo, duo * duo * (3.0 - 2.0 * duo), 0.2);
+    m = mix(m, mix(duo, m * 1.15, hot), uStormLook * 0.72); // some of the real colour (rust, paint, steel) shows through
     // sand on the visor: short bright dashes streaming with the wind, thicker toward the edges
     vec2 su = vUv * vec2(uRes.x / uRes.y, 1.0); float st = 0.0;
     for (int i = 0; i < 3; i++) { float fi = float(i); vec2 q = su * vec2(2.5 + fi * 2.0, 55.0 + fi * 25.0) + vec2(uTime * (6.0 + fi * 3.5), fi * 7.0);

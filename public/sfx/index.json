@@ -315,5 +315,11 @@
  ],
  "vo_valveB": [
   "vo_valveB.mp3"
+ ],
+ "vo_lull": [
+  "vo_lull.mp3"
+ ],
+ "vo_gust": [
+  "vo_gust.mp3"
  ]
 }

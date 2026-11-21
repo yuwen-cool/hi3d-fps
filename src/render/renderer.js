@@ -126,7 +126,7 @@ export function createRenderer(G, canvas) {
     vol: pass(S.VOLUME, {
       tZ: { value: null }, tShadow: { value: null }, uInvView: { value: new THREE.Matrix4() }, uShadowMat: { value: new THREE.Matrix4() }, uProj: { value: new THREE.Vector4() },
       uCamPos: { value: new THREE.Vector3() }, uSunDir: { value: sunDir }, uSunCol: { value: sunCol }, uFogCol: { value: new THREE.Color(0.50, 0.42, 0.36) }, uHorizon: { value: new THREE.Color(1.0, 0.52, 0.24) },
-      uSigma: { value: TUNE.volSigma }, uMaxD: { value: TUNE.volMaxD }, uAmbient: { value: TUNE.volAmbient }, uFarHaze: { value: TUNE.volFarHaze }, uTime: { value: 0 }, uSunScale: { value: TUNE.volSunScale },
+      uSigma: { value: TUNE.volSigma }, uMaxD: { value: TUNE.volMaxD }, uAmbient: { value: TUNE.volAmbient }, uMS: { value: 0 }, uFarHaze: { value: TUNE.volFarHaze }, uTime: { value: 0 }, uSunScale: { value: TUNE.volSunScale },
       uHeightFall: { value: TUNE.volHeightFall }, uBase: { value: TUNE.volBase }, uSteps: { value: tier.vol }, uPL: { value: [0, 1, 2, 3, 4, 5].map(() => new THREE.Vector4()) }, uPLc: { value: [0, 1, 2, 3, 4, 5].map(() => new THREE.Vector3()) }, uPLn: { value: 0 }, uStorm: { value: new THREE.Vector4(0, 0, 1e5, 0) }, uClear: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 0, 0)) }, uClearB: { value: [0, 1, 2, 3].map(() => new THREE.Vector3()) }, uWind: { value: new THREE.Vector2(0.62, 0.77) },
       uInterior: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uInteriorSize: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uInteriorCount: { value: 0 }, uInteriorDust: { value: TUNE.volInteriorDust },
     }),
@@ -232,7 +232,7 @@ export function createRenderer(G, canvas) {
       // instead one ray toward the sun tells whether the player stands in shade and the sun eases down
       if (G.phys && (frameNo & 3) === 0) { _vmP.copy(camera.position).y -= 0.15; vmSunT = G.phys.raycast(_vmP, sunDir, 120) ? 0.22 : 1; }
       vmSun += (vmSunT - vmSun) * Math.min(1, dt * 6);
-      const stm = fx.storm || 0; vmFill.intensity = 1.6 * (0.35 + 0.65 * vmSun) * (1 + 0.9 * (G.env?.S.night || 0) + 2.2 * stm); vmFill.color.setRGB(1.0, 0.86 - 0.08 * stm, 0.72 - 0.17 * stm); vmAmb.intensity = 1.3 * stm; vmAmb.color.setRGB(1.0, 0.74, 0.5); // in the sand the air itself glows: the gun takes that light, never a black cut-out against it
+      const stm = fx.storm || 0; vmFill.intensity = 1.6 * (0.35 + 0.65 * (vmSun + (1 - vmSun) * stm)) * (1 + 0.9 * (G.env?.S.night || 0) + 2.2 * stm); vmFill.color.setRGB(1.0, 0.86 - 0.08 * stm, 0.72 - 0.17 * stm); vmAmb.intensity = 1.8 * stm; vmAmb.color.setRGB(1.0, 0.74, 0.5); // in the sand the air itself glows: the gun takes that light, never a black cut-out against it
       vmFill.target.position.copy(camera.position); vmFill.position.copy(_vmFillDir).applyQuaternion(camera.quaternion).add(camera.position);
       vmFill.target.updateMatrixWorld(); vmFill.updateMatrixWorld();
       const prevSun = sun.intensity; sun.intensity = prevSun * vmSun;
