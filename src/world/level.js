@@ -4,33 +4,20 @@ import { instance, setRendererCaps } from './assets.js';
 import { makeGround, PADS } from './ground.js';
 import { triplanarMaterial } from '../mats/triplanar.js';
 import { dress } from './scatter.js';
-import { buildOutskirts } from './outskirts.js';
+import { buildOutskirts, scatterModel } from './outskirts.js';
 import { INTERIOR } from '../mats/patch.js';
+import { ZONES, buildZones, boxGeo, ibeam } from './zones.js';
 
 // Abandoned desert refinery. Player starts at +Z looking -Z into the low sun (backlit, like
-// target/t1). Courtyard x∈[-21,13], z∈[-30,6]; interior corridor (workshop) x∈[14,20].
+// target/t1). Three zones (zones.js): A the yard x∈[-21,19], z∈[-31,7] with the workshop corridor x∈[14,20];
+// B the process unit to the south; C the tank farm to the west.
 //   gantry (procedural steel) on the left throws the light shafts; pipe racks bridge the yard;
 //   tanks + columns form the skyline; Hi3D props are cover.
 export const LAYOUT = {
   spawn: new THREE.Vector3(0, 0, 3), spawnYaw: 0,
-  bounds: { minX: -21, maxX: 19.4, minZ: -31, maxZ: 7 },
+  bounds: { minX: -72, maxX: 22, minZ: -74, maxZ: 8 }, zones: ZONES,
   corridor: { minX: 14, maxX: 20, minZ: -24, maxZ: 0, h: 5.2 },
 };
-
-function boxGeo(w, h, d, x, y, z, ry = 0) {
-  const g = new THREE.BoxGeometry(w, h, d);
-  if (ry) g.rotateY(ry);
-  g.translate(x, y, z); return g;
-}
-// I-beam along an axis: web + two flanges
-function ibeam(len, axis, x, y, z, s = 0.36) {
-  const t = 0.04, out = [];
-  const f = (w, h, d, ox, oy, oz) => out.push(boxGeo(w, h, d, x + ox, y + oy, z + oz));
-  if (axis === 'y') { f(s, len, t, 0, len / 2, s / 2 - t / 2); f(s, len, t, 0, len / 2, -s / 2 + t / 2); f(t, len, s - 2 * t, 0, len / 2, 0); }
-  else if (axis === 'x') { f(len, t, s, 0, s / 2 - t / 2, 0); f(len, t, s, 0, -s / 2 + t / 2, 0); f(len, s - 2 * t, t, 0, 0, 0); }
-  else { f(s, t, len, 0, s / 2 - t / 2, 0); f(s, t, len, 0, -s / 2 + t / 2, 0); f(t, s - 2 * t, len, 0, 0, 0); }
-  return out;
-}
 
 export async function buildLevel(G) {
   const R = G.R, P = G.phys, scene = R.scene;
@@ -43,7 +30,10 @@ export async function buildLevel(G) {
   const matSteel = triplanarMaterial('rusty_metal_02', { metres: 1.6, cls: 'rust', tint: 0xb8aa98 });
   const matConc = triplanarMaterial('concrete_floor_worn_001', { metres: 3.0, cls: 'concrete', metal: 0, tint: 0xd8cbb6 });
   const matWall = triplanarMaterial('rusty_metal_02', { metres: 2.6, cls: 'rust', tint: 0x8c7d70 });
-  const steel = [], conc = [], wall = [], floor = [];
+  const steel = [], conc = [], wall = [], floor = [], grate = [], gas = [], pipes = [];
+  const matGrate = triplanarMaterial('rusty_metal_02', { metres: 0.9, cls: 'rust', tint: 0x7d7268 });
+  const matGas = triplanarMaterial('rusty_metal_02', { metres: 1.4, cls: 'paint', tint: 0xd9a92a });   // gas lines: yellow paint gone rusty
+  const matPipe = triplanarMaterial('rusty_metal_02', { metres: 1.2, cls: 'rust', tint: 0xa89684 });
   const matFloor = triplanarMaterial('concrete_floor_worn_001', { metres: 2.2, cls: 'concrete', metal: 0, tint: 0x6e6257, rough: 0.85 });
 
   // ---------- gantry: 2 rows x 6 columns, 4 levels, the light-shaft maker ----------
@@ -84,13 +74,13 @@ export async function buildLevel(G) {
   // concrete floor slab inside
   floor.push(boxGeo(C.maxX - C.minX, 0.08, C.maxZ - C.minZ, (C.minX + C.maxX) / 2, 0.04, (C.minZ + C.maxZ) / 2));
   // ---------- perimeter: low concrete wall on the left, blast wall at the back right ----------
-  for (let z = -30; z < 6; z += 4) { conc.push(boxGeo(0.5, 2.4, 3.9, -21.5, 1.2, z + 2)); }
-  P.addBox(new THREE.Vector3(-22, 0, -31), new THREE.Vector3(-21.2, 2.4, 7), 'concrete');
-  // invisible-ish world bounds (physics only)
-  const B = LAYOUT.bounds;
-  P.addBox(new THREE.Vector3(B.minX - 1, 0, B.minZ - 1), new THREE.Vector3(B.maxX + 1, 6, B.minZ), 'concrete');
-  P.addBox(new THREE.Vector3(B.minX - 1, 0, B.maxZ), new THREE.Vector3(B.maxX + 1, 6, B.maxZ + 1), 'concrete');
-  P.addBox(new THREE.Vector3(B.maxX + 0.5, 0, B.minZ), new THREE.Vector3(B.maxX + 1.5, 6, B.maxZ), 'concrete');
+  // the yard's west wall has two gates into the tank farm: one onto its east-west lane, one to the pad
+  const WG = [[-26, -22], [2, 6]];
+  for (let z = -30; z < 6; z += 4) { const c = z + 2; if (WG.some(([a, b]) => c > a - 1.9 && c < b + 1.9)) continue; conc.push(boxGeo(0.5, 2.4, 3.9, -21.5, 1.2, c)); }
+  for (const [z0, z1] of [[-31, -26], [-22, 2], [6, 7]]) P.addBox(new THREE.Vector3(-22, 0, z0), new THREE.Vector3(-21.2, 2.4, z1), 'concrete');
+  for (const [a, b] of WG) for (const z of [a - 0.2, b + 0.2]) conc.push(boxGeo(0.7, 3.2, 0.7, -21.6, 1.6, z));  // gate posts
+  // the yard's east edge (behind the workshop) stays closed
+  P.addBox(new THREE.Vector3(19.9, 0, -31), new THREE.Vector3(20.9, 6, 7), 'concrete');
 
   const add = (list, mat, name) => {
     if (!list.length) return;
@@ -100,10 +90,10 @@ export async function buildLevel(G) {
     m.userData.surface = name === 'concrete' ? 'concrete' : 'metal';
     P.addShootable(m, m.userData.surface);
   };
-  add(steel, matSteel, 'steel'); add(conc, matConc, 'concrete'); add(wall, matWall, 'wall'); add(floor, matFloor, 'concrete');
 
   // ---------- Hi3D props ----------
-  const place = async (name, x, z, ry = 0, { s = 1, y = 0, col = true, shrink = 0.85, surface = 'metal', colH, big } = {}) => {
+  const place = async (name, x, z, ry = 0, opts = {}) => {
+    const { s = 1, y = 0, col = true, shrink = 0.85, surface = 'metal', colH, big, mega } = opts;
     const o = await instance(name); o.position.set(x, y, z); o.rotation.y = ry; o.scale.setScalar(s); root.add(o);
     o.updateMatrixWorld(true);
     let colBox = null;
@@ -113,18 +103,17 @@ export async function buildLevel(G) {
       colBox = P.addBoxCenter(c, sz, surface);
     }
     P.addShootable(o, surface);
-    if (name === 'drums') { o.userData.explosive = { hp: 40, box: colBox }; o.traverse((m) => { m.userData.owner = o; }); explosives.push(o); }
+    if (name === 'drums' || opts.explosive) { o.userData.explosive = { hp: 40, box: colBox }; o.traverse((m) => { m.userData.owner = o; }); explosives.push(o); }
     // storage tank that can go up: takes a grenade or a few magazines, then becomes a burning wreck
-    if (big) { o.userData.explosive = { hp: 380, box: colBox, big: true }; o.traverse((m) => { m.userData.owner = o; }); explosives.push(o); }
+    if (big) { o.userData.explosive = { hp: mega ? 600 : 380, box: colBox, big: true, mega: !!mega }; o.traverse((m) => { m.userData.owner = o; }); explosives.push(o); }
     return o;
   };
   const optional = (n, ...a) => (have.has(n) ? [place(n, ...a)] : []);
   let fallTower = null; // the distillation column that comes down at the end
   const jobs = [
-    // skyline
-    place('tank', 10, -40, 0.4, { s: 1.35, surface: 'metal' }), place('tank', 27, -26, 2.0, { s: 1.15 }),
-    place('tower', -4, -46, 0.2, { s: 1.0 }).then((o) => { fallTower = o; return o; }), place('tower', 5, -52, 1.3, { s: 1.15 }), place('tower', -30, -40, 2.5, { s: 0.9 }),
-    place('tank', -44, -32, 1.0, { s: 1.1 }),
+    // the process unit's big tank (zone B) and the skyline beyond the workshop
+    place('tank', 10, -40, 0.4, { s: 1.35, surface: 'metal', big: true, shrink: 0.9 }), place('tank', 27, -26, 2.0, { s: 1.15 }),
+    place('tower', -4, -46, 0.2, { s: 1.0 }).then((o) => { fallTower = o; return o; }), place('tower', 5, -52, 1.3, { s: 1.15 }),
     place('tank', 10.2, 2.6, 2.6, { s: 0.9, big: true }), place('tower', -18.4, -28.6, 0.8, { s: 0.75 }),
     place('valves', -14, 1.5, 2.2), place('barrier', -10.5, -1.5, 1.2, { surface: 'concrete' }),
     ...optional('pumpjack', -42, 10, 0.9, { s: 1.0 }), ...optional('pumpjack', 24, -38, 2.4, { s: 1.1 }),
@@ -151,6 +140,13 @@ export async function buildLevel(G) {
     ...[-3.5, -9.5, -15.5, -21.5].map((z) => place('lamp', C.maxX - 0.3, z, -Math.PI / 2, { y: 3.2, col: false })),
     place('drums', 18.6, -12.5, 1.1), place('valves', 18.5, -17.5, -1.4), place('rubble', 15.4, -8, 0.5, { colH: 0.4, surface: 'concrete' }), place('rubble', 18.2, -3.5, 2, { colH: 0.4, surface: 'concrete' }),
   ];
+  // ---------- zones B and C ----------
+  const ctx = { G, P, root, steel, conc, grate, gas, pipes, place, optional, jobs, valveSpots: [['A', -6.8, -25.2, 0.15, 0]], lights: [], fences: [], crates: [], zones: {}, zone(id) { return (this.zones[id] ||= { steel: [], conc: [], grate: [], gas: [], pipes: [] }); } };
+  buildZones(ctx);
+  if (have.has('fence')) jobs.push(scatterModel(root, 'fence', ctx.fences, { shadow: true, inside: true }));
+  add(steel, matSteel, 'steel'); add(conc, matConc, 'concrete'); add(wall, matWall, 'wall'); add(floor, matFloor, 'concrete'); add(grate, matGrate, 'grating');
+  add(pipes, matPipe, 'pipes'); add(gas, matGas, 'gas');
+  for (const z of Object.values(ctx.zones)) { add(z.steel, matSteel, 'steel'); add(z.conc, matConc, 'concrete'); add(z.grate, matGrate, 'grating'); add(z.pipes, matPipe, 'pipes'); add(z.gas, matGas, 'gas'); }
   // dry shrubs (no collision)
   const shrubs = [[-19.5, 2], [-19.8, -10], [-14, 4.5], [12.4, 3.5], [-20, -29], [9, -29.5], [-8, -30], [13, -18.5], [-3, 5.5]];
   for (const [x, z] of shrubs) jobs.push(place('shrub', x, z, x * 1.7, { col: false, s: 0.8 + ((x * z) % 0.4 + 0.4) * 0.6, surface: 'wood' }));
@@ -159,16 +155,16 @@ export async function buildLevel(G) {
   // supply crates (olive boxes with a light strip): walk up to refill ammo + grenades
   const crateMat = triplanarMaterial('rusty_metal_02', { metres: 0.8, cls: 'paint', tint: 0x55603a }); const crates = [];
   const stripMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.2, 3.2, 1.4), toneMapped: false });
-  for (const [x, z, ry] of [[3.2, 5.2, 0.3], [-18.5, -12, 1.2], [9.5, -24.5, -0.4]]) {
+  for (const [x, z, ry] of [[3.2, 5.2, 0.3], [-18.5, -12, 1.2], [9.5, -24.5, -0.4], ...ctx.crates]) {
     const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.6, 0.7), crateMat); b.position.y = 0.3; b.castShadow = b.receiveShadow = true;
     const st = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.72), stripMat); st.position.y = 0.5; g.add(b, st); g.position.set(x, 0, z); g.rotation.y = ry; root.add(g);
     P.addBoxCenter(new THREE.Vector3(x, 0.3, z), new THREE.Vector3(1.0, 0.6, 0.8), 'metal'); crates.push(new THREE.Vector3(x, 0, z));
   }
   // pressure-line valve stations (act objectives): Hi3D station + its handwheel on a pivot so it can turn
   const valves = [];
-  for (const [id, x, z, ry] of [['A', -6.8, -25.2, 0.15], ['IGN', -20.2, -4, Math.PI / 2]]) { // valve A (act 1) and the flare-line igniter (finale)
+  for (const [id, x, z, ry, y0] of ctx.valveSpots) { // valve A (act 1), valve B on the gallery deck (act 1), the flare-line igniter (finale)
     if (!have.has('valve_station')) break;
-    const st = await place('valve_station', x, z, ry, { surface: 'metal', shrink: 0.8 });
+    const st = await place('valve_station', x, z, ry, { surface: 'metal', shrink: 0.8, y: y0 });
     const bb = new THREE.Box3().setFromObject(st); const top = new THREE.Vector3(); bb.getCenter(top); top.y = bb.max.y;
     let wheel = null;
     if (have.has('valve_wheel')) {
@@ -183,7 +179,7 @@ export async function buildLevel(G) {
     // a small amber status lamp on the plinth: red until opened
     const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(8, 0.6, 0.2), toneMapped: false }));
     lamp.position.set(top.x + Math.cos(ry) * 0.9, bb.min.y + 0.45, top.z - Math.sin(ry) * 0.9); root.add(lamp);
-    valves.push({ id, pos: new THREE.Vector3(x, 0, z), top, station: st, wheel, lamp, open: false });
+    valves.push({ id, pos: new THREE.Vector3(x, y0, z), top, station: st, wheel, lamp, open: false });
   }
   // practical lights for the workshop lamps: warm, unshadowed, with a hot bulb so bloom picks them up
   const bulbM = new THREE.MeshBasicMaterial({ color: new THREE.Color(9, 5.2, 2.4), toneMapped: false });
@@ -191,12 +187,31 @@ export async function buildLevel(G) {
     const l = new THREE.PointLight(new THREE.Color(1.0, 0.6, 0.3), 9, 8.5, 2); l.position.set(C.maxX - 0.75, 3.05, z); root.add(l); R.volLights.push(l);
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), bulbM); b.position.set(C.maxX - 0.48, 3.12, z); root.add(b);
   }
-  G.level = { root, cover: [], layout: LAYOUT, explosives, fallTower, crates, valves };
+  // floodlights: fixtures everywhere, but a fixed pool of three lights follows the camera to the nearest ones
+  // (the light count never changes, so no shader ever recompiles)
+  const floodM = new THREE.MeshBasicMaterial({ color: new THREE.Color(9, 5.5, 2.6), toneMapped: false }), housing = [];
+  for (const [p] of ctx.lights) { housing.push(boxGeo(0.9, 0.35, 0.5, p.x, p.y + 0.15, p.z)); const f = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.28), floodM); f.rotation.x = Math.PI / 2; f.position.set(p.x, p.y - 0.04, p.z); root.add(f); }
+  add(housing, matSteel, 'steel');
+  const floodPool = [0, 1, 2].map(() => { const l = new THREE.PointLight(0xffb36b, 0, 16, 1.6); scene.add(l); R.volLights.push(l); return l; });
+  const padM = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 6, 2), toneMapped: false });
+  for (const p of ctx.padLights || []) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8), padM); m.position.copy(p); root.add(m); }
+  // shadow casters: anything tall keeps casting (the long low-sun shadows across the yard come from the far structures);
+  // small casters (rocks, grass, props under 4 m) only cast within 34 m of the camera — the shadow map spans the whole map
+  const smallCasters = []; let castT = 0;
+  function collectCasters() { root.updateMatrixWorld(true); root.traverse((o) => { if (!(o.isMesh || o.isInstancedMesh) || !o.castShadow) return; const bb = o.isInstancedMesh ? (o.computeBoundingBox(), o.boundingBox.clone().applyMatrix4(o.matrixWorld)) : new THREE.Box3().setFromObject(o); smallCasters.push({ o, bb, r: o.isInstancedMesh || bb.max.y - bb.min.y < 4 ? 34 : 70 }); }); } // instanced scatter: its own instance bounds, never the single rock's
+  const _cp = new THREE.Vector3();
+  function updateLights(cam, night) {
+    if ((castT -= G.realDt || 1 / 60) <= 0) { castT = 0.35; for (const [m, bb, far] of G.level.scatterNear || []) { _cp.set(cam.x, 0, cam.z); m.visible = bb.distanceToPoint(_cp) < far; } for (const c of smallCasters) { _cp.set(cam.x, (c.bb.min.y + c.bb.max.y) / 2, cam.z); c.o.castShadow = c.bb.distanceToPoint(_cp) < c.r; } }
+    const ranked = ctx.lights.map((L) => [L, L[0].distanceTo(cam)]).sort((a, b) => a[1] - b[1]);
+    floodPool.forEach((l, i) => { const r = ranked[i]; if (!r) { l.intensity = 0; return; } const [L, d] = r; l.position.copy(L[0]); l.color.set(L[1]); l.distance = L[3]; l.intensity = L[2] * Math.max(0.15, night) * THREE.MathUtils.clamp((60 - d) / 20, 0, 1); });
+  }
+  G.level = { root, cover: [], layout: LAYOUT, explosives, fallTower, crates, valves, updateLights, floodPool, tankSpots: ctx.tankSpots, padLights: ctx.padLights };
   await dress(G, root);
   await buildOutskirts(G, root);
-  R.fitShadow(new THREE.Box3(new THREE.Vector3(-62, -1, -84), new THREE.Vector3(42, 30, 22)));
+  R.fitShadow(new THREE.Box3(new THREE.Vector3(-78, -1, -84), new THREE.Vector3(32, 30, 16)));
   R.setInteriors([{ c: new THREE.Vector3((C.minX + C.maxX) / 2, C.h / 2, (C.minZ + C.maxZ) / 2), h: new THREE.Vector3((C.maxX - C.minX) / 2, C.h / 2, (C.maxZ - C.minZ) / 2) }]);
   root.traverse((o) => { if (o.isMesh && !o.isSkinnedMesh) { o.matrixAutoUpdate = false; o.updateMatrix(); } });
+  collectCasters();
   // cover points (both sides of each cover object), used by the AI
   const cover = [];
   for (const b of P.boxes) {

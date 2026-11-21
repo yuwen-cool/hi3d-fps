@@ -10,7 +10,10 @@ export function createExplosives(G) {
     ex.hp -= dmg;
     if (ex.hp <= 0 && !ex.lit) { ex.lit = true; ex.fuse = 0.35 + Math.random() * 0.3; burning.push(o); }
   }
-  G.events.on('weapon:fire', (e) => { const ob = e.hitW?.object; let o = ob; while (o && !o.userData.explosive) o = o.parent; if (o) hurt(o, 26); });
+  const owner = (ob) => { let o = ob; while (o && !o.userData.explosive) o = o.parent; return o; };
+  // carbine rounds set off drums and gas racks; a storage tank shrugs them off (it takes a grenade, a lance slug, the beam, a chain)
+  G.events.on('weapon:fire', (e) => { const o = owner(e.hitW?.object); if (o) hurt(o, o.userData.explosive.big ? 2 : 26); });
+  G.events.on('lance:fire', (e) => { const o = owner(e.hitW?.object); if (o) hurt(o, 260 + 260 * e.k); });
   G.events.on('explosion', (e) => { for (const o of list) { const ex = o.userData.explosive; if (ex.dead || ex.lit) continue;
     if (ex.big) { const r = (ex.r ??= new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3()).x * 0.5); if (o.position.distanceTo(e.pos.clone().setY(o.position.y)) < r + 3.5) hurt(o, 210 * e.size); }
     else if (o.position.distanceTo(e.pos) < 4.5) { ex.lit = true; ex.fuse = 0.18 + Math.random() * 0.25; burning.push(o); } } });
@@ -38,6 +41,13 @@ export function createExplosives(G) {
     G.slowmo(0.7, 0.35); G.events.emit('tank:boom', { pos: c.clone() });
     for (let i = 0; i < 7; i++) { const a = Math.random() * 6.28, r = sz.x * (0.3 + Math.random() * 0.5); G.fire?.add(new THREE.Vector3(c.x + Math.cos(a) * r, 0.05, c.z + Math.sin(a) * r), { size: 1 + Math.random() * 1.5, life: 120 + Math.random() * 120 }); }
     G.fire?.add(c.clone().setY(sz.y * 0.55), { size: 3.2, life: 300 });
+    if (ex.mega) { // the LPG sphere: a fireball that climbs into the sky, a ground-wide shock, and it sets off the tanks beside it
+      for (let i = 0; i < 6; i++) setTimeout(() => blast(c.clone().add(new THREE.Vector3((Math.random() - 0.5) * sz.x, sz.y * (0.4 + i * 0.18), (Math.random() - 0.5) * sz.z)), 3.4 + i * 0.3, 20, 420), 200 + i * 120);
+      G.slowmo(1.4, 0.3); G.player.addShake(1); G.R.fx.punch = 1;
+      setTimeout(() => { for (const t of list) { const e2 = t.userData.explosive; if (t !== o && e2?.big && !e2.dead && t.position.distanceTo(c) < 24) hurt(t, 9999); } }, 650);
+      setTimeout(() => { o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.color?.multiplyScalar(0.18); m.material.roughness = 1; } }); o.scale.y *= 0.55; o.rotation.z = 0.12; if (ex.box) ex.box.max.y = ex.box.min.y + sz.y * 0.5; }, 300);
+      return;
+    }
     const w = await instance('tank_wreck');
     setTimeout(() => {
       o.visible = false; if (!w.name.endsWith('_placeholder')) { w.position.copy(o.position); w.rotation.copy(o.rotation); const ws = new THREE.Box3().setFromObject(w).getSize(new THREE.Vector3()); w.scale.setScalar(Math.max(sz.x, sz.z) / Math.max(ws.x, ws.z)); o.parent.add(w); }

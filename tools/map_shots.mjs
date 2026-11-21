@@ -1,0 +1,25 @@
+// The map from above and from the ground in each zone: node tools/map_shots.mjs [outDir]
+import { chromium } from 'playwright';
+import { mkdirSync } from 'node:fs';
+const out = process.argv[2] || 'out/map'; mkdirSync(out, { recursive: true });
+const b = await chromium.launch({ channel: 'chrome', headless: true, args: ['--mute-audio', '--use-angle=metal', '--enable-gpu'] });
+const p = await b.newPage({ viewport: { width: 1600, height: 900 } });
+const errs = []; p.on('pageerror', (e) => errs.push(e.message)); p.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errs.push(m.text().slice(0, 160)); });
+await p.goto((process.env.BASE || 'http://127.0.0.1:5320') + '/?shot=1&nohud=1&noenemies=1&record=1'); await p.waitForFunction(() => window.__ready, null, { timeout: 180000 });
+const ev = (f, a) => p.evaluate(f, a);
+const cam = async (n, pos, look, fov = 60) => { await ev(([pos, look, fov]) => { const G = __G, c = G.R.camera; G.viewModelVisible = false; G.camLocked = true; c.position.set(...pos); c.lookAt(...look); c.fov = fov; c.updateProjectionMatrix(); __step(3); }, [pos, look, fov]); await p.screenshot({ path: `${out}/${n}.jpg`, type: 'jpeg', quality: 84 }); console.log('shot', n); };
+await ev(() => __step(40));
+await cam('m0_top', [-25, 150, -32.01], [-25, 0, -32], 55);
+await cam('m1_yard_south', [0, 1.7, -20], [0, 3, -60], 70);
+await cam('m2_gallery', [-6, 1.7, -42], [2, 4, -60], 70);
+await cam('m3_deck', [-12, 6.2, -60], [10, 5, -60], 75);
+await cam('m4_deck_view', [0, 6.2, -59], [-40, 2, -30], 75);
+await cam('m5_tanks_lane', [-30, 1.7, -30], [-70, 3, -30], 70);
+await cam('m6_crossroads', [-47, 1.7, -36], [-47, 3, 0], 70);
+await cam('m7_sphere', [-44, 1.7, -42], [-47, 6, -62], 70);
+await cam('m8_gate', [-14, 1.7, -24], [-40, 2, -24], 70);
+await cam('m9_substation', [-4, 1.7, -64], [-16, 1, -69], 70);
+await cam('m10_lane_header', [-47, 1.7, -8], [-40, 1, -40], 70);
+await cam('m11_aerial', [10, 40, 0], [-30, 0, -40], 55);
+console.log(JSON.stringify(await ev(() => ({ err: __errors.slice(0, 5), boxes: __G.phys.boxes.length, stats: __stats() }))), errs.slice(0, 8));
+await b.close();

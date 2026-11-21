@@ -47,23 +47,26 @@ export async function createEnemies(G) {
   const block = new Uint8Array(NX * NZ);
   for (let i = 0; i < NX; i++) for (let j = 0; j < NZ; j++) block[j * NX + i] = P.blocked(B.minX + (i + 0.5) * CS, B.minZ + (j + 0.5) * CS, 0.42) ? 1 : 0;
   const cell = (x, z) => [THREE.MathUtils.clamp(Math.floor((x - B.minX) / CS), 0, NX - 1), THREE.MathUtils.clamp(Math.floor((z - B.minZ) / CS), 0, NZ - 1)];
+  const g = new Float32Array(NX * NZ), came = new Int32Array(NX * NZ), closed = new Uint8Array(NX * NZ), heap = [], hf = [];
+  let tx_ = 0, tz_ = 0; const h = (k) => { const dx = Math.abs((k % NX) - tx_), dz = Math.abs(((k / NX) | 0) - tz_); return Math.max(dx, dz) + 0.414 * Math.min(dx, dz); };
+  function push(k, f) { heap.push(k); hf.push(f); let i = heap.length - 1; while (i > 0) { const p = (i - 1) >> 1; if (hf[p] <= hf[i]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; [hf[p], hf[i]] = [hf[i], hf[p]]; i = p; } }
+  function pop() { const top = heap[0], lk = heap.pop(), lf = hf.pop(); if (heap.length) { heap[0] = lk; hf[0] = lf; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && hf[l] < hf[m]) m = l; if (r < heap.length && hf[r] < hf[m]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; [hf[m], hf[i]] = [hf[i], hf[m]]; i = m; } } return top; }
   function path(from, to) {
     const [sx, sz] = cell(from.x, from.z), [tx, tz] = cell(to.x, to.z);
     let S = sz * NX + sx, T = tz * NX + tx;
     // a goal or start inside a prop's footprint (e.g. someone standing at a valve): use the nearest free cell
     const free = (k) => { if (!block[k]) return k; const cx = k % NX, cz = Math.floor(k / NX); for (let r = 1; r <= 4; r++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue; const x = cx + dx, z = cz + dz; if (x >= 0 && z >= 0 && x < NX && z < NZ && !block[z * NX + x]) return z * NX + x; } return -1; };
-    T = free(T); S = free(S); if (T < 0 || S < 0) return null;
-    const g = new Float32Array(NX * NZ).fill(1e9), came = new Int32Array(NX * NZ).fill(-1), open = [S]; g[S] = 0; const closed = new Uint8Array(NX * NZ);
-    const h = (k) => Math.hypot((k % NX) - tx, Math.floor(k / NX) - tz);
+    T = free(T); S = free(S); if (T < 0 || S < 0) return null; tx_ = T % NX; tz_ = (T / NX) | 0;
+    // A* on the 0.5 m grid with a binary heap (the map is ~190 x 165 cells)
+    g.fill(1e9); came.fill(-1); closed.fill(0); g[S] = 0; heap.length = 0; push(S, h(S));
     let it = 0;
-    while (open.length && it++ < 6000) {
-      let bi = 0; for (let i = 1; i < open.length; i++) if (g[open[i]] + h(open[i]) < g[open[bi]] + h(open[bi])) bi = i;
-      const c = open.splice(bi, 1)[0]; if (c === T) break; closed[c] = 1;
-      const cx = c % NX, cz = Math.floor(c / NX);
+    while (heap.length && it++ < 60000) {
+      const c = pop(); if (c === T) break; if (closed[c]) continue; closed[c] = 1;
+      const cx = c % NX, cz = (c / NX) | 0;
       for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
         if (!dx && !dz) continue; const nx = cx + dx, nz = cz + dz; if (nx < 0 || nz < 0 || nx >= NX || nz >= NZ) continue;
         const k = nz * NX + nx; if (block[k] || closed[k]) continue; if (dx && dz && (block[cz * NX + nx] || block[nz * NX + cx])) continue;
-        const ng = g[c] + (dx && dz ? 1.414 : 1); if (ng < g[k]) { g[k] = ng; came[k] = c; if (!open.includes(k)) open.push(k); }
+        const ng = g[c] + (dx && dz ? 1.414 : 1); if (ng < g[k]) { g[k] = ng; came[k] = c; push(k, ng + h(k)); }
       }
     }
     if (came[T] < 0 && S !== T) return null;
@@ -416,6 +419,8 @@ export async function createEnemies(G) {
       placeGun(e, aiming || e.state === 'engage');
     }
   }
-  return { update, spawn, list, hitTest, damage, shieldBash, CFG, KINDS, path, alert, canReach: (a, b) => !!path(a, b), get alive() { return list.filter((e) => e.alive).length; } };
+  // something new lies on the ground (a fallen column): re-mark the cells under it
+  function reblock(min, max) { const [i0, j0] = cell(min.x - 0.5, min.z - 0.5), [i1, j1] = cell(max.x + 0.5, max.z + 0.5); for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) block[j * NX + i] = P.blocked(B.minX + (i + 0.5) * CS, B.minZ + (j + 0.5) * CS, 0.42) ? 1 : 0; }
+  return { update, spawn, list, hitTest, damage, shieldBash, reblock, CFG, KINDS, path, alert, canReach: (a, b) => !!path(a, b), get alive() { return list.filter((e) => e.alive).length; } };
 }
 function angleDiff(a, b) { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }

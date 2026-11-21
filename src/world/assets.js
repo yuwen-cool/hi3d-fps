@@ -48,6 +48,11 @@ export const MODELS = {
   riot_shield: { len: 1.55, cls: 'metal', up: true },
   drone: { len: 0.95, cls: 'paint' },
   drop_pod: { len: 2.3, cls: 'paint', up: true },
+  fence: { len: 4.0, cls: 'metal' },
+  cabin: { len: 8.5, cls: 'paint' },
+  pump_skid: { len: 3.2, cls: 'paint' },
+  transformer: { len: 3.0, cls: 'metal' },
+  gas_rack: { len: 2.4, cls: 'paint' },
   container_far: { len: 6.1, cls: 'paint' },
 };
 

@@ -161,6 +161,9 @@ export async function createColossus(G) {
       R.flash(end, 0xff9040, 30, 8, 0.05); G.fxs?.emit(false, { pos: end, life: 0.06, size: 1.4, size1: 0.6, col: [16, 9, 4], soft: true });
       for (let i = 0; i < 3; i++) G.fxs?.emit(false, { pos: end, vel: V((rnd() - 0.5) * 6, 2 + rnd() * 5, (rnd() - 0.5) * 6), life: 0.4 + rnd() * 0.4, size: 0.02, stretch: 0.08, col: [18, 8, 2], grav: 9.8 });
       if (rnd() < dt * 18) G.fxs?.emit(true, { pos: end, vel: V(0.3, 1.2, 0.2), life: 2.5, size: 0.3, size1: 1.6, col: G.fxs.litColor([0.08, 0.07, 0.06]), alpha: 0.6, soft: true, rise: 0.5, drag: 0.8 });
+      // it cooks whatever it touches: a tank (or drum, or gas rack) caught in the sweep goes up, gas lines vent and burn
+      if (h?.object) { let o = h.object; while (o && !o.userData.explosive) o = o.parent; if (o) G.explosives?.hurt(o, 300 * dt);
+        if (h.object.name === 'gas' && rnd() < dt * 4) { const l = G.fire?.leak(h.point.clone().addScaledVector(h.normal, 0.05), h.normal, true); if (l) G.fire.add(l.pos, { size: 2, life: 18, dir: l.dir, dmg: 80 }); } }
       if ((S.lastScorch || 0) + 0.12 < S.t) { S.lastScorch = S.t; G.fxs?.decal(V(end.x, 0.012, end.z), V(0, 1, 0), 1.1); if (rnd() < 0.4) G.fire?.add(V(end.x, 0.05, end.z), { size: 0.5 + rnd() * 0.5, life: 10 + rnd() * 10 }); }
       // damage: the beam line passing through the player
       const pc = G.player.s.pos.clone().setY(G.player.s.pos.y + 1); const t = pc.clone().sub(m).dot(d);

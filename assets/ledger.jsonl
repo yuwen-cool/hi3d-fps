@@ -77,3 +77,13 @@
 {"name": "riot_shield", "step": "model", "task": "f9042906e12d4ae89ff120d14a9c2005", "points": 45}
 {"name": "drone", "step": "model", "task": "73f877ea578448adaa6bb485e3d5ba6a", "points": 45}
 {"name": "lance", "step": "model", "task": "a16ff4b2d2e64a7ea3b0c985cbbc5a5f", "points": 145}
+{"name": "transformer", "step": "image", "task": "be23dd9acf814b87be96413104617f3d", "points": 6}
+{"name": "fence", "step": "image", "task": "0c2a670d298e4990b8f52ac7094fc979", "points": 6}
+{"name": "cabin", "step": "image", "task": "7e388280a2d543149d0f35c0b74067f3", "points": 6}
+{"name": "gas_rack", "step": "image", "task": "83baeaa7c896432c83e860acadc661d0", "points": 6}
+{"name": "pump_skid", "step": "image", "task": "f0a5e4b13af64566bf4c9e67896dfc44", "points": 6}
+{"name": "fence", "step": "model", "task": "c1d388c8b37c4192a8d7cb40aa461bf2", "points": 45}
+{"name": "cabin", "step": "model", "task": "58336f1e740442a3805eb752fd2ef159", "points": 45}
+{"name": "pump_skid", "step": "model", "task": "ed3fddb20dc045109528401dad6de58a", "points": 45}
+{"name": "gas_rack", "step": "model", "task": "81d84380b9f84051b515a4709953793c", "points": 45}
+{"name": "transformer", "step": "model", "task": "ea0c6bc279d342208fc8b75250357356", "points": 45}

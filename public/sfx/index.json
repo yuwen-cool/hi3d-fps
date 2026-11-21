@@ -303,5 +303,17 @@
  ],
  "vo_drones": [
   "vo_drones.mp3"
+ ],
+ "vo_tower": [
+  "vo_tower.mp3"
+ ],
+ "vo_openedB": [
+  "vo_openedB.mp3"
+ ],
+ "vo_tankfarm": [
+  "vo_tankfarm.mp3"
+ ],
+ "vo_valveB": [
+  "vo_valveB.mp3"
  ]
 }

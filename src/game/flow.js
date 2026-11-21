@@ -7,16 +7,21 @@ import * as THREE from 'three';
 //   II STORM  the front rolls over; two waves inside the sand; lightning takes the storage tank.
 //   III NIGHT the colossus walks in from the west; break its two coolant cores; the column falls; extract.
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
-const SPAWNS = [[-9, -26], [2, -29], [11, -27], [-16, -21], [-3, -18], [8, -12], [-14, -3], [0, -25], [-8, -10], [7, -9], [-12, -6], [12, -7], [0, -14], [-6, -17], [9, -17]];
+// spawn points in all three zones; a wave draws the ones at a fighting distance from the player
+const SPAWNS = [[-9, -26], [2, -29], [11, -27], [-16, -21], [-3, -18], [8, -12], [-14, -3], [0, -25], [-8, -10], [7, -9], [-12, -6], [12, -7], [0, -14], [-6, -17], [9, -17],
+  [-18, -40], [-6, -39], [8, -45], [16, -53], [-14, -55], [2, -48], [-8, -66], [6, -71], [16, -67], [-20, -65], [0, -55], [-20, -50],
+  [-47, -21], [-47, -37], [-40, -31], [-56, -27], [-66, -34], [-30, -34], [-47, -6], [-58, 3], [-36, 2], [-60, -62], [-34, -62], [-47, -50], [-68, -22]];
 // n robots (ch of them chargers, hv shield heavies) + dr drones over the wall
 const WAVES = [{ n: 4, ch: 1 }, { n: 3, ch: 1, dr: 3 }, { n: 4, ch: 1, hv: 1, dr: 2 }, { n: 2, ch: 1, dr: 2 }];
-const BOSS_PATH = [V(-33, 0, -16), V(-31, 0, -4), V(-34, 0, -24), V(-31, 0, -10)];
-const STORM_CLOCK = 180;
+// act 3: the colossus walks the tank farm's lanes (22 m north-south, 26 m east-west), round the crossroads
+const BOSS_PATH = [V(-47, 0, -28), V(-46, 0, -13), V(-47, 0, -30), V(-61, 0, -30), V(-47, 0, -45), V(-33, 0, -30)];
+const BOSS_IN = V(-92, 0, -30), BOSS_TRAP = V(-50, 0, -31);
+const STORM_CLOCK = 240; // act 1 has two valves now (yard, then the gallery in the process unit)
 // the dropship settles over the pad nose-west (wings across the wall line), belly ~3.4 m up; the boarding shot is taken from inside the yard
-const SHIP = { hover: V(-19, 3.4, 4), yaw: Math.PI / 2, cam0: V(-6, 1.8, -6), cam1: V(-8, 2.4, -3) };
+const SHIP = { hover: V(-47, 3.4, 1), yaw: Math.PI / 2, cam0: V(-36, 1.8, -8), cam1: V(-38.5, 2.6, -5) };
 const ease = (t) => t * t * (3 - 2 * t);
 const RADIO = {
-  deploy: 'Boots on the ground. Storm front is three minutes out.',
+  deploy: 'Boots on the ground. Storm front is four minutes out.',
   valve: 'Valve A is across the yard. Open it — we need pressure on the flare line.',
   contact: 'Hostiles on the valve. Clear them.',
   opened: 'Line A is live. Pressure is building. Now hold that yard.',
@@ -36,18 +41,22 @@ const RADIO = {
   heavy: 'Shield unit! Get behind it, or put a lance through it.',
   drones: 'Drones over the wall! Watch the sky — they dive.',
   lateValve: 'Forget the valve — the storm is on you.',
+  valveB: 'Line B is in the process unit, south — top of the pipe gallery. Get up there.',
+  openedB: 'Both lines are live. The front is right on top of you — brace!',
+  tower: 'That column is coming down — get clear!',
+  tankfarm: 'It is heading into the tank farm. West gate — move!',
   horizon: 'Eyes west. Something is walking out there.',
 };
 const STORM_DIR = new THREE.Vector2(-0.627, -0.779); // where the storm (and the thing inside it) comes from
 
 export function createFlow(G) {
-  const S = { queue: [], state: 'title', act: 0, wave: -1, waveT: 0, kills: 0, t: 0, actT: 0, extract: V(-17, 0, 4), startT: 0, step: 'intro', stormClock: null, cores: 0 };
+  const S = { queue: [], state: 'title', act: 0, wave: -1, waveT: 0, kills: 0, t: 0, actT: 0, extract: V(-47, 0, 1), startT: 0, step: 'intro', stormClock: null, cores: 0 };
   const E = () => G.enemies, env = () => G.env?.S, hud = () => G.hud;
   const say = (k) => hud()?.say?.(RADIO[k] || k, RADIO[k] ? k : null);
   // is a world point on screen and not hidden behind geometry?
   const _iv = new THREE.Vector3(), _ce = new THREE.Vector3();
   function inView(p, m = 0.8) { const cam = G.R.camera; _iv.copy(p).project(cam); if (_iv.z > 1 || Math.abs(_iv.x) > m || Math.abs(_iv.y) > m) return false; return G.phys.los(cam.getWorldPosition(_ce), p); }
-  const valveA = () => G.level.valves?.[0];
+  const valveA = () => G.level.valves?.find((v) => v.id === 'A'), valveB = () => G.level.valves?.find((v) => v.id === 'B');
   G.obj = null;
   function obj(o) { G.obj = { ...G.obj, ...o }; }
   const later = (sec, fn) => S.queue.push({ t: S.t + sec, fn }); // game-time timers (deterministic in record mode)
@@ -55,7 +64,7 @@ export function createFlow(G) {
   function spawnWave(n, ch = 0, near = null, { hv = 0, dr = 0 } = {}) {
     const pp = G.player.s.pos; const ref = near || pp;
     const cand = SPAWNS.map(([x, z]) => V(x, 0, z)).filter((p) => p.distanceTo(pp) > 11 && !G.phys.blocked(p.x, p.z, 0.45) && (E()?.canReach?.(p, pp) ?? true));
-    cand.sort((a, b) => a.distanceTo(ref) - b.distanceTo(ref) + (G.rng() - 0.5) * 14);
+    cand.sort((a, b) => Math.abs(a.distanceTo(ref) - 20) - Math.abs(b.distanceTo(ref) - 20) + (G.rng() - 0.5) * 12); // ~20 m out: close enough to find you, far enough to be seen coming
     const m = Math.min(n, cand.length);
     for (let i = 0; i < m; i++) S.queue.push({ t: S.t + i * 0.65, fn: () => { const e = E()?.spawn(cand[i], { yaw: Math.atan2(pp.x - cand[i].x, pp.z - cand[i].z), kind: i < hv ? 'heavy' : i >= m - ch ? 'charger' : 'rifle' }); if (e) { e.lastKnown = G.player.s.pos.clone(); e.state = 'investigate'; } } });
     // drones come in high over the wall from the storm side, a beat apart
@@ -97,7 +106,7 @@ export function createFlow(G) {
     later(9, () => {
       if (S.act !== 1) return;
       // out in the open desert to the west (low wall, nothing in the way), pacing north-south along the dunes
-      const a = V(-82, 0, -50), b = V(-82, 0, 30);
+      const a = V(-104, 0, -60), b = V(-104, 0, 25);
       G.boss?.spawnDistant(a.clone().lerp(b, 0.4), 0, [b, a], 2.3); S.horizon = { t: 0, said: false, bolt: 2 };
     });
     later(2.5, () => hud()?.hint?.([['WASD', 'MOVE'], ['SHIFT', 'DASH'], ['C', 'SLIDE'], ['F', 'MELEE']], 6));
@@ -156,7 +165,7 @@ export function createFlow(G) {
   G.events.on('boss:leg', () => { obj({ count: [1, 1] }); hud()?.banner?.('LEG DESTROYED', { kind: 'good', sub: 'ARMOUR BREACHED — CORES EXPOSED', dur: 3 }); later(1.4, () => { say('legdown'); obj({ line: 'DESTROY THE COOLANT CORES', count: [0, 2], unit: 'CORES' }); S.bossPhase = 'cores'; }); });
   G.events.on('boss:overload', () => { S.bossPhase = 'trap'; say('overload'); hud()?.banner?.('IT IS OVERLOADING', { kind: 'crit', sub: 'IGNITE THE FLARE LINE', dur: 3.2 }); G.audio?.play?.('alarm', { gain: 0.8 });
     const ig = igniter(); if (ig) { ig.lamp.material.color.setRGB(9, 1.2, 0.2); obj({ line: 'IGNITE THE FLARE LINE', count: null, unit: null, marks: [{ p: ig.pos, label: 'F', name: 'IGNITER' }] }); } });
-  G.events.on('boss:dead', () => { S.bossDead = true; S.towerT = 0; });
+  G.events.on('boss:dead', () => { S.bossDead = true; });
   G.events.on('scan:fire', () => { S.scanned = true; });
   if (G.params.shot && !G.params.noenemies) setTimeout(start, 0);
 
@@ -164,7 +173,7 @@ export function createFlow(G) {
   const _f = new THREE.Vector3();
   function holdTick(v, dt, { label, hold, col, done }) {
     if (!v || v.open) return;
-    const ps = G.player.s; const d = Math.hypot(ps.pos.x - v.pos.x, ps.pos.z - v.pos.z);
+    const ps = G.player.s; const d = Math.hypot(ps.pos.x - v.pos.x, ps.pos.z - v.pos.z) + Math.max(0, Math.abs(ps.pos.y - v.pos.y) - 0.6) * 4; // on the deck, not under it
     _f.set(v.top.x - ps.pos.x, 0, v.top.z - ps.pos.z).normalize(); const look = -Math.sin(ps.yaw) * _f.x - Math.cos(ps.yaw) * _f.z;
     const near = d < 2.6 && look > 0.2 && !ps.dead;
     if (!v.glow) { v.glow = []; v.wheel?.traverse((m) => { if (m.isMesh && m.material.emissive) v.glow.push(m.material); }); }
@@ -186,6 +195,22 @@ export function createFlow(G) {
       obj({ count: [1, 1], marks: [] }); S.step = 'hold'; S.waveT = 2.5; G.events.emit('valve:open', { id: v.id });
       later(2.5, dropPod);
     } });
+  }
+  // valve B: up on the pipe gallery in the process unit, guarded; opening it brings the storm on
+  function valveBTick(dt) {
+    const v = valveB(); if (!v || v.open) return;
+    holdTick(v, dt, { label: 'HOLD — OPEN VALVE B', hold: 1.6, col: [0.2, 0.7, 1], done: () => {
+      v.lamp.material.color.setRGB(0.6, 5, 1.2); G.audio?.play?.('pressure', { pos: v.top, ref: 10, gain: 1.1 }); G.audio?.play?.('objective', { gain: 0.8 }); G.player.addShake(0.25);
+      hud()?.banner?.('PRESSURE LINE B ONLINE', { kind: 'good', dur: 2.8 }); say('openedB'); G.events.emit('valve:open', { id: v.id });
+      S.step = 'storm'; S.stormFF = true; obj({ line: 'BRACE FOR THE STORM', count: null, unit: null, marks: [] }); G.audio?.play?.('alarm', { gain: 0.6 });
+    } });
+  }
+  function toValveB() {
+    S.step = 'valveB'; const v = valveB(); if (!v) { S.step = 'storm'; S.stormFF = true; return; }
+    say('valveB'); obj({ line: 'OPEN VALVE B — PIPE GALLERY', count: [0, 1], unit: null, marks: [{ p: v.top, label: 'B', name: 'VALVE B' }] });
+    hud()?.banner?.('PROCESS UNIT', { sub: 'VALVE B — TOP OF THE PIPE GALLERY', dur: 3 });
+    // a guard on the gallery: two riflemen under it, a shield heavy on the approach
+    for (const [p, k] of [[V(-6, 0, -55), 'rifle'], [V(8, 0, -56), 'rifle'], [V(0, 0, -47), 'heavy'], [V(-14, 0, -64), 'rifle']]) if (!G.phys.blocked(p.x, p.z, 0.45)) { const e = E()?.spawn(p, { yaw: 0, kind: k }); if (e) e.state = 'patrol'; }
   }
   // the finale: the overloaded machine is stuck on the flare line's outlet; light it
   const igniter = () => G.level.valves?.find((v) => v.id === 'IGN');
@@ -212,7 +237,11 @@ export function createFlow(G) {
     const f = S.fell; if (!f || f.done) return; f.t += dt;
     const k = Math.min(1, Math.pow(f.t / 3.2, 2.2)); f.o.rotation.set(0, f.o.rotation.y, 0); f.o.rotateOnWorldAxis(f.axis, k * 1.45);
     if (Math.random() < dt * 20) G.fxs?.emit(true, { pos: f.o.position.clone().add(V((Math.random() - 0.5) * 6, 0.5, (Math.random() - 0.5) * 6)), vel: V((Math.random() - 0.5) * 4, 1.5, (Math.random() - 0.5) * 4), life: 3, size: 1, size1: 4, col: G.fxs.litColor([0.3, 0.24, 0.18]), alpha: 0.5, soft: true, drag: 1 });
-    if (k >= 1) { f.done = true; const hit = f.o.position.clone().add(V(0, 0, 14)); G.explosives?.blast(hit, 1.6, 6, 0); G.player.addShake(0.9); for (let i = 0; i < 40; i++) { const a = Math.random() * 6.28; G.fxs?.emit(true, { pos: V(hit.x + Math.cos(a) * 4, 0.4, hit.z + Math.sin(a) * 10), vel: V(Math.cos(a), 0.2, Math.sin(a)).multiplyScalar(6 + Math.random() * 6), life: 3 + Math.random() * 2, size: 1, size1: 5, col: G.fxs.litColor([0.45, 0.35, 0.25]), alpha: 0.55, soft: true, drag: 1.5 }); } G.events.emit('tower:down', {}); }
+    if (k >= 1) { f.done = true; const hit = f.o.position.clone().add(V(0, 0, 14)); G.explosives?.blast(hit, 1.6, 6, 0);
+      // it lands as a long body on the ground: everything under it is crushed, and it stays as cover
+      const base = f.o.position, H = 15, w = 1.6, mn = V(base.x - w, 0, base.z), mx = V(base.x + w, 2.6, base.z + H);
+      for (const e of E()?.list || []) if (e.alive) { const p = e.root.position; if (p.x > mn.x - 0.6 && p.x < mx.x + 0.6 && p.z > mn.z - 0.6 && p.z < mx.z + 0.6) E().damage(e, 9999, { part: 'body', point: p.clone().setY(1) }, V(0, -1, 0)); }
+      G.phys.addBox(mn, mx, 'metal'); E()?.reblock?.(mn, mx); G.player.addShake(0.9); for (let i = 0; i < 40; i++) { const a = Math.random() * 6.28; G.fxs?.emit(true, { pos: V(hit.x + Math.cos(a) * 4, 0.4, hit.z + Math.sin(a) * 10), vel: V(Math.cos(a), 0.2, Math.sin(a)).multiplyScalar(6 + Math.random() * 6), life: 3 + Math.random() * 2, size: 1, size1: 5, col: G.fxs.litColor([0.45, 0.35, 0.25]), alpha: 0.55, soft: true, drag: 1.5 }); } G.events.emit('tower:down', {}); }
   }
 
   // the wall arrives: a high shot over the yard toward the storm, the front rolling over the far stacks, lightning in its face
@@ -230,7 +259,7 @@ export function createFlow(G) {
   }
   function toStorm(late) {
     setAct(2); S.stormClock = 0; S.wave = Math.max(S.wave, 0); S.waveT = 6;
-    if (late && valveA() && !valveA().open) { say('lateValve'); valveA().open = true; G.interact = null; }
+    if (late) { let said = false; for (const v of [valveA(), valveB()]) if (v && !v.open) { if (!said) say('lateValve'); said = true; v.open = true; } G.interact = null; }
     obj({ act: 2, title: 'ACT 2 // SANDSTORM', line: 'SURVIVE THE STORM', count: [0, 2], unit: 'WAVES', marks: [], sub: null });
     G.audio?.play?.('alarm', { gain: 0.7 });
     stormShot(() => {
@@ -275,14 +304,14 @@ export function createFlow(G) {
       if (S.step === 'valve') valveTick(dt);
       else if (S.step === 'hold') {
         if (S.wave < 0 && clear) { S.waveT -= dt; if (S.waveT <= 0) { S.wave = 0; spawnWave(WAVES[0].n, WAVES[0].ch); say('inbound'); hud()?.banner?.('HOSTILES INBOUND', { kind: 'crit', dur: 2.4 }); obj({ line: 'HOLD THE YARD', count: [0, WAVES[0].n], unit: 'DOWN', marks: [] }); } }
-        else if (S.wave === 0) { obj({ count: [Math.min(S.waveN, S.kills - S.waveK), S.waveN] }); if (clear) { S.step = 'storm'; S.stormFF = true; hud()?.banner?.('SANDSTORM INBOUND', { kind: 'crit', sub: 'THE FRONT IS ACCELERATING', dur: 3 }); G.audio?.play?.('alarm', { gain: 0.6 }); obj({ line: 'BRACE FOR THE STORM', count: null, unit: null }); } }
-      }
-      if (S.stormClock <= 0) toStorm(S.step === 'valve');
+        else if (S.wave === 0) { obj({ count: [Math.min(S.waveN, S.kills - S.waveK), S.waveN] }); if (clear) toValveB(); }
+      } else if (S.step === 'valveB') valveBTick(dt);
+      if (S.stormClock <= 0) toStorm(S.step === 'valve' || S.step === 'valveB');
     // ---- act II: front sweeps over (~24 s); waves 2 and 3 inside the storm; lightning takes the tank ----
     } else if (S.act === 2) {
       if (ev) ev.front = S.actT < 4.6 ? lerp(150, 85, S.actT / 4.6) : lerp(85, -140, sstep(S.actT, 4.6, 20)); // rolls in fast under the opening shot, then over the yard
       // lightning takes the storage tank — when the player is looking at it (or soon after, regardless)
-      const tk = !S.tankHit && G.level.explosives.find((o) => o.userData.explosive?.big && !o.userData.explosive.dead);
+      const pp2 = G.player.s.pos, tk = !S.tankHit && G.level.explosives.filter((o) => o.userData.explosive?.big && !o.userData.explosive.dead && !o.userData.explosive.mega && o.position.x > -22).sort((a, b) => a.position.distanceTo(pp2) - b.position.distanceTo(pp2))[0];
       if (tk && S.actT > 6 && (inView(tk.position.clone().setY(9), 0.8) || S.actT > 45)) {
         const seen = S.actT <= 45; S.tankHit = true; G.env?.strike(tk.position.clone().setY(30));
         later(0.12, () => { G.explosives?.hurt(tk, 9999); if (seen) { G.slowmo(1.3, 0.3); G.player.addShake(0.6); G.player.assist?.(tk.position.clone().setY(5), 0.4, 1.6); } });
@@ -292,19 +321,20 @@ export function createFlow(G) {
         S.waveT -= dt;
         if (S.waveT <= 0) {
           if (S.wave < 2) { S.wave++; spawnWave(WAVES[S.wave].n, WAVES[S.wave].ch, null, WAVES[S.wave]); if (S.wave === 2 && !WAVES[2].hv) say('wave'); hud()?.banner?.(`WAVE ${S.wave} / 2`, { kind: 'crit', dur: 2.2 }); S.waveT = 3; }
-          else if (S.actT > 24) toNight();
+          else if (S.actT > 24 && S.towerT == null && !S.fell) { S.towerT = 0; say('tower'); }
         }
       }
-      if (S.act === 2 && S.actT > 120) toNight();
+      if (S.fell?.done && !S.nightT) S.nightT = S.t + 4;
+      if ((S.nightT && S.t > S.nightT) || S.actT > 150) toNight();
     // ---- act III: night falls on the burning yard; the colossus comes ----
     } else if (S.act === 3) {
       if (ev) { ev.night = sstep(S.actT, 0, 10); ev.storm = lerp(1, 0.3, sstep(S.actT, 0, 10)); ev.front = Math.min(ev.front, -140); }
       if (S.actT > 6 && !S.bossIn) {
-        S.bossIn = true; G.boss?.hideDistant(); G.boss?.spawn(V(-50, 0, -13), Math.PI / 2, BOSS_PATH); G.boss.S.trap = V(-31.5, 0, -4); G.audio?.play?.('alarm', { gain: 0.9 });
+        S.bossIn = true; G.boss?.hideDistant(); G.boss?.spawn(BOSS_IN.clone(), Math.PI / 2, BOSS_PATH); G.boss.S.trap = BOSS_TRAP.clone(); G.audio?.play?.('alarm', { gain: 0.9 });
         revealBoss(() => {
           spawnWave(WAVES[3].n, WAVES[3].ch, null, WAVES[3]); hud()?.boot?.();
           hud()?.banner?.('WARNING // MASSIVE CONTACT', { kind: 'crit', sub: 'COLOSSUS — CLASS-IV SIEGE WALKER', dur: 3.5 });
-          say('boss'); obj({ line: 'BREAK A LEG ACTUATOR', count: [0, 1], unit: 'LEGS' }); S.bossPhase = 'legs';
+          say('boss'); later(5, () => { if (G.player.s.pos.x > -22) say('tankfarm'); }); obj({ line: 'BREAK A LEG ACTUATOR', count: [0, 1], unit: 'LEGS' }); S.bossPhase = 'legs';
         });
       }
       const B = G.boss?.S;
@@ -314,7 +344,7 @@ export function createFlow(G) {
         obj({ marks: [{ p: B.pos, label: '!', kind: 'boss', name: 'COLOSSUS' }, ...wp.map((p) => ({ p, label: '◎', kind: 'weak', name: S.bossPhase === 'cores' ? 'CORE' : 'KNEE' }))] });
       }
       if (S.bossPhase === 'trap' && !G.boss?.S.dead) holdTick(igniter(), dt, { label: 'HOLD — IGNITE THE FLARE LINE', hold: 1.0, col: [1, 0.08, 0.02], done: ignite });
-      if (S.bossDead && clear && S.state === 'play' && (S.fell?.done || !G.level.fallTower)) toExtract();
+      if (S.bossDead && clear && S.state === 'play') toExtract();
     }
     if (S.state === 'extract' && S.shipReady && G.player.s.pos.distanceTo(S.extract) < 3.2) { S.state = 'won'; G.obj = null; G.ship ? board() : G.events.emit('flow:won'); }
   }
@@ -341,7 +371,7 @@ export function createFlow(G) {
   function revealBoss(done) {
     const B = G.boss; if (!B || !G.cine) { done(); return; }
     // out on the sand west of the yard, low, the machine walking past toward the refinery
-    const A0 = V(-27.5, 1.1, 5.5), A1 = V(-29.5, 1.5, 2.5), look = V(0, 0, 0), lk = V(-46, 8, -13);
+    const A0 = V(-28, 1.1, -25.5), A1 = V(-31, 1.5, -28), look = V(0, 0, 0), lk = V(-80, 8, -30);
     const key = new THREE.PointLight(0xffb27a, 0, 45, 1.6), rim = new THREE.PointLight(0x9fc8ff, 0, 60, 1.4); G.R.scene.add(key, rim);
     G.cine.play({
       dur: 5.2,
@@ -353,7 +383,7 @@ export function createFlow(G) {
       callouts: [
         { label: 'LEG ACTUATOR', at: () => B.legs[0].k.w, t: 2.0, dx: -120, dy: -50 },
         { label: 'LEG ACTUATOR', at: () => B.legs[1].k.w, t: 2.3, dx: 120, dy: -60 },
-        { label: 'COOLANT CORE // ARMOURED', at: () => B.cores[0].light.position, t: 2.6, dx: -130, dy: 60 },
+        { label: 'COOLANT CORE // ARMOURED', at: () => B.cores[0].light.getWorldPosition(new THREE.Vector3()), t: 2.6, dx: -130, dy: 60 },
         { label: 'BEAM EMITTER', at: () => B.muzzle(), t: 2.9, dx: 120, dy: 40 },
       ],
       end: () => { G.R.scene.remove(key, rim); const ps = G.player.s, d = B.hull.position.clone().sub(G.R.camera.position); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch = THREE.MathUtils.clamp(Math.atan2(d.y - 2, Math.hypot(d.x, d.z)), -0.3, 0.5); done(); },

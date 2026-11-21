@@ -35,7 +35,7 @@ async function boot() {
   if (params.cam) { const v = params.cam.split(',').map(Number); R.camera.position.set(v[0], v[1], v[2]); R.camera.lookAt(v[3], v[4], v[5]); G.camLocked = true; }
   if (params.fov) { R.camera.fov = +params.fov; R.camera.updateProjectionMatrix(); }
 
-  let last = performance.now();
+  let last = performance.now(); G.prof = new Proxy({}, { get: (o, k) => (k in o ? o[k] : 0) });
   const fixedDt = params.dt ? +params.dt : 0;
   const tick = (forceDt) => {
     const now = performance.now();
@@ -48,9 +48,13 @@ async function boot() {
     G.time += dt; G.dt = dt; G.realDt = real;
     for (const [name, m] of Object.entries(G.modules)) {
       if (!m.update || G.err[name] || (G.paused && name !== 'inputEnd')) continue;
+      const t0 = performance.now();
       try { m.update(dt); } catch (e) { G.err[name] = 1; console.error(`[${name}]`, e); window.__errors.push(`${name}: ${e.message}`); }
+      G.prof[name] = G.prof[name] * 0.95 + (performance.now() - t0) * 0.05; // CPU ms per module (smoothed)
     }
+    const tr = performance.now();
     try { R.frame(dt); } catch (e) { if (!G.err.render) { G.err.render = 1; console.error(e); window.__errors.push('render: ' + e.message); } }
+    G.prof.render = G.prof.render * 0.95 + (performance.now() - tr) * 0.05;
     window.__frames++;
     if (window.__frames === 4) window.__ready = true;
   };

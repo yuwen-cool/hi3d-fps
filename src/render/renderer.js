@@ -127,7 +127,7 @@ export function createRenderer(G, canvas) {
       uHeightFall: { value: TUNE.volHeightFall }, uBase: { value: TUNE.volBase }, uSteps: { value: tier.vol }, uPL: { value: [0, 1, 2, 3, 4, 5].map(() => new THREE.Vector4()) }, uPLc: { value: [0, 1, 2, 3, 4, 5].map(() => new THREE.Vector3()) }, uPLn: { value: 0 }, uStorm: { value: new THREE.Vector4(0, 0, 1e5, 0) }, uClear: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(0, 0, 0, 0)) }, uClearB: { value: [0, 1, 2, 3].map(() => new THREE.Vector3()) }, uWind: { value: new THREE.Vector2(0.62, 0.77) },
       uInterior: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uInteriorSize: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uInteriorCount: { value: 0 }, uInteriorDust: { value: TUNE.volInteriorDust },
     }),
-    comp: pass(S.COMPOSITE, { tColor: { value: null }, tDepth: { value: null }, tZ: { value: null }, tAO: { value: null }, tVol: { value: null }, uHalfRes: { value: new THREE.Vector2() }, uAOStrength: { value: TUNE.aoStrength }, uExposureHint: { value: 1 }, uUseAO: { value: 1 }, uUseVol: { value: 1 }, uUseSSR: { value: 1 }, uProjV: { value: new THREE.Vector4() }, uCamMat: { value: new THREE.Matrix4() }, uViewUp: { value: new THREE.Vector3() }, uPads: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(1e5, 1e5, 1e5, 1e5)) }, uCorr: { value: new THREE.Vector4(1e5, 1e5, 1e5, 1e5) }, uTime: { value: 0 }, uScan: { value: new THREE.Vector4(0, 0, 0, 0) }, uScanA: { value: 0 } }),
+    comp: pass(S.COMPOSITE, { tColor: { value: null }, tDepth: { value: null }, tZ: { value: null }, tAO: { value: null }, tVol: { value: null }, uHalfRes: { value: new THREE.Vector2() }, uAOStrength: { value: TUNE.aoStrength }, uExposureHint: { value: 1 }, uUseAO: { value: 1 }, uUseVol: { value: 1 }, uUseSSR: { value: 1 }, uProjV: { value: new THREE.Vector4() }, uCamMat: { value: new THREE.Matrix4() }, uViewUp: { value: new THREE.Vector3() }, uPads: { value: Array.from({ length: 10 }, () => new THREE.Vector4(1e5, 1e5, 1e5, 1e5)) }, uCorr: { value: new THREE.Vector4(1e5, 1e5, 1e5, 1e5) }, uTime: { value: 0 }, uScan: { value: new THREE.Vector4(0, 0, 0, 0) }, uScanA: { value: 0 } }),
     down: pass(S.BLOOM_DOWN, { tSrc: { value: null }, uSrcPx: { value: new THREE.Vector2() }, uFirst: { value: 0 } }),
     up: pass(S.BLOOM_UP, { tSrc: { value: null }, tHigh: { value: null }, uSrcPx: { value: new THREE.Vector2() }, uMix: { value: TUNE.bloomMix } }),
     streak: pass(S.STREAK, { tSrc: { value: null }, uStep: { value: new THREE.Vector2() }, uThresh: { value: TUNE.streakThresh }, uFirst: { value: 1 } }),
@@ -266,7 +266,7 @@ export function createRenderer(G, canvas) {
       u.uTime.value = time; u.uNear.value = camera.near; u.uFar.value = camera.far;
       // the six strongest local lights near the camera also scatter in the volume
       _pls.length = 0; for (const o of volLights) if (o.intensity > 0.05 && o.visible) _pls.push(o);
-      _pls.sort((a, b) => b.intensity / (1 + a.position.distanceToSquared(camera.position) * 0.01) - a.intensity / (1 + b.position.distanceToSquared(camera.position) * 0.01) || 0);
+      { const cp = camera.position, sc = (l) => l.intensity / (1 + l.position.distanceToSquared(cp) * 0.01); _pls.sort((a, b) => sc(b) - sc(a)); }
       u.uPLn.value = Math.min(6, _pls.length);
       for (let i = 0; i < u.uPLn.value; i++) { const l = _pls[i]; u.uPL.value[i].set(l.position.x, l.position.y, l.position.z, l.distance || 12); u.uPLc.value[i].set(l.color.r, l.color.g, l.color.b).multiplyScalar(l.intensity * TUNE.volLocal); }
       run(M.vol, T.volA);

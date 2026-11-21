@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 // concrete pads (minX, minZ, maxX, maxZ): ground shader blends to concrete; post SSR puts puddles on them
-export const PADS = [new THREE.Vector4(-10, -26, 6, -14), new THREE.Vector4(-20, -9, -8, 2), new THREE.Vector4(6, -30, 13, -20), new THREE.Vector4(-3, -8, 12, 1)];
+export const PADS = [new THREE.Vector4(-10, -26, 6, -14), new THREE.Vector4(-20, -9, -8, 2), new THREE.Vector4(6, -30, 13, -20), new THREE.Vector4(-3, -8, 12, 1),
+  // process unit: the slab under the gallery, the substation pen, the cabin apron
+  new THREE.Vector4(-23, -64, 21, -55.5), new THREE.Vector4(-19, -72, -6, -65.5), new THREE.Vector4(6, -73.5, 20, -64.5),
+  // tank farm: the crossroads, the road south to the sphere, the road north to the pad
+  new THREE.Vector4(-57, -41, -37, -19), new THREE.Vector4(-52, -66, -42, -41), new THREE.Vector4(-51, -19, -43, -7)];
+export const NPADS = PADS.length;
 import { patchMaterial } from '../mats/patch.js';
 
 const tl = new THREE.TextureLoader();
@@ -28,7 +33,7 @@ export function makeGroundMaterial(set = 'gravelly_sand', set2 = 'sandy_gravel_0
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vGW;')
       .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGW = (modelMatrix * vec4(transformed,1.0)).xyz;');
     const decl = `
-varying vec3 vGW; uniform float uGTile; uniform sampler2D uG2d, uG2n, uG2a, uG3d, uG3n, uG3a; uniform vec4 uPads[4];
+varying vec3 vGW; uniform float uGTile; uniform sampler2D uG2d, uG2n, uG2a, uG3d, uG3n, uG3a; uniform vec4 uPads[10];
 float gH(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float gN(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f); return mix(mix(gH(i),gH(i+vec2(1,0)),f.x),mix(gH(i+vec2(0,1)),gH(i+vec2(1,1)),f.x),f.y); }
 // stochastic-ish: blend two rotated/offset lookups chosen per cell
@@ -40,7 +45,7 @@ vec4 gSample(sampler2D t, vec2 uv){
   return mix(a, b, w);
 }
 float gMask(){ return smoothstep(0.35, 0.65, gN(vGW.xz * 0.06) * 0.7 + gN(vGW.xz * 0.23) * 0.3); }
-float gPad(){ float k = 0.0; for (int i = 0; i < 4; i++) { vec4 r = uPads[i]; vec2 c = (r.xy + r.zw) * 0.5, h = (r.zw - r.xy) * 0.5; vec2 d = abs(vGW.xz - c) - h;
+float gPad(){ float k = 0.0; for (int i = 0; i < 10; i++) { vec4 r = uPads[i]; vec2 c = (r.xy + r.zw) * 0.5, h = (r.zw - r.xy) * 0.5; vec2 d = abs(vGW.xz - c) - h;
   float e = max(d.x, d.y) + (gN(vGW.xz * 0.9) - 0.5) * 1.6 + (gN(vGW.xz * 3.1) - 0.5) * 0.5; k = max(k, smoothstep(0.3, -0.3, e)); }
   return k * smoothstep(0.25, 0.45, gN(vGW.xz * 0.35 + 7.0) * 0.6 + 0.35); }
 float gOil(){ float n = gN(vGW.xz * 0.45 + 13.0) * 0.6 + gN(vGW.xz * 1.7) * 0.4; return smoothstep(0.74, 0.8, n) * smoothstep(0.45, 0.65, gN(vGW.xz * 0.08 + 2.0)); }

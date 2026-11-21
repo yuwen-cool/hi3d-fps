@@ -216,5 +216,35 @@
   "quality": "high_quality",
   "max_points": 90,
   "prompt": "Game asset concept: a military supply drop pod standing upright after landing, a ruggedised armoured cylindrical canister about two metres tall with four short stabiliser fins at the base, a front hatch blown open, scorched heat-shield bottom, olive drab and hazard-yellow paint, stencilled markings. Three-quarter view."
+ },
+ {
+  "name": "fence",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: one straight section of an industrial perimeter security fence, galvanised steel posts with a sagging chain-link mesh panel, three strands of barbed wire on angled arms at the top, a little rust and sand drifted at the base. Single section, front three-quarter view."
+ },
+ {
+  "name": "cabin",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: a weathered refinery control room portacabin, a rectangular steel prefab building with a row of dusty windows, a door with metal steps, air-conditioning units and cable trays on the side, a small antenna on the roof, faded white and hazard-yellow paint with rust streaks. Three-quarter view."
+ },
+ {
+  "name": "pump_skid",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: an industrial oil pump skid, a heavy electric motor coupled to a centrifugal pump on a steel base frame, inlet and outlet pipes with flanges and valves, pressure gauges, worn green and grey paint, oil stains. Three-quarter view."
+ },
+ {
+  "name": "transformer",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: an outdoor electrical power transformer for a refinery, a grey steel tank with cooling fins along the sides, ceramic insulators on top, a cable box, warning signs, standing on a concrete pad, weathered and dusty. Three-quarter view."
+ },
+ {
+  "name": "gas_rack",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: a steel cage rack holding a row of tall industrial gas cylinders chained upright, the cylinders painted red and yellow with brass valves on top, hazard labels, scuffed and dusty. Three-quarter view."
  }
 ]

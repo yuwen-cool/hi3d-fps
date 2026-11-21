@@ -53,7 +53,7 @@
   {
    "key": "deploy",
    "v": "ctl",
-   "text": "Boots on the ground. Storm front is three minutes out."
+   "text": "Boots on the ground. Storm front is four minutes out."
   },
   {
    "key": "valve",
@@ -159,6 +159,26 @@
    "key": "drones",
    "v": "ctl",
    "text": "Drones over the wall! Watch the sky — they dive."
+  },
+  {
+   "key": "valveB",
+   "v": "ctl",
+   "text": "Line B is in the process unit, south — top of the pipe gallery. Get up there."
+  },
+  {
+   "key": "openedB",
+   "v": "ctl",
+   "text": "Both lines are live. The front is right on top of you — brace!"
+  },
+  {
+   "key": "tower",
+   "v": "ctl",
+   "text": "That column is coming down — get clear!"
+  },
+  {
+   "key": "tankfarm",
+   "v": "ctl",
+   "text": "It is heading into the tank farm. West gate — move!"
   }
  ]
 }

@@ -30,46 +30,54 @@ export async function dress(G, root) {
   const P = G.phys, rnd = G.rng;
   const rockMat = triplanarMaterial('gravelly_sand', { metres: 0.7, cls: 'concrete', metal: 0, tint: 0x9a8670, nscale: 1.6 });
   // ---- rocks: clusters along walls/structures + random sprinkle ----
-  const geos = [rockGeo(7), rockGeo(91), rockGeo(345), rockGeo(1201, 2)];
-  const B = G.level.layout.bounds;
+  const geos = [rockGeo(7), rockGeo(91), rockGeo(345), rockGeo(1201, 2), rockGeo(7, 2), rockGeo(91, 1), rockGeo(345, 2), rockGeo(1201, 1)]; // 0-3 detailed (big rocks), 4-7 light (pebbles)
+  const B = G.level.layout.bounds, ZS = G.level.layout.zones;
+  // scatter gathers round props that stand on the ground — not stair steps, rails, deck slabs or perimeter walls
+  const propBoxes = P.boxes.filter((b) => { const h = b.max.y - b.min.y; return b.min.y < 0.05 && h >= 0.3 && h <= 8 && Math.min(b.max.x - b.min.x, b.max.z - b.min.z) > 0.6; });
+  // scatter is laid per zone (each gets its own instanced meshes so the camera culls the zones it is not looking at)
+  // ...and within a zone in 20 m tiles, so the camera can stop drawing small stuff it is far from (scatter.update)
+  const TILE = 20, tiles = new Map(); const zoneOf = (x, z) => { const k = Math.floor(x / TILE) * 1000 + Math.floor(z / TILE); if (!tiles.has(k)) tiles.set(k, tiles.size); return tiles.get(k); };
+  const inZ = (r, m = 0) => [r.minX + m + rnd() * (r.maxX - r.minX - 2 * m), r.minZ + m + rnd() * (r.maxZ - r.minZ - 2 * m)];
+  const area = (r) => (r.maxX - r.minX) * (r.maxZ - r.minZ);
+  const near = []; // [mesh, centre, draw distance]
+  const chunked = (lists, mk, far = 50) => lists.forEach((perTile) => perTile.forEach((l, gi) => { if (!l.length) return; const im = mk(gi, l.length); l.forEach((m, k) => im.setMatrixAt(k, m)); im.computeBoundingSphere(); im.computeBoundingBox(); root.add(im); near.push([im, im.boundingBox, far]); }));
+  const tl = (n) => Array.from({ length: 256 }, () => Array.from({ length: n }, () => []));
+  G.level.scatterNear = near;
   const spots = [];
   const cluster = (x, z, n, r, s0, s1) => { for (let i = 0; i < n; i++) { const a = rnd() * 6.28, d = Math.sqrt(rnd()) * r; spots.push([x + Math.cos(a) * d, z + Math.sin(a) * d, s0 + Math.pow(rnd(), 2.2) * (s1 - s0)]); } };
-  for (const b of P.boxes) { const h = b.max.y - b.min.y; if (h > 8) continue; const cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2; cluster(cx, cz, 10, Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * 0.8 + 0.8, 0.04, 0.3); }
-  for (let i = 0; i < 260; i++) spots.push([B.minX + rnd() * (B.maxX - B.minX), B.minZ - 20 + rnd() * (B.maxZ - B.minZ + 20), 0.03 + Math.pow(rnd(), 3) * 0.35]);
+  for (const b of propBoxes) { const h = b.max.y - b.min.y; if (h > 8) continue; const cx = (b.min.x + b.max.x) / 2, cz = (b.min.z + b.max.z) / 2; cluster(cx, cz, 10, Math.max(b.max.x - b.min.x, b.max.z - b.min.z) * 0.8 + 0.8, 0.04, 0.3); }
+  for (const r of ZS) for (let i = 0, n = Math.round(260 * area(r) / 1530); i < n; i++) spots.push([...inZ(r), 0.03 + Math.pow(rnd(), 3) * 0.35]);
   cluster(-8, -6, 30, 3, 0.05, 0.5); cluster(5, -30, 30, 4, 0.05, 0.6); cluster(-18, -12, 25, 3, 0.05, 0.5); cluster(0, 0, 12, 4, 0.03, 0.12);
-  const per = geos.map(() => []);
+  const per = tl(geos.length);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
   for (const [x, z, s] of spots) {
     if (s > 0.18 && P.blocked(x, z, s * 0.6, -1, 2)) continue;
-    const gi = Math.floor(rnd() * geos.length);
+    const gi = Math.floor(rnd() * 4) + (s < 0.2 ? 4 : 0);
     e.set(rnd() * 0.25, rnd() * 6.28, rnd() * 0.25); q.setFromEuler(e);
-    m4.compose(new THREE.Vector3(x, s * 0.08, z), q, new THREE.Vector3(s, s, s)); per[gi].push(m4.clone());
+    m4.compose(new THREE.Vector3(x, s * 0.08, z), q, new THREE.Vector3(s, s, s)); per[zoneOf(x, z)][gi].push(m4.clone());
   }
-  per.forEach((list, i) => {
-    if (!list.length) return;
-    const im = new THREE.InstancedMesh(geos[i], rockMat, list.length); list.forEach((m, k) => im.setMatrixAt(k, m));
-    im.castShadow = true; im.receiveShadow = true; im.name = 'rocks'; root.add(im);
-  });
+  chunked(per, (i, n) => { const im = new THREE.InstancedMesh(geos[i], rockMat, n); im.castShadow = true; im.receiveShadow = true; im.name = 'rocks'; return im; }, 55);
   // ---- gravel: thousands of small angular stones, densest along walls/structures and the play paths ----
   {
     const gGeos = [rockGeo(17, 1), rockGeo(23, 1), rockGeo(51, 1)];
     const gm = triplanarMaterial('gravelly_sand', { metres: 0.35, cls: 'concrete', metal: 0, tint: 0x8c7a66, nscale: 1.2 });
     const pts = [];
     const near = (x, z, n, rad) => { for (let i = 0; i < n; i++) { const a = rnd() * 6.28, d = Math.pow(rnd(), 0.7) * rad; pts.push([x + Math.cos(a) * d, z + Math.sin(a) * d]); } };
-    for (const b of P.boxes) { const h = b.max.y - b.min.y; if (h > 8 || h < 0.3) continue;
+    for (const b of propBoxes) { const h = b.max.y - b.min.y; if (h > 8 || h < 0.3) continue;
       const per = Math.min(70, 8 + ((b.max.x - b.min.x) + (b.max.z - b.min.z)) * 4);
       for (let i = 0; i < per; i++) { const t = rnd(), side = Math.floor(rnd() * 4), o = 0.05 + Math.pow(rnd(), 2) * 0.9;
         const x = side < 2 ? b.min.x + t * (b.max.x - b.min.x) : side === 2 ? b.min.x - o : b.max.x + o;
         const z = side >= 2 ? b.min.z + t * (b.max.z - b.min.z) : side === 0 ? b.min.z - o : b.max.z + o; pts.push([x, z]); } }
-    for (let i = 0; i < 9000; i++) pts.push([B.minX + rnd() * (B.maxX - B.minX), B.minZ + rnd() * (B.maxZ - B.minZ)]);
-    // clumps: gravel collects in patches rather than spreading evenly
-    for (let i = 0; i < 160; i++) near(B.minX + rnd() * (B.maxX - B.minX), B.minZ + rnd() * (B.maxZ - B.minZ), 25 + Math.floor(rnd() * 40), 0.4 + rnd() * 1.2);
+    ZS.forEach((r, zi) => { const k = zi === 0 ? 1 : 0.55; // the yard keeps its full density; the new zones are bigger, a little sparser
+      for (let i = 0, n = Math.round(9000 * k * area(r) / 1530); i < n; i++) pts.push(inZ(r));
+      // clumps: gravel collects in patches rather than spreading evenly
+      for (let i = 0, n = Math.round(160 * k * area(r) / 1530); i < n; i++) near(...inZ(r), 25 + Math.floor(rnd() * 40), 0.4 + rnd() * 1.2); });
     near(0, 2, 500, 6); near(-4, -6, 300, 5); near(4, -14, 300, 6);
-    const lists = gGeos.map(() => []);
+    const lists = tl(gGeos.length);
     for (const [x, z] of pts) { if (P.blocked(x, z, 0.02, -1, 2)) continue;
       const sz = 0.018 + Math.pow(rnd(), 2.2) * 0.1; e.set(rnd() * 3, rnd() * 6.28, rnd() * 3); q.setFromEuler(e);
-      m4.compose(new THREE.Vector3(x, sz * 0.1, z), q, new THREE.Vector3(sz, sz * (0.6 + rnd() * 0.6), sz)); lists[Math.floor(rnd() * 3)].push(m4.clone()); }
-    lists.forEach((l, i) => { const im = new THREE.InstancedMesh(gGeos[i], gm, l.length); l.forEach((m, k) => im.setMatrixAt(k, m)); im.receiveShadow = true; im.castShadow = false; im.name = 'gravel'; root.add(im); });
+      m4.compose(new THREE.Vector3(x, sz * 0.1, z), q, new THREE.Vector3(sz, sz * (0.6 + rnd() * 0.6), sz)); lists[zoneOf(x, z)][Math.floor(rnd() * 3)].push(m4.clone()); }
+    chunked(lists, (i, n) => { const im = new THREE.InstancedMesh(gGeos[i], gm, n); im.receiveShadow = true; im.castShadow = false; im.name = 'gravel'; return im; }, 28);
   }
   // ---- debris: rusty bent plates, rebar and broken planks lying around ----
   {
@@ -79,13 +87,13 @@ export async function dress(G, root) {
     const rust = triplanarMaterial('rusty_metal_02', { metres: 0.6, cls: 'rust', tint: 0x9a8070 });
     const wood = triplanarMaterial('concrete_floor_worn_001', { metres: 0.5, cls: 'default', metal: 0, tint: 0x6a5240 });
     const sets = [[plate, rust, 70, [0.25, 0.7]], [bar, rust, 90, [0.5, 1.6]], [plank, wood, 40, [0.6, 1.4]]];
-    for (const [geo, mat, n, [s0, s1]] of sets) {
-      const l = [];
-      for (let i = 0; i < n * 3 && l.length < n; i++) { const x = B.minX + 1 + rnd() * (B.maxX - B.minX - 2), z = B.minZ + 1 + rnd() * (B.maxZ - B.minZ - 2);
+    for (const [geo, mat, n0, [s0, s1]] of sets) for (const r of ZS) {
+      const l = [], n = Math.round(n0 * area(r) / 1530 * (r === ZS[0] ? 1 : 0.7));
+      for (let i = 0; i < n * 3 && l.length < n; i++) { const [x, z] = inZ(r, 1);
         if (P.blocked(x, z, 0.4, -1, 2)) continue; const sc = s0 + rnd() * (s1 - s0);
         e.set((rnd() - 0.5) * 0.15, rnd() * 6.28, (rnd() - 0.5) * 0.15); q.setFromEuler(e);
         m4.compose(new THREE.Vector3(x, 0.012, z), q, new THREE.Vector3(sc, 1, geo === plate ? sc * (0.5 + rnd() * 0.6) : 1)); l.push(m4.clone()); }
-      const im = new THREE.InstancedMesh(geo, mat, l.length); l.forEach((m, k) => im.setMatrixAt(k, m)); im.castShadow = im.receiveShadow = true; im.name = 'debris'; root.add(im);
+      if (!l.length) continue; const im = new THREE.InstancedMesh(geo, mat, l.length); l.forEach((m, k) => im.setMatrixAt(k, m)); im.computeBoundingSphere(); im.computeBoundingBox(); im.castShadow = im.receiveShadow = true; im.name = 'debris'; root.add(im); near.push([im, im.boundingBox, 36]);
     }
   }
   // ---- dry grass tufts: crossed alpha cards with a procedurally drawn blade texture ----
@@ -100,17 +108,17 @@ export async function dress(G, root) {
     const tuft = mergeGeometries([card, card2, card3]); tuft.computeVertexNormals();
     // normals point up so the cards light like a soft volume instead of flickering per facing
     { const nn = tuft.attributes.normal; for (let i = 0; i < nn.count; i++) nn.setXYZ(i, 0, 1, 0); }
-    const l = [];
-    const put = (x, z, s) => { if (P.blocked(x, z, 0.1, -1, 2)) return; e.set(0, rnd() * 6.28, 0); q.setFromEuler(e); m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(s * (0.8 + rnd() * 0.5), s, s)); l.push(m4.clone()); };
-    for (const b of P.boxes) { const h = b.max.y - b.min.y; if (h > 8 || h < 0.3) continue; for (let i = 0; i < 6; i++) { const t = rnd(), side = Math.floor(rnd() * 4), o = 0.1 + rnd() * 0.35;
+    const gl = tl(1);
+    const put = (x, z, s) => { if (P.blocked(x, z, 0.1, -1, 2)) return; e.set(0, rnd() * 6.28, 0); q.setFromEuler(e); m4.compose(new THREE.Vector3(x, 0, z), q, new THREE.Vector3(s * (0.8 + rnd() * 0.5), s, s)); gl[zoneOf(x, z)][0].push(m4.clone()); };
+    for (const b of propBoxes) { const h = b.max.y - b.min.y; if (h > 8 || h < 0.3) continue; for (let i = 0; i < 6; i++) { const t = rnd(), side = Math.floor(rnd() * 4), o = 0.1 + rnd() * 0.35;
       put(side < 2 ? b.min.x + t * (b.max.x - b.min.x) : side === 2 ? b.min.x - o : b.max.x + o, side >= 2 ? b.min.z + t * (b.max.z - b.min.z) : side === 0 ? b.min.z - o : b.max.z + o, 0.22 + rnd() * 0.35); } }
-    for (let i = 0; i < 260; i++) { const cx = B.minX + rnd() * (B.maxX - B.minX), cz = B.minZ - 25 + rnd() * (B.maxZ - B.minZ + 25), n = 2 + Math.floor(rnd() * 6);
+    for (const r of ZS) for (let i = 0, nn = Math.round(260 * area(r) / 1530 * (r === ZS[0] ? 1 : 0.8)); i < nn; i++) { const [cx, cz] = inZ(r), n = 2 + Math.floor(rnd() * 6);
       for (let k = 0; k < n; k++) put(cx + (rnd() - 0.5) * 1.4, cz + (rnd() - 0.5) * 1.4, 0.2 + Math.pow(rnd(), 2) * 0.45); }
-    const im = new THREE.InstancedMesh(tuft, gm, l.length); l.forEach((m, k) => im.setMatrixAt(k, m)); im.castShadow = true; im.receiveShadow = true; im.name = 'grass'; root.add(im);
+    chunked(gl, (i, n) => { const im = new THREE.InstancedMesh(tuft, gm, n); im.castShadow = true; im.receiveShadow = true; im.name = 'grass'; return im; }, 34);
   }
   // ---- flare stack: a tall burner that stays lit all match (fire.js lights it); a landmark at night ----
   {
-    const fx = 22, fz = -44, H = 34, sg = [];
+    const fx = 29, fz = -46, H = 34, sg = [];
     const cy = (r0, r1, h, y) => { const g = new THREE.CylinderGeometry(r1, r0, h, 16, 1, false); g.translate(fx, y + h / 2, fz); sg.push(g); };
     cy(1.1, 0.7, H, 0); cy(1.3, 1.3, 0.5, H * 0.33); cy(1.15, 1.15, 0.5, H * 0.66); cy(0.95, 0.95, 1.2, H);   // shaft, platforms, tip
     for (let i = 0; i < 3; i++) { const a = i * 2.09, g = new THREE.CylinderGeometry(0.06, 0.06, H * 0.8, 6); g.rotateZ(Math.cos(a) * 0.12); g.rotateX(Math.sin(a) * 0.12); g.translate(fx + Math.cos(a) * 4, H * 0.4, fz + Math.sin(a) * 4); sg.push(g); } // guy wires
@@ -138,10 +146,11 @@ export async function dress(G, root) {
   // under the workshop roof: a pipe bundle and a cable tray hugging the ceiling
   for (const [x, y, r] of [[14.6, 4.75, 0.14], [14.95, 4.8, 0.09], [19.3, 4.7, 0.18], [18.9, 4.82, 0.1]]) pipe(V(x, y, 0.2), V(x, y, -24.2), r);
   // ground-level runs (cover + trip hazards) on sleepers
-  pipe(V(-20, 0.45, -28.5), V(12, 0.45, -28.5), 0.32); pipe(V(-20, 0.4, -29.4), V(12, 0.4, -29.4), 0.26);
+  // ...with two gaps: the yard's south gates into the process unit
+  for (const [x0, x1] of [[-20, -15], [-11, 3], [7, 12]]) { pipe(V(x0, 0.45, -28.5), V(x1, 0.45, -28.5), 0.32); pipe(V(x0, 0.4, -29.4), V(x1, 0.4, -29.4), 0.26); }
   const pm = new THREE.Mesh(mergeGeometries(pg.map((g) => g.index ? g.toNonIndexed() : g), false), pipeMat); pm.castShadow = pm.receiveShadow = true; pm.name = 'pipes'; root.add(pm);
   P.addShootable(pm, 'metal');
-  P.addBox(V(-20, 0, -29.8), V(12, 0.78, -28.1), 'metal');
+  for (const [x0, x1] of [[-20, -15], [-11, 3], [7, 12]]) P.addBox(V(x0, 0, -29.8), V(x1, 0.78, -28.1), 'metal');
   for (const [x, z] of [[-2.5, -21.6], [-9, -16.6]]) P.addBox(V(x - 0.25, 0, z - 0.25), V(x + 0.25, 3.6, z + 0.25), 'metal');
   // ---- extra Hi3D clutter: drums/valves/barriers dotted near structures, more shrubs ----
   const extra = [['drums', -16.5, -16, 1.2], ['drums', 12.5, -14, 2.8], ['valves', 0.5, -24.2, 2.0], ['rubble', 11, -10, 0.7], ['rubble', -9.5, -24.5, 2.2], ['hazard_fence', -17.5, -26.5, 1.4], ['lamp', 13.8, -6.3, -Math.PI / 2], ['lamp', 13.8, -15.6, -Math.PI / 2]];

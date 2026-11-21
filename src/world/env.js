@@ -90,6 +90,7 @@ export function createEnv(G) {
     wallMat.uniforms.uT.value = t; wallMat.uniforms.uFlash.value = S.flash;
     _c.set(dir.x * S.front, 105, dir.y * S.front); wall.position.copy(_c); wall.lookAt(0, 105, 0);
     wall.visible = wallMat.uniforms.uA.value > 0.002;
+    G.level?.updateLights?.(cam, Math.max(n, 0.6 * k));
     // wind-blown sand around the camera
     if (k > 0.02 && G.fxs) {
       for (let i = 0, m = Math.floor(260 * k * dt + rnd()); i < m; i++) {

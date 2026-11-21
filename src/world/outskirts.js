@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { triplanarMaterial } from '../mats/triplanar.js';
 import { instance } from './assets.js';
+import { inZones } from './zones.js';
 
 // Everything past the fence: dunes that rise out of the flat yard sand into a ridged horizon, a working
 // refinery around the yard built from Hi3D models (columns, a cracking unit, LPG spheres, a tank farm,
@@ -15,8 +16,9 @@ function vn(x, z) {
   return a + (b - a) * fx + (c - a) * fz + (a - b - c + d) * fx * fz;
 }
 // dune height: zero (below the yard plane) inside ~80 m, long crests across the wind further out
+const PX0 = -72, PX1 = 22, PZ0 = -74, PZ1 = 8; // the playable area
 export function duneH(x, z) {
-  const r = Math.hypot(x - CX, z - CZ), ramp = sstep(r, 80, 300);
+  const dx = Math.max(PX0 - x, 0, x - PX1), dz = Math.max(PZ0 - z, 0, z - PZ1), r = Math.hypot(dx, dz), ramp = sstep(r, 18, 210);
   if (ramp <= 0) return -0.8;
   const w = x * 0.627 + z * 0.779, c = -x * 0.779 + z * 0.627;            // along / across the storm wind
   const ph = w * 0.03 + Math.sin(c * 0.009) * 2.4 + vn(x * 0.01, z * 0.01) * 3;
@@ -25,7 +27,7 @@ export function duneH(x, z) {
   const ripple = (vn(x * 0.06, z * 0.06) - 0.5) * 1.2;
   return -0.8 + ramp * ((5 + 34 * ramp) * (0.3 + 0.7 * crest) * big + ripple);
 }
-const inBossLane = (x, z) => x > -112 && x < -58 && z > -70 && z < 50;
+const inBossLane = (x, z) => x > -128 && x < -84 && z > -80 && z < 50; // where the colossus walks the horizon in act 1
 
 function duneMesh() {
   const R0 = 70, R1 = 880, NR = 110, NA = 384, pos = [], idx = [];
@@ -41,7 +43,8 @@ function duneMesh() {
 }
 
 // one InstancedMesh per sub-mesh of a model, so a whole ring of copies costs a draw call or two
-async function scatterModel(root, name, list, { shadow = false } = {}) {
+export async function scatterModel(root, name, list, { shadow = false, inside = false } = {}) {
+  if (!inside) list = list.filter((o) => !inZones(o.x, o.z, 10)); // nothing out here may stand inside the playable zones
   if (!list.length) return;
   const src = await instance(name); src.updateMatrixWorld(true);
   const meshes = []; src.traverse((o) => { if (o.isMesh) meshes.push(o); });
@@ -64,15 +67,15 @@ export async function buildOutskirts(G, root) {
   const L = { column_cluster: [], cracker: [], horton_sphere: [], tank_far: [], tower_far: [], tanker_truck: [], container_far: [], pumpjack_far: [], tank_wreck: [], mesa: [] };
 
   // ---- near ring (35-75 m): the refinery the yard belongs to, seen over the walls ----
-  L.column_cluster.push(at(-36, -62, 1), at(16, -66, 0.85));
-  L.cracker.push(at(-10, -76, 1));
+  L.column_cluster.push(at(-36, -84, 1), at(18, -88, 0.85), at(-62, -80, 0.9));
+  L.cracker.push(at(-6, -90, 1.1));
   L.horton_sphere.push(at(42, -46, 1), at(56, -30, 1), at(44, -18, 0.9));
-  L.tank_far.push(at(38, 4, 1.2), at(50, 14, 1), at(-46, -46, 1.1));
-  L.tower_far.push(at(28, -56, 1));
-  L.tank_wreck.push(at(-52, -24, 1.1));
+  L.tank_far.push(at(38, 4, 1.2), at(50, 14, 1), at(-44, -86, 1.1));
+  L.tower_far.push(at(34, -58, 1));
+  L.tank_wreck.push(at(-24, -86, 1.1));
   // north: an oil field and the road in, wrecks left where they stopped
   L.pumpjack_far.push(at(-12, 36, 1.3), at(12, 42, 1.3), at(32, 30, 1.3), at(-30, 48, 1.3), at(4, 62, 1.3), at(46, 50, 1.3));
-  L.tanker_truck.push(at(-34, 16, 1, 0.4), at(10, 22, 1, -1.2), at(28, 18, 1, 2.6), at(-44, 30, 1, 1.9));
+  L.tanker_truck.push(at(-34, 22, 1, 0.4), at(10, 22, 1, -1.2), at(28, 18, 1, 2.6), at(-44, 30, 1, 1.9));
   L.container_far.push(at(-27, 24, 1, 0.2), at(-24, 27, 1, 1.7), at(22, 26, 1, 0.1), at(40, -2, 1, 1.4), at(-40, -14, 1, 0.9));
 
   // ---- far ring (100-240 m): more plant along the sun side where the money shots look, a tank farm east ----

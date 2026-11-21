@@ -31,6 +31,18 @@ window.__installBot = () => {
         if (stand.distanceTo(ps.pos) < 1.2) { const d = v.top.clone().sub(eye); ps.yaw = Math.atan2(-d.x, -d.z); }
         return;
       }
+      // valve B is up on the pipe gallery deck: walk to the nearer north stairs, climb, walk the deck to the valve
+      const vb = G.level.valves?.find((x) => x.id === 'B');
+      if (!tgt && F.step === 'valveB' && vb && !vb.open) {
+        const face = (p) => { const d = p.clone().sub(ps.pos); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch *= 0.9; G.auto = { fwd: 1, str: 0 }; };
+        if (ps.pos.y > vb.pos.y - 0.4 && ps.pos.z < -58.6 && ps.pos.z > -61.4) { // on the deck (not still on the top step)
+          if (G.interact?.near && G.interact.v === vb) { const d = vb.top.clone().sub(eye); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch = -0.5; G.auto = { use: true }; return; }
+          const stand = vb.pos.clone().add(new T.Vector3(ps.pos.x < vb.pos.x ? -1.6 : 1.6, 0, 0)); if (stand.distanceTo(ps.pos) < 0.5) { const d = vb.top.clone().sub(eye); ps.yaw = Math.atan2(-d.x, -d.z); G.auto = {}; return; } face(stand); return;
+        }
+        const sx = Math.abs(ps.pos.x + 19) < Math.abs(ps.pos.x - 17) ? -19 : 17, base = new T.Vector3(sx, 0, -51.4);
+        if (ps.pos.y > 0.2 || Math.hypot(ps.pos.x - sx, ps.pos.z + 51.4) < 0.9) { face(new T.Vector3(sx, ps.pos.y, -59.6)); return; } // on the flight: straight up it
+        go(ps, base, dt); return;
+      }
       if (F.state === 'extract') { go(ps, F.extract, dt); return; }
       const ig = G.level.valves?.find((x) => x.id === 'IGN');
       if (F.bossPhase === 'trap' && ig && !ig.open && !B.dead) {

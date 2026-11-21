@@ -4,7 +4,7 @@ import * as THREE from 'three';
 // burn damage and a flickering light from a small pool that also scatters in the volume. Shooting a
 // pipe or valve opens a leak: a gas jet that turns into a fire jet as soon as any flame touches it.
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
-const MAXF = 40, MAXL = 6, LIGHTS = 6;
+const MAXF = 40, MAXL = 10, LIGHTS = 6;
 
 export function createFire(G) {
   const R = G.R, rnd = G.rng;
@@ -17,18 +17,18 @@ export function createFire(G) {
     const f = { pos: pos.clone(), size, life, age: 0, dir: dir ? dir.clone().normalize() : null, dmg, acc: 0, seed: rnd() * 100, smoke };
     fires.push(f); return f;
   }
-  function leak(pos, nrm) {
+  function leak(pos, nrm, gas = false) {
     if (leaks.length >= MAXL || leaks.some((l) => l.pos.distanceTo(pos) < 1.5)) return null;
-    const l = { pos: pos.clone(), dir: nrm.clone().normalize(), age: 0, life: 14, fire: null };
+    const l = { pos: pos.clone(), dir: nrm.clone().normalize(), age: 0, life: gas ? 22 : 14, fire: null, gas };
     leaks.push(l); G.events.emit('leak', { pos: l.pos.clone() }); return l;
   }
-  const ignite = (l) => { if (!l.fire) { l.fire = add(l.pos, { size: 1.3, life: l.life - l.age, dir: l.dir, dmg: 45 }); G.events.emit('ignite', { pos: l.pos.clone() }); } };
+  const ignite = (l) => { if (!l.fire) { l.fire = add(l.pos, { size: l.gas ? 2 : 1.3, life: l.life - l.age, dir: l.dir, dmg: l.gas ? 80 : 45 }); G.events.emit('ignite', { pos: l.pos.clone(), gas: l.gas }); } };
 
   // pipes and valves vent when shot
   G.events.on('weapon:fire', (e) => {
     const h = e.hitW; if (!h || !h.object) return;
-    let o = h.object, n = ''; while (o) { if (o.name === 'pipes' || o.name === 'valves') { n = o.name; break; } o = o.parent; }
-    if (n && rnd() < 0.5) leak(h.point.clone().addScaledVector(h.normal, 0.02), h.normal);
+    let o = h.object, n = ''; while (o) { if (o.name === 'pipes' || o.name === 'valves' || o.name === 'gas') { n = o.name; break; } o = o.parent; }
+    if (n && (n === 'gas' || rnd() < 0.5)) leak(h.point.clone().addScaledVector(h.normal, 0.02), h.normal, n === 'gas'); // the yellow lines always vent, and burn hotter
   });
   // explosions start fires around them and light every leak in reach
   G.events.on('explosion', (e) => {

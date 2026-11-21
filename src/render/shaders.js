@@ -175,7 +175,7 @@ export const COMPOSITE = COMMON + /* glsl */`
 uniform sampler2D tColor, tDepth, tZ, tAO, tVol; uniform vec2 uHalfRes;
 uniform float uAOStrength, uExposureHint; uniform int uUseAO, uUseVol;
 // wet ground: puddles on the concrete pads / corridor slab, screen-space reflections of the floor plane
-uniform int uUseSSR; uniform vec4 uProjV; uniform mat4 uCamMat; uniform vec3 uViewUp; uniform vec4 uPads[4]; uniform vec4 uCorr; uniform float uTime;
+uniform int uUseSSR; uniform vec4 uProjV; uniform mat4 uCamMat; uniform vec3 uViewUp; uniform vec4 uPads[10]; uniform vec4 uCorr; uniform float uTime;
 uniform vec4 uScan; uniform float uScanA; // scan pulse: origin.xyz + radius, strength
 out vec4 o;
 float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -185,7 +185,7 @@ float wetMask(vec3 w){
   float n = vn(w.xz * 0.55) * 0.55 + vn(w.xz * 1.9 + 7.0) * 0.3 + vn(w.xz * 6.0) * 0.15;
   vec2 dc = max(uCorr.xy - w.xz, w.xz - uCorr.zw);
   float inC = step(max(dc.x, dc.y), 0.0);
-  float pad = 0.0; for (int i = 0; i < 4; i++) { vec4 r = uPads[i]; vec2 c = (r.xy + r.zw) * 0.5, h = (r.zw - r.xy) * 0.5; vec2 d = abs(w.xz - c) - h + 0.4; pad = max(pad, step(max(d.x, d.y), 0.0)); }
+  float pad = 0.0; for (int i = 0; i < 10; i++) { vec4 r = uPads[i]; vec2 c = (r.xy + r.zw) * 0.5, h = (r.zw - r.xy) * 0.5; vec2 d = abs(w.xz - c) - h + 0.4; pad = max(pad, step(max(d.x, d.y), 0.0)); }
   float m = inC * smoothstep(0.5, 0.56, n) + pad * (1.0 - inC) * smoothstep(0.6, 0.66, n);
   return m;
 }
