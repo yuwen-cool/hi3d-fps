@@ -7,6 +7,5 @@ assets/hi3d/*.glb
 out/
 assets/hi3d/
 assets/baked/
-public/models/
 tools/.monid_key
 assets/sfx/
