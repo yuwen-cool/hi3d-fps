@@ -45,6 +45,7 @@ export function createWreck(G, skinned) {
   });
 
   const pieces = [];
+  { const w = new THREE.Mesh(geos.find(Boolean), skinned.material); w.visible = false; scene.add(w); } // hidden: the loading screen compiles the unskinned robot shader the debris uses
   const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _c = new THREE.Vector3();
   // e: enemy (bones, o, mats); dir: shot direction; weak: headshot -> collapse in place, head flies
   function spawn(e, dir, weak) {

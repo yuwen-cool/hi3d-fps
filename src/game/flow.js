@@ -148,6 +148,23 @@ export function createFlow(G) {
       hud()?.hint?.([['2', 'LANCE'], ['1', 'CARBINE'], ['LMB', 'HOLD TO CHARGE']], 6); G.audio?.play?.('bolt', { gain: 1, rate: 0.8 });
     }
   }
+  // ---------- checkpoints: a retry starts at the beginning of the act the player died in ----------
+  function checkpoint(n) {
+    if (S.state !== 'title') return;
+    for (const v of [valveA(), valveB()]) if (v) { v.open = true; v.lamp.material.color.setRGB(0.6, 5, 1.2); }
+    S.pod = { taken: true, landed: true, at: V(), t: 0 }; G.weapon?.unlockLance();
+    S.state = 'play'; S.startT = S.t; S.step = 'storm'; S.stormClock = 0; G.camLocked = false; G.cinematic = false; G.R.fx.fade = 1;
+    const ps = G.player.s; ps.vel.set(0, 0, 0); ps.pitch = 0;
+    if (n >= 3) {
+      ps.pos.set(-19, 0, -24); ps.yaw = Math.PI / 2; // at the yard's west gate, facing the tank farm
+      const o = G.level.fallTower; if (o) { S.fell = { o, t: 0, axis: V(1, 0, 0.25).normalize(), done: true }; o.rotation.set(0, o.rotation.y, 0); o.rotateOnWorldAxis(S.fell.axis, 1.45); settleTower(S.fell); }
+      Object.assign(env() || {}, { front: -140, storm: 1, night: 0 }); setAct(2); S.wave = 2; S.towerT = 0; toNight();
+    } else {
+      ps.pos.set(4.5, 0, -33); ps.yaw = 0; // at the yard's south gate, facing the process unit
+      Object.assign(env() || {}, { front: 150, storm: 1, night: 0 }); setAct(1); S.wave = 0; toStorm(false);
+    }
+    hud()?.boot?.(); if (n < 3) hud()?.banner?.(`ACT ${n} // CHECKPOINT`, { sub: 'THE LANCE IS LOADED — VALVES ARE OPEN', dur: 3 }); // act 3 has its own card
+  }
   // ---------- kill feel + bookkeeping ----------
   G.events.on('enemy:killed', (e) => {
     S.kills++; G.hitstop(0.055); G.player.addShake(0.32);
@@ -234,6 +251,8 @@ export function createFlow(G) {
     G.player.assist?.(o.position.clone().add(V(0, 9, 6)), 0.3, 2.6); G.slowmo(2.2, 0.5); // keep the view on the column while it comes down
     G.events.emit('tower:fall', { pos: o.position.clone() });
   }
+  // the column on the ground: a long box to stand behind, robots path round it
+  function settleTower(f) { const base = f.o.position, mn = V(base.x - 1.6, 0, base.z), mx = V(base.x + 1.6, 2.6, base.z + 15); G.phys.addBox(mn, mx, 'metal'); E()?.reblock?.(mn, mx); }
   function towerTick(dt) {
     const f = S.fell; if (!f || f.done) return; f.t += dt;
     const k = Math.min(1, Math.pow(f.t / 3.2, 2.2)); f.o.rotation.set(0, f.o.rotation.y, 0); f.o.rotateOnWorldAxis(f.axis, k * 1.45);
@@ -242,7 +261,7 @@ export function createFlow(G) {
       // it lands as a long body on the ground: everything under it is crushed, and it stays as cover
       const base = f.o.position, H = 15, w = 1.6, mn = V(base.x - w, 0, base.z), mx = V(base.x + w, 2.6, base.z + H);
       for (const e of E()?.list || []) if (e.alive) { const p = e.root.position; if (p.x > mn.x - 0.6 && p.x < mx.x + 0.6 && p.z > mn.z - 0.6 && p.z < mx.z + 0.6) E().damage(e, 9999, { part: 'body', point: p.clone().setY(1) }, V(0, -1, 0)); }
-      G.phys.addBox(mn, mx, 'metal'); E()?.reblock?.(mn, mx); G.player.addShake(0.9); for (let i = 0; i < 40; i++) { const a = Math.random() * 6.28; G.fxs?.emit(true, { pos: V(hit.x + Math.cos(a) * 4, 0.4, hit.z + Math.sin(a) * 10), vel: V(Math.cos(a), 0.2, Math.sin(a)).multiplyScalar(6 + Math.random() * 6), life: 3 + Math.random() * 2, size: 1, size1: 5, col: G.fxs.litColor([0.45, 0.35, 0.25]), alpha: 0.55, soft: true, drag: 1.5 }); } G.events.emit('tower:down', {}); }
+      settleTower(f); G.player.addShake(0.9); for (let i = 0; i < 40; i++) { const a = Math.random() * 6.28; G.fxs?.emit(true, { pos: V(hit.x + Math.cos(a) * 4, 0.4, hit.z + Math.sin(a) * 10), vel: V(Math.cos(a), 0.2, Math.sin(a)).multiplyScalar(6 + Math.random() * 6), life: 3 + Math.random() * 2, size: 1, size1: 5, col: G.fxs.litColor([0.45, 0.35, 0.25]), alpha: 0.55, soft: true, drag: 1.5 }); } G.events.emit('tower:down', {}); }
   }
 
   // the wall arrives: a high shot over the yard toward the storm, the front rolling over the far stacks, lightning in its face
@@ -395,5 +414,5 @@ export function createFlow(G) {
     obj({ act: 3, title: 'ACT 3 // NIGHT', line: 'STAND BY', count: null, unit: null, marks: [] }); say('passing');
     hud()?.banner?.('ACT 3 // NIGHT', { sub: 'THE STORM PASSES', dur: 3 });
   }
-  return { update, S, start, deploy, setAct, fellTower, toExtract, dropPod };
+  return { update, S, start, deploy, checkpoint, setAct, fellTower, toExtract, dropPod };
 }

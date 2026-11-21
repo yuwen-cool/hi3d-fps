@@ -19,7 +19,7 @@ export function events() {
 export const TIERS = {
   low:    { name: 'low',    scale: 0.70, msaa: 0, shadow: 2048, vol: 12, ao: 0, aoTaps: 8,  budget: 1.0e6 },
   medium: { name: 'medium', scale: 0.85, msaa: 2, shadow: 2048, vol: 16, ao: 1, aoTaps: 12, budget: 1.5e6 },
-  high:   { name: 'high',   scale: 1.00, msaa: 4, shadow: 4096, vol: 24, ao: 1, aoTaps: 12, budget: 2.3e6 },
+  high:   { name: 'high',   scale: 1.00, msaa: 2, shadow: 4096, vol: 24, ao: 1, aoTaps: 12, budget: 2.3e6 },
   ultra:  { name: 'ultra',  scale: 1.00, msaa: 4, shadow: 4096, vol: 40, ao: 1, aoTaps: 16, budget: 3.7e6 },
   test:   { name: 'test',   scale: 1.00, msaa: 0, shadow: 2048, vol: 16, ao: 1, aoTaps: 12, budget: 2.3e6 },
 };

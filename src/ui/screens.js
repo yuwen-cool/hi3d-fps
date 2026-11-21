@@ -31,7 +31,7 @@ export function createBoot() {
       const n = Math.round(p * bars.length); bars.forEach((b, i) => b.classList.toggle('f', i < n)); pc.textContent = `${Math.round(p * 100)}%`;
     },
     done() { lines[lines.length - 1] = lines[lines.length - 1].replace('......', '...... <b>OK</b>'); lines.push('> ALL SYSTEMS NOMINAL'); log.innerHTML = lines.join('\n'); bars.forEach((b) => b.classList.add('f')); pc.textContent = '100%'; },
-    out() { el.classList.add('out'); setTimeout(() => el.remove(), 700); },
+    out(instant) { if (instant) { el.remove(); return; } el.classList.add('out'); setTimeout(() => el.remove(), 700); },
     fail(msg) { lines.push(`> <b>FAULT</b> ${msg}`); log.innerHTML = lines.join('\n'); },
   };
 }
@@ -91,17 +91,19 @@ export function createUI(G, boot) {
     <div class="cr"><span class="mono">EVERY MODEL IN THIS GAME WAS GENERATED WITH</span><b>HI3D</b></div>`);
   let titleMenu = null;
   function openTitleMenu() {
-    titleMenu = menu(G, title, [{ id: 'deploy', label: 'DEPLOY' }, { id: 'controls', label: 'CONTROLS' }, { id: 'settings', label: 'SETTINGS' }], (id) => {
+    const cp = +G.params.cp || 0;
+    titleMenu = menu(G, title, [...(cp >= 2 ? [{ id: 'cp', label: `CONTINUE — ACT ${cp}` }] : []), { id: 'deploy', label: cp >= 2 ? 'NEW MISSION' : 'DEPLOY' }, { id: 'controls', label: 'CONTROLS' }, { id: 'settings', label: 'SETTINGS' }], (id) => {
+      if (id === 'cp') deploy(cp);
       if (id === 'deploy') deploy();
       else { const wm = title.querySelector('.wm'); wm.style.visibility = 'hidden'; panel(title, id, () => { wm.style.visibility = ''; }); }
     });
     title.querySelector('.mh').appendChild(titleMenu.el);
   }
   function showTitle() { title.classList.add('on'); openTitleMenu(); G.hudHidden = true; G.camLocked = true; G.viewModelVisible = false; G.cinematic = true; }
-  function deploy() {
+  function deploy(cp = 0) {
     lock(); titleMenu?.dispose(); title.classList.add('out');
     setTimeout(() => { title.classList.remove('on', 'out'); }, 560);
-    G.hudHidden = false; G.viewModelVisible = true; G.flow.deploy();
+    G.hudHidden = false; G.viewModelVisible = true; if (cp >= 2) G.flow.checkpoint(cp); else G.flow.deploy();
   }
 
   // ---------- title camera: slow drift across the yard toward the stacks ----------
@@ -147,7 +149,11 @@ export function createUI(G, boot) {
     end.className = 'scr end on ' + (kind === 'won' ? 'won' : 'kia');
     end.innerHTML = `<div class="big"><div class="ov">${kind === 'won' ? 'SECTOR 7 // MISSION COMPLETE' : 'SIGNAL LOST // OPERATOR DOWN'}</div><h1>${kind === 'won' ? 'EXTRACTED' : 'KIA'}</h1>
       <div class="stats"><div><span>TIME</span><b>${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}</b></div><div><span>KILLS</span><b>${F.kills}</b></div><div><span>ACCURACY</span><b>${acc}%</b></div><div><span>SCORE</span><b>${sc}</b></div><div><span>GRADE</span><b>${grade}</b></div></div><div class="mh" style="margin-top:2rem"></div></div>`;
-    const m = menu(G, end, [{ id: 'again', label: kind === 'won' ? 'DEPLOY AGAIN' : 'RETRY' }, { id: 'title', label: 'TITLE SCREEN' }], () => location.reload());
+    // a death past act 1 offers the act's checkpoint first (the page reloads straight into it)
+    const go = (cp) => { const u = new URL(location.href); if (cp) u.searchParams.set('cp', cp); else u.searchParams.delete('cp'); location.href = u.toString(); };
+    const items = kind !== 'won' && F.act >= 2 ? [{ id: 'cp', label: `RETRY — ACT ${F.act} CHECKPOINT` }, { id: 'again', label: 'RESTART MISSION' }, { id: 'title', label: 'TITLE SCREEN' }]
+      : [{ id: 'again', label: kind === 'won' ? 'DEPLOY AGAIN' : 'RETRY' }, { id: 'title', label: 'TITLE SCREEN' }];
+    const m = menu(G, end, items, (id) => go(id === 'cp' ? F.act : 0));
     end.querySelector('.mh').appendChild(m.el);
     document.exitPointerLock?.(); G.hudHidden = true;
   }
@@ -156,7 +162,7 @@ export function createUI(G, boot) {
 
   // ---------- start ----------
   boot?.done();
-  if (G.params.shot) { boot?.out(); }
+  if (G.params.shot) { boot?.out(true); } // capture tools: no fade to wait for
   else setTimeout(() => { boot?.out(); showTitle(); }, 350);
   return { titleCam, openPause, closePause, showTitle };
 }

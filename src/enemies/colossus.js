@@ -48,7 +48,7 @@ export async function createColossus(G) {
   // coolant cores (weak points) on the back of the hull, with their own glow light
   const coreLocal = [V(-2.9, -0.4, 0.6), V(2.9, -0.4, 0.6)];
   const coreMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(7, 2.6, 0.5), toneMapped: false });
-  const cores = coreLocal.map((p) => { const l = new THREE.PointLight(0xff7a20, 0, 9, 2); root.add(l); R.volLights.push(l);
+  const cores = coreLocal.map((p) => { const l = { intensity: 0, position: new THREE.Vector3(), getWorldPosition: (o) => o.copy(l.position) }; /* the core's glow is its emissive + bloom; its 'light' is just a tracked point (every real light costs every pixel) */
     const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 1.3, 6, 14), coreMat); m.position.copy(p); hullH.add(m);
     return { local: p, hp: CFG.coreHp, alive: true, light: l, mesh: m, w: V(0, 0, 0), exposed: false, ex: 0, sealed: V(p.x * 0.45, p.y - 0.5, p.z) }; });
   // beam: an additive cylinder from the muzzle to the hit point
@@ -276,7 +276,7 @@ export async function createColossus(G) {
     if (S.broken && rnd() < dt * 12) { const p = S.broken.knee; G.fxs?.emit(false, { pos: p, vel: V((rnd() - 0.5) * 4, rnd() * 3, (rnd() - 0.5) * 4), life: 0.35, size: 0.015, stretch: 0.08, col: [16, 9, 3], grav: 9.8 }); if (rnd() < 0.3) G.fxs?.emit(true, { pos: p, vel: V(0.2, 1.2, 0.2), life: 2.5, size: 0.3, size1: 1.8, col: G.fxs.litColor([0.07, 0.06, 0.05]), alpha: 0.5, soft: true, rise: 0.5 }); }
     for (const c of cores) { if (!c.alive) continue; c.ex = Math.min(1, c.ex + (c.exposed ? dt * 1.4 : 0)); const ce = c.ex * c.ex * (3 - 2 * c.ex);
       c.mesh.position.lerpVectors(c.sealed, c.local, ce); c.mesh.scale.setScalar(0.55 + 0.45 * ce); }
-    for (const c of cores) { if (!c.alive) continue; toWorld(c.mesh.position, c.light.position); c.flash = Math.max(0, (c.flash || 0) - dt); c.light.intensity = (2 + 14 * c.ex) * (1 + 0.4 * Math.sin(G.time * 5)) + (c.flash > 0 ? 40 : 0); }
+    for (const c of cores) { if (!c.alive) continue; if (!root.visible || S.distant) { c.light.intensity = 0; continue; } toWorld(c.mesh.position, c.light.position); c.flash = Math.max(0, (c.flash || 0) - dt); c.light.intensity = (2 + 14 * c.ex) * (1 + 0.4 * Math.sin(G.time * 5)) + (c.flash > 0 ? 40 : 0); if (c.flash > 0) R.flash(c.light.position, 0xff7a20, 40, 9, 0.05); }
     if (S.stuck && rnd() < dt * 20) { const p = toWorld(V((rnd() - 0.5) * 5, rnd() * 1.5, (rnd() - 0.5) * 6)); G.fxs?.emit(false, { pos: p, vel: V((rnd() - 0.5) * 6, rnd() * 5, (rnd() - 0.5) * 6), life: 0.4, size: 0.02, stretch: 0.1, col: [8, 14, 22], grav: 9.8 }); if (rnd() < 0.15) G.fxs?.electric(p); }
     // health bar: knees are the first third, the cores the rest; overload sits on a sliver
     const kneeBest = Math.max(...legs.map((L) => (L.k.alive ? L.k.hp : 0))) / CFG.kneeHp;

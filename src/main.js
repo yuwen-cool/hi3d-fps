@@ -16,6 +16,29 @@ const boot0 = createBoot();
 const setLoad = (t, p) => boot0.progress(t, p);
 const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
 
+// Loading-screen prewarm, so nothing compiles or uploads on first use mid-match: every model the game can spawn,
+// everything that starts hidden (dropship, the lance, beams, wrecks), the first-person view model against the
+// scene's lights, and every texture pushed to the GPU.
+async function prewarm() {
+  const R = G.R, renderer = R.renderer, { preloadAll } = await import('./world/assets.js');
+  const tmp = new THREE.Group(); tmp.position.copy(R.camera.position).add(new THREE.Vector3(0, -50, 0));
+  if (G.flow) for (const h of await preloadAll()) tmp.add(h.clone(true));
+  R.scene.add(tmp);
+  const hidden = []; const unhide = (root) => root.traverse((o) => { if (!o.visible && !o.isLight) { hidden.push(o); o.visible = true; } }); // never lights: the light count is part of every shader
+  unhide(R.scene); unhide(R.camera);
+  await renderer.compileAsync(R.scene, R.camera);
+  await renderer.compileAsync(R.camera, R.viewCam, R.scene);
+  const seen = new Set(); const up = (root) => root.traverse((o) => { const ms = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+    for (const m of ms) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap']) { const t = m[k]; if (t && !seen.has(t)) { seen.add(t); renderer.initTexture(t); } } });
+  up(R.scene); up(R.camera);
+  // the view model is drawn by its own camera with its own light set: one real frame with every gun showing
+  const kits = G.weapon?.kits || []; const was = kits.map((k) => k.g.visible); kits.forEach((k) => { k.g.visible = true; });
+  try { R.frame(1 / 60); } catch (e) { console.warn('prewarm frame', e); }
+  kits.forEach((k, i) => { k.g.visible = was[i]; });
+  if (R.M?.exp) R.M.exp.uniforms.uFirst.value = 1; // that frame must not seed auto-exposure
+  for (const o of hidden) o.visible = false; R.scene.remove(tmp);
+}
+
 async function boot() {
   const canvas = document.getElementById('c');
   const R = createRenderer(G, canvas);
@@ -26,7 +49,7 @@ async function boot() {
   const mods = await import('./scenes.js');
   await mods.build(G, show, setLoad);
   setLoad('compile', 0.9); await yieldFrame();
-  try { await R.renderer.compileAsync(R.scene, R.camera); } catch (e) { console.warn('compileAsync', e); }
+  try { await prewarm(); } catch (e) { console.warn('prewarm', e); }
   if (G.flow) {
     const { createUI } = await import('./ui/screens.js'); G.ui = createUI(G, boot0);
     const ie = G.modules.inputEnd; delete G.modules.inputEnd; G.modules.titleCam = G.ui.titleCam; G.modules.inputEnd = ie;

@@ -36,6 +36,7 @@ export function createBeams(G) {
     _m.makeBasis(_d.clone().multiplyScalar(L), _side.clone().multiplyScalar(w), n).setPosition(_c);
     m.matrixAutoUpdate = false; m.matrix.copy(_m); m.matrixWorldNeedsUpdate = true;
   }
+  { const w = ribbon(V(0, -100, 0), V(0, -100, 1), 0.1); w.visible = false; } // a hidden one so the loading screen compiles the shader
   G.events.on('lance:fire', (e) => {
     const k = e.k, a = e.muzzle, b = e.end;
     const core = ribbon(a, b, 0.09 + 0.08 * k), halo = ribbon(a, b, 0.5 + 0.4 * k); halo.material.uniforms.uW.value = 6;

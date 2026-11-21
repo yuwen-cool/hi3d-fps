@@ -108,3 +108,6 @@ export async function instance(name, { cloneMaterials = false } = {}) {
   return c;
 }
 export const has = async (name) => !!(await loadRaw(name));
+// everything the game might spawn mid-match, loaded during the loading screen (holders, not placed)
+const NOT_IN_GAME = new Set(['robot']); // the unrigged robot is only for the ?show= scene
+export async function preloadAll() { const names = await fetch('/models/index.json').then((r) => r.json()).catch(() => []); return (await Promise.all(names.filter((n) => !NOT_IN_GAME.has(n)).map((n) => loadRaw(n)))).filter(Boolean); }

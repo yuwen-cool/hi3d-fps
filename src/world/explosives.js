@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { instance } from './assets.js';
 // Shootable fuel drums: take damage from bullets, ignite, then explode (fireball, shockwave,
 // area damage to robots and the player, shake, sound). The wreck stays as scorched debris.
+// a burnt copy of a material that keeps its shader patch (a plain clone drops onBeforeCompile: a new, unpatched shader compiles mid-game)
+function charred(src, k) { const c = src.clone(); c.onBeforeCompile = src.onBeforeCompile; c.customProgramCacheKey = src.customProgramCacheKey; c.userData = { ...src.userData }; c.color?.multiplyScalar(k); return c; }
 export function createExplosives(G) {
   const list = G.level.explosives || [];
   const burning = [];
@@ -23,7 +25,7 @@ export function createExplosives(G) {
     const p = o.position.clone().setY(0.7);
     blast(p, 1.3, 6, 160);
     // wreck: flatten + char
-    o.scale.y *= 0.45; o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.color?.multiplyScalar(0.25); m.material.roughness = 1; } });
+    o.scale.y *= 0.45; o.traverse((m) => { if (m.isMesh) { m.material = charred(m.material, 0.25); m.material.roughness = 1; } });
     if (ex.box) { ex.box.max.y = ex.box.min.y + 0.5; }
   }
   // shared area effect for drums, grenades, tanks: fireball + falloff damage to robots and player + shake
@@ -45,7 +47,7 @@ export function createExplosives(G) {
       for (let i = 0; i < 6; i++) setTimeout(() => blast(c.clone().add(new THREE.Vector3((Math.random() - 0.5) * sz.x, sz.y * (0.4 + i * 0.18), (Math.random() - 0.5) * sz.z)), 3.4 + i * 0.3, 20, 420), 200 + i * 120);
       G.slowmo(1.4, 0.3); G.player.addShake(1); G.R.fx.punch = 1;
       setTimeout(() => { for (const t of list) { const e2 = t.userData.explosive; if (t !== o && e2?.big && !e2.dead && t.position.distanceTo(c) < 24) hurt(t, 9999); } }, 650);
-      setTimeout(() => { o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); m.material.color?.multiplyScalar(0.18); m.material.roughness = 1; } }); o.scale.y *= 0.55; o.rotation.z = 0.12; if (ex.box) ex.box.max.y = ex.box.min.y + sz.y * 0.5; }, 300);
+      setTimeout(() => { o.traverse((m) => { if (m.isMesh) { m.material = charred(m.material, 0.18); m.material.roughness = 1; } }); o.scale.y *= 0.55; o.rotation.z = 0.12; if (ex.box) ex.box.max.y = ex.box.min.y + sz.y * 0.5; }, 300);
       return;
     }
     const w = await instance('tank_wreck');

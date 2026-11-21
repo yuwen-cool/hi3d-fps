@@ -28,7 +28,8 @@ export function createDropship(G) {
   const spr = (r, g, b, s) => { const m = new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(r, g, b), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, fog: false }); const sp = new THREE.Sprite(m); sp.scale.setScalar(s); sp.userData.base = m.color.clone(); hull.add(sp); return sp; };
   const engines = [spr(1.6, 1.0, 0.55, 1.7), spr(1.6, 1.0, 0.55, 1.7)];
   const navR = spr(6, 0.25, 0.15, 0.5), navG = spr(0.2, 6, 0.6, 0.5), strobe = spr(8, 8, 8, 1.2), beacon = spr(5, 0.4, 0.12, 0.45);
-  const under = new THREE.PointLight(0xffb27a, 0, 24, 1.7); hull.add(under); R.volLights.push(under);
+  // its belly light borrows the renderer's flash pool while it flies (a permanent light would cost every pixel all game)
+  const under = { intensity: 0, position: V() }, underLocal = V(0, -0.6, 0);
   const spot = new THREE.SpotLight(0xdde8ff, 0, 80, 0.36, 0.55, 1.4); spot.castShadow = false; const spotT = new THREE.Object3D(); scene.add(spot, spotT); spot.target = spotT;
   // the beam you see in the dust: an open cone, bright at the lamp, fading along its length and at its silhouette edge
   const beamMat = new THREE.ShaderMaterial({
@@ -45,7 +46,7 @@ export function createDropship(G) {
     const W = size.x, Hh = size.y, L = size.z;
     engines[0].position.set(-W * 0.39, Hh * 0.3, -L * 0.05); engines[1].position.set(W * 0.39, Hh * 0.3, -L * 0.05);
     navR.position.set(-W * 0.5, Hh * 0.5, -L * 0.05); navG.position.set(W * 0.5, Hh * 0.5, -L * 0.05);
-    strobe.position.set(0, Hh * 0.95, L * 0.42); beacon.position.set(0, 0.15, L * 0.05); under.position.set(0, -0.6, 0);
+    strobe.position.set(0, Hh * 0.95, L * 0.42); beacon.position.set(0, 0.15, L * 0.05);
     lamp.set(0, 0.5, -L * 0.44);
   }
   layout();
@@ -123,7 +124,7 @@ export function createDropship(G) {
     navR.material.opacity = navG.material.opacity = 0.85 + 0.15 * Math.sin(t * 3);
     const st = t % 1.4; strobe.material.opacity = st < 0.05 || (st > 0.16 && st < 0.21) ? 1 : 0; beacon.material.opacity = 0.5 + 0.5 * Math.sin(t * 6.3);
     for (const e of engines) { e.material.opacity = 0.75 + 0.25 * Math.sin(t * 37 + e.position.x); e.scale.setScalar(1.7 * (0.9 + 0.1 * Math.sin(t * 23))); }
-    under.intensity = 26 * (0.85 + 0.15 * Math.sin(t * 17));
+    under.position.copy(underLocal).applyMatrix4(hull.matrixWorld); under.intensity = 26 * (0.85 + 0.15 * Math.sin(t * 17)); R.flash(under.position, 0xffb27a, under.intensity, 24, 0.05);
     // searchlight: sweeps ahead on the way in, locks onto the pad for the landing, off once it leaves
     const on = (S.mode === 'inbound' || S.mode === 'land' || S.mode === 'hover') ? sstep(night, 0.2, 0.8) : 0;
     _a.copy(lamp).applyMatrix4(root.matrixWorld); spot.position.copy(_a);
