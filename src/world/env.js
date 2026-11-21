@@ -22,7 +22,7 @@ export function createEnv(G) {
   // at night the key light swings from the sunset (low, west) to a high moon in the north-east: no glare where the colossus walks in
   const SUN0 = G.sun.dir.clone(), MOON_DIR = new THREE.Vector3(0.38, 0.62, 0.69).normalize(); let lastN = 0;
   const STORM = { zen: new THREE.Color(0.10, 0.065, 0.04), hor: new THREE.Color(0.55, 0.28, 0.12), away: new THREE.Color(0.24, 0.15, 0.09), fog: new THREE.Color(0.62, 0.40, 0.22), hemiSky: new THREE.Color(0.45, 0.30, 0.18) };
-  const NIGHT = { zen: new THREE.Color(0.02, 0.03, 0.07), hor: new THREE.Color(0.22, 0.1, 0.06), away: new THREE.Color(0.04, 0.05, 0.09), fog: new THREE.Color(0.17, 0.12, 0.1), hemiSky: new THREE.Color(0.22, 0.27, 0.42) };
+  const NIGHT = { zen: new THREE.Color(0.006, 0.01, 0.026), hor: new THREE.Color(0.1, 0.055, 0.04), away: new THREE.Color(0.018, 0.024, 0.045), fog: new THREE.Color(0.075, 0.075, 0.095), hemiSky: new THREE.Color(0.2, 0.25, 0.42) }; // a dark sky, a faint fire glow low on the horizon, cool haze
   const skySun = sky.uSunCol.value.clone(); sky.uSunCol.value = skySun; const sunCol0 = skySun.clone();
   const S = { front: 260, storm: 0, night: 0, flash: 0, boltT: 4, inside: 0 };
 
@@ -71,6 +71,7 @@ export function createEnv(G) {
     sky.uHorizon.value.copy(base.hor).lerp(STORM.hor, k).lerp(NIGHT.hor, n).multiplyScalar(1 + S.flash * 2);
     sky.uAway.value.copy(base.away).lerp(STORM.away, k).lerp(NIGHT.away, n).multiplyScalar(1 + S.flash * 3);
     sky.uDisk.value = base.disk * (1 - k) * (1 - n) * (1 - shade);
+    sky.uMoon.value = sstep(n, 0.4, 1) * (1 - k);
     skySun.copy(sunCol0).multiplyScalar((1 - 0.8 * k) * Math.pow(1 - n, 3));
     R.scene.environmentIntensity = TUNE.envIntensity * (1 - 0.5 * k) * lerp(1, 0.22, n) + S.flash * 0.5;
     // volume: denser sand inside the storm, colour shifts brown, ambient scatter carries the storm's own glow
@@ -81,12 +82,12 @@ export function createEnv(G) {
       if (!c) { U.w = 0; continue; } c.t += dt; c.p.addScaledVector(_wind, dt * 1.2); c.q.addScaledVector(_wind, dt * 1.2);
       const r = c.r * Math.min(1, c.t / 0.22) * (c.t < c.hold ? 1 : Math.max(0, 1 - (c.t - c.hold) / 4.5)); U.set(c.p.x, c.p.y, c.p.z, r); vol.uClearB.value[i].copy(c.q); if (r <= 0 && c.t > c.hold) clears[i] = null; }
     vol.uFogCol.value.copy(base.fog).lerp(STORM.fog, Math.max(k, 0.4 * S.storm)).lerp(NIGHT.fog, n);
-    vol.uSunScale.value = base.sunScale * (1 - 0.75 * k) * (1 - n) * (1 - 0.7 * shade) + base.sunScale * 0.1 * n;
+    vol.uSunScale.value = base.sunScale * (1 - 0.75 * k) * (1 - n) * (1 - 0.93 * shade) + base.sunScale * 0.1 * n; // the wall stands between the sun and the air: no glowing haze, a looming mass
     if (Math.abs(n - lastN) > 0.004) { lastN = n; G.sun.dir.copy(SUN0).lerp(MOON_DIR, sstep(n, 0.1, 0.9)).normalize(); R.fitShadow(); }
     vol.uAmbient.value = base.amb * (1 + 3.5 * k) * lerp(1, 0.35, n) + S.flash * 0.25;
     vol.uHorizon.value.copy(base.vhor).lerp(STORM.hor, k).lerp(NIGHT.hor, n);
     ex.uKey.value = base.key * lerp(1, 0.62, n) * (1 - 0.1 * k);
-    ex.uMaxE.value = lerp(lerp(base.maxE, 2.0, k), 2.2, n); // a night that stays dark: exposure may not lift it back to dusk
+    ex.uMaxE.value = lerp(lerp(lerp(base.maxE, 1.6, shade * 0.85 * (1 - k)), 2.0, k), 2.2, n); // under the wall's shadow the eye must not adapt it back to daylight; inside, the storm's own level // a night that stays dark: exposure may not lift it back to dusk
     // far wall: stands on the front while it is far, hands over to the volume as it gets close
     const fd = S.front - u;
     wallMat.uniforms.uA.value = S.storm > 0 ? sstep(fd, 12, 55) * (1 - n) : 0;
@@ -96,9 +97,9 @@ export function createEnv(G) {
     G.level?.updateLights?.(cam, Math.max(n, 0.6 * k));
     // wind-blown sand around the camera
     if (k > 0.02 && G.fxs) {
-      for (let i = 0, m = Math.floor(260 * k * dt + rnd()); i < m; i++) {
+      for (let i = 0, m = Math.floor(170 * k * dt + rnd()); i < m; i++) {
         const p = new THREE.Vector3(cam.x + (rnd() - 0.5) * 22, 0.1 + rnd() * rnd() * 5, cam.z + (rnd() - 0.5) * 22).addScaledVector(_w, 6);
-        G.fxs.emit(true, { pos: p, vel: _wind.clone().multiplyScalar(14 + rnd() * 8).add(new THREE.Vector3((rnd() - 0.5) * 2, (rnd() - 0.4) * 1.5, (rnd() - 0.5) * 2)), life: 0.7 + rnd() * 0.6, size: 0.012, stretch: 0.5, col: G.fxs.litColor([0.85, 0.6, 0.38], 1), alpha: 0.55, drag: 0.2 });
+        G.fxs.emit(true, { pos: p, vel: _wind.clone().multiplyScalar(14 + rnd() * 8).add(new THREE.Vector3((rnd() - 0.5) * 2, (rnd() - 0.4) * 1.5, (rnd() - 0.5) * 2)), life: 0.7 + rnd() * 0.6, size: 0.01, stretch: 0.22, col: G.fxs.litColor([0.85, 0.6, 0.38], 1), alpha: 0.32, drag: 0.2 }); // grains, not scan lines
       }
       for (let i = 0, m = Math.floor(14 * k * dt + rnd()); i < m; i++) {
         const p = new THREE.Vector3(cam.x + (rnd() - 0.5) * 30, 0.3 + rnd() * 2, cam.z + (rnd() - 0.5) * 30).addScaledVector(_w, 10);
@@ -125,7 +126,9 @@ export function createEnv(G) {
     pts.push(b.clone());
     for (let i = 0; i < pts.length - 1; i++) {
       const d = pts[i + 1].clone().sub(pts[i]), L = d.length(); d.normalize();
-      G.fxs?.emit(false, { pos: pts[i].clone().addScaledVector(d, L / 2), vel: d.multiplyScalar(10.01), life: 0.16, size: w, stretch: L / 2, col: [30, 36, 55], drag: 0 });
+      const mid = pts[i].clone().addScaledVector(d, L / 2); // segments stay put (the velocity only aligns the streak): the channel is one unbroken line
+      G.fxs?.emit(false, { pos: mid, vel: d.clone(), still: true, life: 0.2, size: w, stretch: L, col: [30, 36, 55], drag: 0 });
+      G.fxs?.emit(false, { pos: mid, vel: d.clone(), still: true, life: 0.26, size: w * 7, stretch: L, col: [1.6, 2.2, 4.2], drag: 0 }); // the glow around it
       if (depth < 1 && rnd() < 0.18) { const e = pts[i].clone().add(new THREE.Vector3((rnd() - 0.5) * 18, -6 - rnd() * 10, (rnd() - 0.5) * 18)); bolt(pts[i], e, w * 0.5, depth + 1); }
     }
   }

@@ -158,7 +158,11 @@ export async function createEnemies(G) {
     const end = hitP ? closest : hw ? hw.point : m.clone().addScaledVector(dir, 120);
     G.fxs?.tracer(m, end, true);
     R.flash(m, 0x8fc4ff, 18, 7, 0.05);
-    G.fxs?.emit(false, { pos: m, life: 0.06, size: 0.6, size1: 0.2, col: [7, 11, 22] });
+    { const fx = G.fxs; if (fx) { // a hot core, a jet down the barrel line and a four-point star across it
+      fx.emit(false, { pos: m, life: 0.05, size: 0.22, size1: 0.1, col: [14, 18, 30] });
+      fx.emit(false, { pos: m.clone().addScaledVector(dir, 0.25), vel: dir.clone(), still: true, life: 0.05, size: 0.1, stretch: 0.3, col: [6, 10, 22] });
+      const sd = new THREE.Vector3(-dir.z, 0, dir.x).normalize(), up = new THREE.Vector3().crossVectors(dir, sd), r = rnd() * 6.28;
+      for (let i = 0; i < 4; i++) { const a = r + i * 1.5708, v = sd.clone().multiplyScalar(Math.cos(a)).addScaledVector(up, Math.sin(a)); fx.emit(false, { pos: m.clone().addScaledVector(v, 0.1), vel: v, still: true, life: 0.04, size: 0.05, stretch: 0.12, col: [5, 8, 18] }); } } }
     if (hitP) G.player.damage(CFG.shotDmg, e.root.position.clone());
     else if (hw) G.fxs?.impact(hw, dir);
     // near miss whiz
@@ -417,7 +421,7 @@ export async function createEnemies(G) {
       const hs = e.hitSpr; for (let k = 0; k < 3; k++) { const h = dt / 3; hs.pv += (-hs.p * 300 - hs.pv * 20) * h; hs.p += hs.pv * h; hs.rv += (-hs.r * 300 - hs.rv * 20) * h; hs.r += hs.rv * h; }
       if (e.state === 'engage') { const pitch = Math.atan2(playerEye().y - 1.5, Math.max(1, dist)); e.bones.spine_02.rotateX(-pitch * 0.5); e.bones.spine_03.rotateX(-pitch * 0.5); }
       e.bones.spine_02.rotateX(hs.p * 0.6); e.bones.spine_03.rotateZ(hs.r * 0.5); e.bones.neck_01.rotateX(hs.p * 0.4);
-      for (const m of e.mats) m.emissiveIntensity = (4.5 + e.glow * 14) * (1 + 2.5 * (G.env?.S.inside || 0)); // visors burn through the sand
+      for (const m of e.mats) m.emissiveIntensity = (6 + e.glow * 14) * (1 + 2.5 * (G.env?.S.inside || 0)); // visors burn through the sand
       placeGun(e, aiming || e.state === 'engage');
     }
   }

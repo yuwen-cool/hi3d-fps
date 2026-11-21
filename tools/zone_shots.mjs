@@ -29,7 +29,7 @@ await ev(() => { const G = __G; G.player.s.pos.set(10, 0, -36); __step(3); }); a
 await ev(() => { __G.flow.fellTower(); __step(80); }); await shot('z5_tower_falling', 100);
 await ev(() => __step(140)); await aim(-4, 1, -38); await shot('z6_tower_down', 300);
 // act 3: night, the colossus in the tank farm
-await ev(() => { const G = __G; G.flow.S.wave = 2; G.flow.S.pending = 0; G.flow.S.nightT = G.flow.S.t; __step(4); for (const e of G.enemies.list) if (e.alive) { e.alive = false; e.root.visible = false; e.gun.visible = false; } for (const d of G.drones?.list || []) d.alive = false; __step(60 * 7); for (let i = 0; i < 30 && G.cine.playing; i++) __step(20); });
+await ev(() => { const G = __G; G.flow.S.wave = 2; G.flow.S.pending = 0; G.flow.S.nightT = G.flow.S.t; __step(4); __step(60 * 7); for (const e of G.enemies.list) if (e.alive) { e.alive = false; e.root.visible = false; e.gun.visible = false; } for (const d of G.drones?.list || []) d.alive = false; __step(60 * 7); for (let i = 0; i < 30 && G.cine.playing; i++) __step(20); });
 await shot('z7_reveal_end', 200);
 await ev(() => { const G = __G; for (const e of G.enemies.list) if (e.alive) { e.alive = false; e.root.visible = false; e.gun.visible = false; } for (const d of G.drones?.list || []) d.alive = false; __step(60 * 14); G.player.s.pos.set(-40, 0, -22); __step(3); });
 const bp = await ev(() => __G.boss.S.pos.toArray()); await aim(bp[0], 9, bp[2]); await shot('z8_colossus_tanks', 300);

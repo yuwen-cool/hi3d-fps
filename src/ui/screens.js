@@ -163,6 +163,6 @@ export function createUI(G, boot) {
   // ---------- start ----------
   boot?.done();
   if (G.params.shot) { boot?.out(true); } // capture tools: no fade to wait for
-  else setTimeout(() => { boot?.out(); showTitle(); }, 350);
+  else { G.hudHidden = true; G.viewModelVisible = false; setTimeout(() => { boot?.out(); showTitle(); }, 350); } // nothing of the HUD under the boot fade or the title
   return { titleCam, openPause, closePause, showTitle };
 }

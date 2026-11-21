@@ -132,8 +132,9 @@ export async function createWeapon(G) {
         const img = m.map?.image; if (!img) continue;
         const w = Math.min(1024, img.width), h = Math.min(1024, img.height), cv = document.createElement('canvas'); cv.width = w; cv.height = h; const cx = cv.getContext('2d'); cx.drawImage(img, 0, 0, w, h);
         const d = cx.getImageData(0, 0, w, h), a = d.data;
-        for (let i = 0; i < a.length; i += 4) { const r = a[i], g = a[i + 1], b = a[i + 2]; const k = r > 70 && r > g * 1.35 && r > b * 1.8 ? 255 : 0; a[i] = a[i + 1] = a[i + 2] = k; }
-        cx.putImageData(d, 0, 0); const t = new THREE.CanvasTexture(cv); t.flipY = m.map.flipY; t.colorSpace = THREE.SRGBColorSpace; m.emissiveMap = t; m.needsUpdate = true;
+        for (let i = 0; i < a.length; i += 4) { const r = a[i], g = a[i + 1], b = a[i + 2]; const k = r > 95 && r > g * 1.45 && r > b * 2 ? 255 : 0; a[i] = a[i + 1] = a[i + 2] = k; }
+        cx.putImageData(d, 0, 0); { const sm = document.createElement('canvas'); sm.width = w >> 3; sm.height = h >> 3; const sx = sm.getContext('2d'); sx.drawImage(cv, 0, 0, sm.width, sm.height); cx.clearRect(0, 0, w, h); cx.imageSmoothingEnabled = true; cx.drawImage(sm, 0, 0, w, h); } // soft blobs on the coils, not speckle
+        const t = new THREE.CanvasTexture(cv); t.flipY = m.map.flipY; t.colorSpace = THREE.SRGBColorSpace; m.emissiveMap = t; m.needsUpdate = true;
       }
     }
     kit.g.traverse((o) => { o.layers.set(1); if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; o.frustumCulled = false; } }); // shade comes from the renderer's sun-visibility ray
@@ -391,7 +392,7 @@ export async function createWeapon(G) {
         if (S.charge >= 1) { S.kR.v += (Math.random() - 0.5) * 0.9; S.kY.v += (Math.random() - 0.5) * 0.5; }
       }
     }
-    if (cur.orb) { cur.orb.material.uniforms.uA.value = S.charge * S.charge; cur.orb.material.uniforms.uT.value = S.t; cur.orb.scale.setScalar(0.4 + 1.4 * S.charge); for (const m of cur.mats) m.emissiveIntensity = 0.6 + 7 * S.charge * S.charge; }
+    if (cur.orb) { cur.orb.material.uniforms.uA.value = S.charge * S.charge; cur.orb.material.uniforms.uT.value = S.t; cur.orb.scale.setScalar(0.4 + 1.4 * S.charge); for (const m of cur.mats) m.emissiveIntensity = 7 * S.charge * S.charge; }
     if (S.cool < 0) S.cool = 0;
     if (S.dryT) { S.dryT -= dt; if (S.dryT <= 0) { S.dryT = 0; startReload(); } }
     if (!trigger && S.t - S.lastShot > 0.24) { S.shots = 0; S.recoilPh = Math.random() * 6; }

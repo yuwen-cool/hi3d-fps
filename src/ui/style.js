@@ -71,7 +71,8 @@ export const CSS = `
 #hud .wmk.ctr .r{opacity:0}
 #hud .wmk .d{position:absolute;left:-.8rem;top:-.8rem;width:1.6rem;height:1.6rem;transform:rotate(45deg);border:2px solid var(--o);background:rgba(255,106,20,.18);box-shadow:0 0 .8rem rgba(255,106,20,.5)}
 #hud .wmk .l{position:absolute;left:-.8rem;top:-.8rem;width:1.6rem;text-align:center;line-height:1.6rem;font-family:var(--H);font-weight:900;font-size:1rem;color:var(--bone)}
-#hud .wmk .r{position:absolute;left:-4rem;top:1.2rem;width:8rem;text-align:center;font-family:var(--H);font-weight:800;font-size:.95rem;letter-spacing:.06em}
+#hud .wmk .r{position:absolute;left:-5rem;top:1.25rem;width:10rem;text-align:center;font-family:var(--H);font-weight:800;font-size:.95rem;letter-spacing:.06em;text-shadow:0 0 .35rem #000,0 0 .15rem #000,0 1px 1px #000}
+#hud .wmk .r>*{background:rgba(10,8,6,.62);padding:.05rem .35rem}
 #hud .wmk .r em{font-style:normal;font-family:var(--N);color:var(--o);font-size:1.1rem;margin-left:.3rem}
 #hud .wmk.boss .d{border-color:var(--red);background:rgba(255,59,43,.25)}#hud .wmk.boss .r em{color:var(--red)}
 #hud .wmk.ext .d{border-color:var(--bone)}
@@ -85,11 +86,11 @@ export const CSS = `
 #hud .storm .v{font-family:var(--N);font-size:2.3rem;line-height:2.4rem;color:var(--bone)}
 #hud .storm .v.tx{font-family:var(--H);font-weight:900;font-size:1.4rem;line-height:1.8rem}
 #hud .storm .z{height:.3rem;width:100%;margin-top:.15rem;background:var(--bone);transform-origin:right;transition:transform .3s}
-#hud .storm.crit .v{color:var(--red);animation:blink .5s steps(2) infinite}#hud .storm.crit .z{background:var(--red)}
+#hud .storm.crit .v{color:var(--red);animation:blink .5s steps(2) infinite;text-shadow:0 0 .5rem rgba(0,0,0,.9),0 1px 1px #000}#hud .storm.crit .z{background:var(--red)}
 @keyframes blink{50%{opacity:.5}}
 #hud .radar{width:8.6rem;height:8.6rem;position:relative}
 #hud .radar canvas{width:100%;height:100%}
-#hud .feed{position:absolute;right:2.4rem;top:11.6rem;display:flex;flex-direction:column;align-items:flex-end;gap:.25rem}
+#hud .feed{position:absolute;right:2.4rem;top:13.2rem;display:flex;flex-direction:column;align-items:flex-end;gap:.25rem}
 #hud .feed div{display:flex;align-items:center;gap:.55rem;padding:.12rem .6rem .12rem 1.4rem;background:linear-gradient(270deg,rgba(10,8,6,.6),rgba(10,8,6,0));border-right:3px solid var(--o);font-family:var(--H);font-weight:800;font-size:1.05rem;line-height:1.4rem;animation:fdIn .35s var(--ease) both}
 #hud .feed div em{font-style:normal;font-family:var(--N);color:var(--o);font-size:1.15rem}
 #hud .feed div.crit{border-right-color:var(--haz)}#hud .feed div.crit em{color:var(--haz)}
@@ -180,11 +181,12 @@ export const CSS = `
 #hud .ban{position:absolute;left:50%;top:22%;transform:translateX(-50%);display:flex;align-items:stretch;opacity:0;height:3.6rem}
 #hud .ban.on{animation:ban var(--dur,3s) var(--ease) both}
 #hud .ban .hz{width:3.2rem}
+#hud .ban.minor{height:2.6rem;top:24%}#hud .ban.minor b{font-size:1.7rem;line-height:2.6rem;padding:0 1rem}#hud .ban.minor .hz{width:2.2rem}#hud .ban.minor s{font-size:.85rem}
 #hud .ban b{background:#0d0b09;color:var(--o);font-family:var(--H);font-weight:900;font-size:2.7rem;line-height:3.6rem;padding:0 1.3rem;white-space:nowrap;letter-spacing:.03em}
 #hud .ban.crit b{color:var(--red)}#hud .ban.good b{background:var(--o);color:#0d0b09}
 #hud .ban s{position:absolute;left:0;right:0;top:100%;margin-top:.3rem;text-align:center;text-decoration:none;font-family:var(--B);font-weight:600;font-size:1.05rem;letter-spacing:.3em}
 @keyframes ban{0%{opacity:0;clip-path:inset(0 50% 0 50%)}6%{opacity:1;clip-path:inset(0 0 0 0)}9%{opacity:.3}12%{opacity:1}88%{opacity:1;clip-path:inset(0 0 0 0)}100%{opacity:0;clip-path:inset(50% 0 50% 0)}}
-#hud .hint{position:absolute;left:50%;top:9.6rem;transform:translateX(-50%);display:flex;gap:1.4rem;opacity:0;transition:opacity .4s;font-family:var(--H);font-weight:800;font-size:1.15rem;align-items:center}
+#hud .hint{position:absolute;left:50%;bottom:13.4rem;transform:translateX(-50%);display:flex;gap:1.6rem;opacity:0;transition:opacity .4s;font-family:var(--H);font-weight:800;font-size:1.4rem;align-items:center;color:var(--bone);padding:.45rem 1.2rem;background:linear-gradient(90deg,rgba(10,8,6,0),rgba(10,8,6,.55) 15%,rgba(10,8,6,.55) 85%,rgba(10,8,6,0))}
 #hud .hint.on{opacity:1}
 #hud .alert{position:absolute;left:50%;top:9.2rem;transform:translateX(-50%);display:flex;align-items:center;gap:.6rem;background:rgba(150,20,10,.85);border:1px solid var(--red);padding:0 1rem;font-family:var(--H);font-weight:900;font-size:1.6rem;line-height:2.3rem;color:#fff;opacity:0}
 #hud .alert.on{animation:alt 1.6s steps(1) both}
@@ -302,7 +304,7 @@ export const CSS = `
 #hud .odf{position:absolute;inset:0;opacity:0;pointer-events:none;box-shadow:inset 0 0 6rem rgba(98,241,255,.45),inset 0 0 1.2rem rgba(98,241,255,.8);transition:opacity .3s}
 #hud .odf.on{opacity:1;animation:odF .7s ease-in-out infinite}
 @keyframes odF{50%{box-shadow:inset 0 0 8rem rgba(98,241,255,.6),inset 0 0 1.6rem rgba(98,241,255,1)}}
-#hud .odt{position:absolute;left:50%;top:6.6rem;transform:translateX(-50%);width:22rem;opacity:0;text-align:center;font-family:var(--H);font-weight:900;font-size:1.25rem;letter-spacing:.3em;color:var(--cy);text-shadow:0 0 .8rem rgba(98,241,255,.8)}
+#hud .odt{position:absolute;left:50%;top:auto;bottom:9.6rem;transform:translateX(-50%);width:22rem;opacity:0;text-align:center;font-family:var(--H);font-weight:900;font-size:1.25rem;letter-spacing:.3em;color:var(--cy);text-shadow:0 0 .8rem rgba(98,241,255,.8)}
 #hud .odt.on{opacity:1}
 #hud .odt i{display:block;height:.3rem;margin-top:.25rem;background:var(--cy);box-shadow:0 0 .8rem var(--cy);transform-origin:center}
 `;

@@ -71,6 +71,7 @@ export function createRenderer(G, canvas) {
   // machining still reads when the player looks straight into the dusk sun
   const vmFill = new THREE.DirectionalLight(new THREE.Color(1.0, 0.86, 0.72), 1.6); vmFill.layers.set(1); scene.add(vmFill, vmFill.target);
   const _vmFillDir = new THREE.Vector3(-0.55, 0.65, 0.55).normalize();
+  const vmAmb = new THREE.AmbientLight(0xffffff, 0); vmAmb.layers.set(1); scene.add(vmAmb); // the storm's glowing air, wrapped around the gun (ambient: no shader variant)
   G.sun = { light: sun, dir: sunDir, col: sunCol };
   // fit the ortho shadow box around a world AABB
   let shadowBox = null;
@@ -231,11 +232,11 @@ export function createRenderer(G, canvas) {
       // instead one ray toward the sun tells whether the player stands in shade and the sun eases down
       if (G.phys && (frameNo & 3) === 0) { _vmP.copy(camera.position).y -= 0.15; vmSunT = G.phys.raycast(_vmP, sunDir, 120) ? 0.22 : 1; }
       vmSun += (vmSunT - vmSun) * Math.min(1, dt * 6);
-      vmFill.intensity = 1.6 * (0.35 + 0.65 * vmSun);
+      const stm = fx.storm || 0; vmFill.intensity = 1.6 * (0.35 + 0.65 * vmSun) * (1 + 0.9 * (G.env?.S.night || 0) + 2.2 * stm); vmFill.color.setRGB(1.0, 0.86 - 0.08 * stm, 0.72 - 0.17 * stm); vmAmb.intensity = 1.3 * stm; vmAmb.color.setRGB(1.0, 0.74, 0.5); // in the sand the air itself glows: the gun takes that light, never a black cut-out against it
       vmFill.target.position.copy(camera.position); vmFill.position.copy(_vmFillDir).applyQuaternion(camera.quaternion).add(camera.position);
       vmFill.target.updateMatrixWorld(); vmFill.updateMatrixWorld();
       const prevSun = sun.intensity; sun.intensity = prevSun * vmSun;
-      const prevEnv = scene.environmentIntensity; scene.environmentIntensity = prevEnv * TUNE.viewFill;
+      const prevEnv = scene.environmentIntensity; scene.environmentIntensity = Math.max(prevEnv, TUNE.envIntensity * (0.45 + 0.15 * stm)) * TUNE.viewFill; // a floor: the gun must never go to a black cut-out at night or in the storm
       const bg = scene.background; scene.background = null;
       gl.depthRange(0, 0.05);
       try { renderer.render(scene, viewCam); } finally { gl.depthRange(0, 1); scene.environmentIntensity = prevEnv; scene.background = bg; sun.intensity = prevSun; }

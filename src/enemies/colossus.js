@@ -7,7 +7,10 @@ import { instance } from '../world/assets.js';
 // beam that sweeps across the player and sets the ground alight; two glowing coolant tanks on its
 // back are the only real weak points.
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
-const CFG = { bodyH: 8.7, hipX: 4.0, hipZ: 3.6, upper: 6.4, lower: 7.6, reachX: 7.8, reachZ: 5.9, stepLen: 3.6, stepT: 0.7, lift: 2.1, speed: 1.8, turn: 0.32, coreHp: 520, armour: 0.04, kneeHp: 320 };
+// K: the machine's size. It has to stand over the 10 m storage tanks and read as a walking landmark from anywhere in the tank
+// farm; the stance widens less (KR) so it still fits the farm's lanes (22 m and 26 m)
+const K = 1.4, KR = 1.25;
+const CFG = { bodyH: 8.7 * K, hipX: 4.0 * K, hipZ: 3.6 * K, upper: 6.4 * K, lower: 7.6 * K, reachX: 7.8 * KR, reachZ: 5.9 * KR, stepLen: 3.6 * K, stepT: 0.8, lift: 2.1 * K, speed: 1.8, turn: 0.32, coreHp: 520, armour: 0.04, kneeHp: 320 };
 
 // align a part so its long axis runs from the local origin down -Y; `fat` = which end is heavier
 async function segment(name, len, fatEnd) {
@@ -29,7 +32,7 @@ export async function createColossus(G) {
   const R = G.R, rnd = G.rng, scene = R.scene;
   const root = new THREE.Group(); root.name = 'colossus'; scene.add(root); root.visible = false;
   const hull = await instance('colossus_hull'); const hullH = new THREE.Group(); hullH.add(hull); root.add(hullH);
-  { const s = new THREE.Box3().setFromObject(hull).getSize(V(0, 0, 0)); hull.position.y = -s.y * 0.55; }
+  hull.scale.multiplyScalar(K); hull.updateMatrixWorld(true); { const s = new THREE.Box3().setFromObject(hull).getSize(V(0, 0, 0)); hull.position.y = -s.y * 0.55; }
   // legs: hip offsets in hull space (x right, z forward)
   const legs = [];
   for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
@@ -38,19 +41,32 @@ export async function createColossus(G) {
     legs.push({ sx, sz, up, lo, hip: V(0, 0, 0), knee: V(0, 0, 0), foot: V(0, 0, 0), from: V(0, 0, 0), to: V(0, 0, 0), t: 1, pair: sx * sz > 0 ? 0 : 1 });
   }
   root.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; } });
-  // knee actuators: the first weak points (the cores start sealed inside the hull). A hot core with a target ring.
-  const kneeCore = new THREE.MeshBasicMaterial({ color: new THREE.Color(9, 2.6, 0.5), toneMapped: false });
-  const kneeRing = new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 0.75, 0.1), toneMapped: false, transparent: true, opacity: 0.9, depthWrite: false });
+  // weak points glow from inside: a white-hot centre that falls off to deep orange at the rim, with slow plasma bands
+  // (reads as a hot lens in an armoured socket, not a flat ball). uI = heat, flashes on a hit.
+  const hotMat = (bands) => new THREE.ShaderMaterial({ toneMapped: false, uniforms: { uI: { value: 1 }, uT: { value: 0 } },
+    vertexShader: 'varying vec3 vN; varying vec3 vV; varying vec3 vL; void main(){ vL = position; vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vV = -mv.xyz; gl_Position = projectionMatrix * mv; }',
+    fragmentShader: `varying vec3 vN; varying vec3 vV; varying vec3 vL; uniform float uI, uT;
+      void main(){ float f = clamp(dot(normalize(vN), normalize(vV)), 0.0, 1.0); float c = pow(f, 2.2);
+        float b = ${bands ? '0.7 + 0.3 * sin(vL.y * 5.0 - uT * 5.0) * sin(vL.y * 2.1 + uT * 1.7)' : '0.85 + 0.15 * sin(uT * 7.0)'};
+        vec3 col = mix(vec3(1.6, 0.22, 0.03), vec3(9.0, 4.2, 1.3), c) * b * uI;
+        gl_FragColor = vec4(col, 1.0); }` });
+  const armour = new THREE.MeshStandardMaterial({ color: 0x1e1b18, metalness: 0.85, roughness: 0.42 });
+  // knee actuators: the first weak points (the cores start sealed inside the hull). A hot lens in a dark armoured collar.
   for (const L of legs) {
-    const g = new THREE.Group(); g.add(new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 10), kneeCore)); const ring = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.07, 8, 32), kneeRing); g.add(ring);
-    g.visible = false; scene.add(g); L.k = { hp: CFG.kneeHp, alive: true, w: V(0, 0, 0), g, ring, flash: 0 };
+    const g = new THREE.Group(), mat = hotMat(false); g.add(new THREE.Mesh(new THREE.SphereGeometry(0.46 * K, 20, 14), mat));
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.58 * K, 0.17 * K, 10, 28), armour); g.add(collar);
+    for (let i = 0; i < 4; i++) { const cl = new THREE.Mesh(new THREE.BoxGeometry(0.22 * K, 0.3 * K, 0.5 * K), armour); const a = i * Math.PI / 2 + Math.PI / 4; cl.position.set(Math.cos(a) * 0.62 * K, Math.sin(a) * 0.62 * K, 0); cl.rotation.z = a; g.add(cl); }
+    g.traverse((o) => { o.frustumCulled = false; }); // so the loading screen's warm-up frame compiles them for the HDR target
+    g.visible = false; scene.add(g); L.k = { hp: CFG.kneeHp, alive: true, w: V(0, 0, 0), g, mat, flash: 0 };
   }
   // coolant cores (weak points) on the back of the hull, with their own glow light
-  const coreLocal = [V(-2.9, -0.4, 0.6), V(2.9, -0.4, 0.6)];
-  const coreMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(7, 2.6, 0.5), toneMapped: false });
+  const coreLocal = [V(-2.9 * K, -0.4 * K, 0.6 * K), V(2.9 * K, -0.4 * K, 0.6 * K)];
   const cores = coreLocal.map((p) => { const l = { intensity: 0, position: new THREE.Vector3(), getWorldPosition: (o) => o.copy(l.position) }; /* the core's glow is its emissive + bloom; its 'light' is just a tracked point (every real light costs every pixel) */
-    const m = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 1.3, 6, 14), coreMat); m.position.copy(p); hullH.add(m);
-    return { local: p, hp: CFG.coreHp, alive: true, light: l, mesh: m, w: V(0, 0, 0), exposed: false, ex: 0, sealed: V(p.x * 0.45, p.y - 0.5, p.z) }; });
+    const m = new THREE.Group(), mat = hotMat(true); m.add(new THREE.Mesh(new THREE.CapsuleGeometry(0.42 * K, 1.3 * K, 6, 18), mat)); m.userData.mat = mat;
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3, bar = new THREE.Mesh(new THREE.BoxGeometry(0.09 * K, 2.3 * K, 0.12 * K), armour); bar.position.set(Math.cos(a) * 0.5 * K, 0, Math.sin(a) * 0.5 * K); bar.rotation.y = -a; m.add(bar); } // a cage around the coolant rod
+    for (const y of [-1.15, 1.15]) { const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.6 * K, 0.6 * K, 0.22 * K, 18), armour); cap.position.y = y * K; m.add(cap); }
+    m.traverse((o) => { o.frustumCulled = false; o.castShadow = true; }); m.position.copy(p); hullH.add(m);
+    return { local: p, hp: CFG.coreHp, alive: true, light: l, mesh: m, w: V(0, 0, 0), exposed: false, ex: 0, sealed: V(p.x * 0.45, p.y - 0.5 * K, p.z) }; });
   // beam: an additive cylinder from the muzzle to the hit point
   // beam = white-hot core + wide orange sheath, both view-facing (bright on the centre line, soft at the edge),
   // flickering in time rather than striped along the length; the far end tapers into the impact
@@ -66,6 +82,29 @@ export async function createColossus(G) {
   const mkBeam = (r, mat) => { const g = new THREE.CylinderGeometry(r, r, 1, 18, 1, true); g.translate(0, 0.5, 0); g.rotateX(Math.PI / 2); const m = new THREE.Mesh(g, mat); m.frustumCulled = false; return m; };
   const beam = new THREE.Group(); beam.add(mkBeam(0.13, beamMat), mkBeam(0.75, glowMat)); beam.visible = false; scene.add(beam);
   const muzzleLight = new THREE.PointLight(0xff8a30, 0, 16, 2); scene.add(muzzleLight); R.volLights.push(muzzleLight);
+  // its own lights, so it reads at night: two headlamps with beams sweeping the ground ahead, red beacons on the hips.
+  // Glow sprites and additive cones only — no real lights (each would cost every pixel all game)
+  const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.12, 'rgba(255,255,255,0.5)'); g.addColorStop(0.35, 'rgba(255,255,255,0.08)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+  const glow = (col, size) => { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: col, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false })); sp.scale.setScalar(size); sp.visible = false; scene.add(sp); return sp; };
+  const lampLocal = [V(-1.7 * K, 0.1 * K, 5.7 * K), V(1.7 * K, 0.1 * K, 5.7 * K)];
+  const lamps = lampLocal.map(() => glow(new THREE.Color(5, 4.6, 3.8), 0.5 * K));   // a hot point with a tight bloom, not a ball of light
+  const beacons = [0, 1, 2, 3].map(() => glow(new THREE.Color(10, 0.6, 0.2), 0.55 * K));
+  const coneMat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false, uniforms: { uA: { value: 0 } },
+    vertexShader: 'varying vec3 vN; varying vec3 vP; varying float vH; void main(){ vH = -position.y; vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.0); vP = mv.xyz; gl_Position = projectionMatrix * mv; }',
+    fragmentShader: 'varying vec3 vN; varying vec3 vP; varying float vH; uniform float uA; void main(){ float f = abs(dot(normalize(-vP), normalize(vN))); float a = pow(f, 1.5) * pow(1.0 - vH, 1.8) * smoothstep(0.0, 0.04, vH) * uA; gl_FragColor = vec4(vec3(1.0, 0.92, 0.78) * a, a); }' });
+  const coneGeo = new THREE.ConeGeometry(1, 1, 28, 1, true); coneGeo.translate(0, -0.5, 0);
+  const cones = lampLocal.map(() => { const m = new THREE.Mesh(coneGeo, coneMat); m.frustumCulled = false; m.visible = false; scene.add(m); return m; });
+  const _lp = V(0, 0, 0), _ld = V(0, 0, 0), _lq = new THREE.Quaternion();
+  function lights(t) {
+    const on = root.visible && !S.distant && !S.dead && S.active, night = G.env?.S.night ?? 0;
+    lamps.forEach((l, i) => { l.visible = on; if (!on) return; toWorld(lampLocal[i], l.position); l.material.opacity = 0.85 + 0.15 * Math.sin(t * 9 + i); });
+    beacons.forEach((b, i) => { b.visible = on; if (!on) return; b.position.copy(legs[i].hip).add(V(0, 0.9 * K, 0)); b.material.opacity = Math.sin(t * 3.2 + (i % 2) * Math.PI) > 0.3 ? 1 : 0.08; });
+    coneMat.uniforms.uA.value = 0.22 * THREE.MathUtils.smoothstep(night, 0.2, 0.9);
+    cones.forEach((c, i) => { c.visible = on && night > 0.2; if (!c.visible) return; toWorld(lampLocal[i], _lp);
+      _ld.copy(fwd()).applyAxisAngle(V(0, 1, 0), Math.sin(t * 0.45 + i * 1.3) * 0.45 + (i ? -0.12 : 0.12)).setY(-0.62).normalize(); // two beams sweeping the ground ahead of it
+      const len = Math.min(42, (_lp.y + 0.5) / Math.max(0.2, -_ld.y)); c.position.copy(_lp); c.quaternion.copy(_lq.setFromUnitVectors(V(0, -1, 0), _ld)); c.scale.set(len * 0.24, len, len * 0.24); });
+  }
 
   const S = { kneel: 0, leanX: 0, leanZ: 0, legBroken: false, rage: false, overload: false, stuck: false, broken: null, stagT: 0, distant: false, scale: 1, active: false, dead: false, pos: V(0, 0, 0), yaw: 0, vel: V(0, 0, 0), phase: 'idle', t: 0, path: [], wp: 0, gait: 0, bob: 0, lean: 0, limp: 0, beamFrom: V(0, 0, 0), beamTo: V(0, 0, 0), sweepA: V(0, 0, 0), sweepB: V(0, 0, 0), deathT: 0, hp: 1 };
   const fwd = () => V(Math.sin(S.yaw), 0, Math.cos(S.yaw)), right = () => V(Math.cos(S.yaw), 0, -Math.sin(S.yaw));
@@ -99,7 +138,7 @@ export async function createColossus(G) {
   const _a = V(0, 0, 0), _b = V(0, 0, 0), _q = new THREE.Quaternion();
   function solveLeg(L) {
     L.hip.set(L.sx * CFG.hipX, 0, L.sz * CFG.hipZ); toWorld(L.hip, L.hip);
-    if (L.broken) { const out = L.hip.clone().sub(hullH.position).setY(0).normalize(); L.knee.copy(L.hip).addScaledVector(out, 2.4).add(V(0, -5.6, 0)); place(L.up, L.hip, L.knee, out.clone().add(V(0, 1, 0)).normalize()); return; }
+    if (L.broken) { const out = L.hip.clone().sub(hullH.position).setY(0).normalize(); L.knee.copy(L.hip).addScaledVector(out, 2.4 * K).add(V(0, -5.6 * K, 0)); place(L.up, L.hip, L.knee, out.clone().add(V(0, 1, 0)).normalize()); return; }
     const d = _a.copy(L.foot).sub(L.hip), dist = THREE.MathUtils.clamp(d.length(), 0.5, CFG.upper + CFG.lower - 0.05); d.normalize();
     const a1 = CFG.upper, a2 = CFG.lower, cosA = (a1 * a1 + dist * dist - a2 * a2) / (2 * a1 * dist), sinA = Math.sqrt(Math.max(0, 1 - cosA * cosA));
     const out = _b.copy(L.hip).sub(hullH.position).setY(0).normalize().add(V(0, 1.6, 0)); out.addScaledVector(d, -out.dot(d)).normalize();
@@ -142,7 +181,7 @@ export async function createColossus(G) {
     if (pd < 2.2 && !G.god) G.player.damage(45, p);
   }
   // beam: charge at the muzzle, then sweep across the player's position
-  const muzzle = () => toWorld(V(0, -0.84, 6.2));
+  const muzzle = () => toWorld(V(0, -0.84 * K, 6.2 * K));
   function beamTick(dt) {
     S.t += dt; const m = muzzle();
     if (S.phase === 'charge') {
@@ -176,9 +215,9 @@ export async function createColossus(G) {
   function hitTest(o, d, maxD) {
     if (!S.active || S.dead) return null; _ray.set(o, d); let best = null;
     // the tanks ride outside the hull: a shot passing within their radius counts, wherever it is fired from
-    if (!S.legBroken) for (const L of legs) { const k = L.k; if (!k.alive) continue; const t = k.w.clone().sub(o).dot(d); if (t < 0 || t > maxD) continue; if (o.clone().addScaledVector(d, t).distanceTo(k.w) < 1.2 && (!best || t < best.distance)) best = { distance: t - 0.5, point: o.clone().addScaledVector(d, t - 0.5), knee: L }; }
+    if (!S.legBroken) for (const L of legs) { const k = L.k; if (!k.alive) continue; const t = k.w.clone().sub(o).dot(d); if (t < 0 || t > maxD) continue; if (o.clone().addScaledVector(d, t).distanceTo(k.w) < 1.2 * K && (!best || t < best.distance)) best = { distance: t - 0.5, point: o.clone().addScaledVector(d, t - 0.5), knee: L }; }
     if (best) return best;
-    for (const c of cores) { if (!c.alive || !c.exposed) continue; toWorld(c.local, _c); const t = _c.clone().sub(o).dot(d); if (t < 0 || t > maxD) continue; if (o.clone().addScaledVector(d, t).distanceTo(_c) < 1.15 && (!best || t < best.distance)) best = { distance: t - 0.6, point: o.clone().addScaledVector(d, t - 0.6), core: c }; }
+    for (const c of cores) { if (!c.alive || !c.exposed) continue; toWorld(c.local, _c); const t = _c.clone().sub(o).dot(d); if (t < 0 || t > maxD) continue; if (o.clone().addScaledVector(d, t).distanceTo(_c) < 1.15 * K && (!best || t < best.distance)) best = { distance: t - 0.6, point: o.clone().addScaledVector(d, t - 0.6), core: c }; }
     if (best) return best;
     const hb = new THREE.Box3().setFromObject(hullH); const p = _ray.intersectBox(hb, V(0, 0, 0)); if (p) { const t = p.distanceTo(o); if (t < maxD) best = { distance: t, point: p, core: null }; }
     return best;
@@ -224,6 +263,7 @@ export async function createColossus(G) {
     if (!S.legBroken) for (const L of legs) if (L.k.alive && L.k.w.distanceTo(e.pos) < 3) damage({ knee: L, point: e.pos }, e.dmg * 0.8); });
 
   function update(dt) {
+    lights(G.time);
     if (!S.active && !S.distant) return;
     dt *= G.enemyTime ?? 1;
     if (S.phase === 'dying') return dying(dt);
@@ -263,7 +303,7 @@ export async function createColossus(G) {
     const camP = G.R.camera.position;
     for (const L of legs) {
       const k = L.k; k.w.copy(L.knee); k.flash = Math.max(0, k.flash - dt);
-      if (k.alive && !S.distant && !S.legBroken) { k.g.position.copy(L.knee); k.ring.lookAt(camP); const pul = 1 + 0.12 * Math.sin(G.time * 6 + L.sx * 2); k.ring.scale.setScalar(pul * (k.flash > 0 ? 1.3 : 1)); k.g.visible = true; } else k.g.visible = false;
+      if (k.alive && !S.distant && !S.legBroken) { k.g.position.copy(L.knee); k.g.lookAt(camP); k.mat.uniforms.uT.value = G.time; k.mat.uniforms.uI.value = (0.85 + 0.15 * Math.sin(G.time * 6 + L.sx * 2)) * (k.flash > 0 ? 1.8 : 1); k.g.visible = true; } else k.g.visible = false;
       if (L.fall && !L.fall.landed) {
         const f = L.fall; f.t += dt; const e = Math.min(1, f.t / 0.9), e2 = e * e;
         L.lo.position.lerpVectors(f.from, f.to, e).setY(THREE.MathUtils.lerp(f.from.y, f.to.y, e2)); L.lo.quaternion.slerpQuaternions(f.fromQ, f.toQ, Math.min(1, e * 1.2));
@@ -276,7 +316,7 @@ export async function createColossus(G) {
     if (S.broken && rnd() < dt * 12) { const p = S.broken.knee; G.fxs?.emit(false, { pos: p, vel: V((rnd() - 0.5) * 4, rnd() * 3, (rnd() - 0.5) * 4), life: 0.35, size: 0.015, stretch: 0.08, col: [16, 9, 3], grav: 9.8 }); if (rnd() < 0.3) G.fxs?.emit(true, { pos: p, vel: V(0.2, 1.2, 0.2), life: 2.5, size: 0.3, size1: 1.8, col: G.fxs.litColor([0.07, 0.06, 0.05]), alpha: 0.5, soft: true, rise: 0.5 }); }
     for (const c of cores) { if (!c.alive) continue; c.ex = Math.min(1, c.ex + (c.exposed ? dt * 1.4 : 0)); const ce = c.ex * c.ex * (3 - 2 * c.ex);
       c.mesh.position.lerpVectors(c.sealed, c.local, ce); c.mesh.scale.setScalar(0.55 + 0.45 * ce); }
-    for (const c of cores) { if (!c.alive) continue; if (!root.visible || S.distant) { c.light.intensity = 0; continue; } toWorld(c.mesh.position, c.light.position); c.flash = Math.max(0, (c.flash || 0) - dt); c.light.intensity = (2 + 14 * c.ex) * (1 + 0.4 * Math.sin(G.time * 5)) + (c.flash > 0 ? 40 : 0); if (c.flash > 0) R.flash(c.light.position, 0xff7a20, 40, 9, 0.05); }
+    for (const c of cores) { if (!c.alive) continue; if (!root.visible || S.distant) { c.light.intensity = 0; continue; } toWorld(c.mesh.position, c.light.position); c.flash = Math.max(0, (c.flash || 0) - dt); { const u = c.mesh.userData.mat.uniforms; u.uT.value = G.time; u.uI.value = (0.55 + 0.45 * c.ex) * (c.flash > 0 ? 1.8 : 1); } c.light.intensity = (2 + 14 * c.ex) * (1 + 0.4 * Math.sin(G.time * 5)) + (c.flash > 0 ? 40 : 0); if (c.flash > 0) R.flash(c.light.position, 0xff7a20, 40, 9, 0.05); }
     if (S.stuck && rnd() < dt * 20) { const p = toWorld(V((rnd() - 0.5) * 5, rnd() * 1.5, (rnd() - 0.5) * 6)); G.fxs?.emit(false, { pos: p, vel: V((rnd() - 0.5) * 6, rnd() * 5, (rnd() - 0.5) * 6), life: 0.4, size: 0.02, stretch: 0.1, col: [8, 14, 22], grav: 9.8 }); if (rnd() < 0.15) G.fxs?.electric(p); }
     // health bar: knees are the first third, the cores the rest; overload sits on a sliver
     const kneeBest = Math.max(...legs.map((L) => (L.k.alive ? L.k.hp : 0))) / CFG.kneeHp;
@@ -289,7 +329,7 @@ export async function createColossus(G) {
   function dying(dt) {
     S.deathT += dt; const k = Math.min(1, S.deathT / 2.6);
     // knees buckle: hull sinks and rolls, chain explosions along it, then one last blast
-    hullH.position.y = THREE.MathUtils.lerp(CFG.bodyH, 1.6, k * k); hullH.rotation.z += dt * 0.12 * (1 - k); hullH.rotation.x += dt * 0.08 * (1 - k);
+    hullH.position.y = THREE.MathUtils.lerp(CFG.bodyH, 1.6 * K, k * k); hullH.rotation.z += dt * 0.12 * (1 - k); hullH.rotation.x += dt * 0.08 * (1 - k);
     for (const L of legs) { L.foot.lerp(L.foot.clone().sub(hullH.position).setY(0).multiplyScalar(1.25).add(hullH.position).setY(0), dt * 0.8); solveLeg(L); }
     if (rnd() < dt * 5 && S.deathT < 2.8) G.fxs?.explosion(toWorld(V((rnd() - 0.5) * 4, 0.5 + rnd(), (rnd() - 0.5) * 5)), 0.9 + rnd() * 0.6);
     if (S.deathT > 2.8 && !S.final) { S.final = true; G.explosives?.blast(hullH.position.clone(), 3.4, 14, 400); for (let i = 0; i < 6; i++) G.fire?.add(toWorld(V((rnd() - 0.5) * 6, -hullH.position.y + 0.1, (rnd() - 0.5) * 7)), { size: 1 + rnd() * 1.5, life: 200 }); G.events.emit('boss:dead', { pos: hullH.position.clone() }); }

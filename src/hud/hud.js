@@ -104,7 +104,7 @@ export function createHUD(G) {
   // ---------- refs ----------
   const xh = q('.xh'), arms = { t: q('.xh .t'), b: q('.xh .b'), l: q('.xh .l'), r: q('.xh .r') }, hm = q('.hm'), pts = q('.pts'), dmgI = qa('.dmg i');
   const objAn = q('.obj .an'), objAt = q('.obj .at'), objLn = q('.obj .ln'), objTx = q('.obj .ln .tx'), objCt = q('.obj .ln .ct'), objHo = q('.obj .ho em'), objSub = q('.obj .sub'), objSubTx = q('.obj .sub .sx'), objSubPb = q('.obj .sub .pb i');
-  const stormEl = q('.storm'), stormV = q('.storm .v'), feed = q('.feed');
+  const stormEl = q('.storm'), stormV = q('.storm .v'), stormT = q('.storm .t'), stormZ = q('.storm .z'), feed = q('.feed');
   const shN = q('.vit .sn'), vit = q('.vit'), amm = q('.amm'), shRow = q('.vit .sh'), shSeg = qa('.vit .sh i b'), hpSeg = qa('.vit .hp i b'), hpN = q('.vit .n');
   const abOd = q('.a.od'), kb = q('.kb'), kbSvg = q('.kb svg'), kbLb = q('.kb .lb'), odf = q('.odf'), odt = q('.odt'), odtBar = q('.odt i');
   const abDash = q('.a.dash'), abScan = q('.a.scan'), rlp = q('.rlp'), gain = q('.amm .gain');
@@ -151,7 +151,7 @@ export function createHUD(G) {
   G.events.on('flow:lastkill', () => { banner('WAVE CLEARED', { kind: 'good', dur: 2.2 }); setTimeout(() => G.audio?.vo?.('cleared'), 500); });
   G.events.on('boss:dead', () => setTimeout(() => G.audio?.vo?.('colossusdown'), 900));
   G.events.on('trap:ignite', () => setTimeout(() => G.audio?.vo?.('ignited'), 300));
-  G.events.on('od:start', () => { odf.classList.add('on'); odt.classList.add('on'); glitch(); });
+  G.events.on('od:start', () => { setTimeout(() => { if (G.od?.S?.active !== false) odf.classList.add('on'); }, 330); odt.classList.add('on'); glitch(); hint([], 0); hintEl.classList.remove('on'); }); // the READY prompt goes the moment it is used
   G.events.on('od:end', () => { odf.classList.remove('on'); odt.classList.remove('on'); });
   function addFeed(text, val, crit) {
     const d = document.createElement('div'); if (crit) d.className = 'crit'; d.innerHTML = `<span></span><em></em>`; d.firstChild.textContent = text; d.lastChild.textContent = val; feed.prepend(d);
@@ -165,7 +165,7 @@ export function createHUD(G) {
     i.style.transform = `rotate(${a}rad)`; i.style.transition = 'none'; i.style.opacity = 1;
     requestAnimationFrame(() => { i.style.transition = 'opacity 1s'; i.style.opacity = 0; });
   });
-  G.events.on('player:shieldBreak', () => { shRow.classList.remove('brk'); void shRow.offsetWidth; shRow.classList.add('brk'); alertMsg('SHIELD DOWN'); glitch(); visorCrack(); });
+  G.events.on('player:shieldBreak', () => { shRow.classList.remove('brk'); void shRow.offsetWidth; shRow.classList.add('brk'); alertMsg('SHIELD DOWN'); visorCrack(); }); // no glitch here: it happens all the time in a fight and read as a broken HUD
   G.events.on('ammo:gain', (e) => { if (!e.n) return; gain.textContent = `+${e.n} SALVAGED`; gain.classList.remove('go'); void gain.offsetWidth; gain.classList.add('go'); });
   for (const n of ['weapon:fire', 'player:hit', 'enemy:hit']) G.events.on(n, () => { combatT = 5; });
   G.events.on('player:dash', () => { abDash.classList.remove('pop'); void abDash.offsetWidth; abDash.classList.add('pop'); });
@@ -197,9 +197,16 @@ export function createHUD(G) {
     if (radCur.t > radCur.dur) { radCur = null; if (!radQ.length) rad.classList.remove('on'); }
   }
   // ---------- banners and key hints ----------
-  function banner(text, { sub = '', kind = '', dur = 3 } = {}) {
-    q('.ban b').textContent = text; q('.ban s').textContent = sub; ban.className = 'ban ' + kind; ban.style.setProperty('--dur', dur + 's'); void ban.offsetWidth; ban.classList.add('on');
+  // banners queue by priority: an act card (3) is never stepped on, events (2) wait their turn, minor notes (1: a zone
+  // name, a pickup, a line coming online) are smaller and only show when nothing more important is up
+  const banQ = []; let banUntil = 0, banPri = 0;
+  function banner(text, { sub = '', kind = '', dur = 3, pri = 2 } = {}) {
+    const now = performance.now() / 1000;
+    if (now < banUntil && pri <= banPri) { if (banQ.length < 4) banQ.push([text, { sub, kind, dur, pri }]); banQ.sort((a, b) => b[1].pri - a[1].pri); return; }
+    q('.ban b').textContent = text; q('.ban s').textContent = sub; ban.className = 'ban ' + kind + (pri <= 1 ? ' minor' : ''); ban.style.setProperty('--dur', dur + 's'); void ban.offsetWidth; ban.classList.add('on');
+    banUntil = now + dur * 0.85; banPri = pri;
   }
+  function banTick() { if (banQ.length && performance.now() / 1000 >= banUntil) { const [t, o] = banQ.shift(); banUntil = 0; banner(t, o); } }
   let hintT = 0;
   function hint(pairs, dur = 5) { hintEl.innerHTML = pairs.map(([k, t]) => `<span><span class="kc">${k}</span>${t}</span>`).join(''); hintEl.classList.add('on'); hintT = dur; }
   // power-on sequence (deploy)
@@ -210,6 +217,7 @@ export function createHUD(G) {
   const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _c = new THREE.Vector3();
   let lastHeading = 0;
   function update(dt) {
+    banTick();
     dt = G.realDt || dt;
     const W = G.weapon, p = G.player.s, cam = G.R.camera; if (!W) return;
     const playing = G.flow?.S && ['play', 'extract'].includes(G.flow.S.state);
@@ -219,10 +227,11 @@ export function createHUD(G) {
     strip.style.transform = `translateX(${(23 - (heading + 180) * K).toFixed(2)}rem)`;
     const card = CARD[Math.round(heading / 45) * 45 % 360];
     setTx(cmpHd, pad3(heading));
-    const marks = G.obj?.marks || [];
+    const marks = G.obj?.marks || [], placed = [];
     marks.forEach((m, i) => {
       const e = markPool[i] || (markPool[i] = mkEl());
       let rel = ((bearing(p.pos, m.p) - heading + 540) % 360) - 180; const edge = Math.abs(rel) > 70; rel = Math.max(-70, Math.min(70, rel));
+      if (placed.some((q) => q.k === m.kind && Math.abs(q.r - rel) < 5)) { e.style.opacity = 0; return; } placed.push({ k: m.kind, r: rel }); // two weak points on one bearing: one mark
       e.style.transform = `translateX(${(23 + rel * K).toFixed(2)}rem)`; e.style.opacity = 1;
       const cls = 'mk' + (m.kind ? ' ' + m.kind : '') + (edge ? ' edge' : ''); if (e._c !== cls) { e._c = cls; e.className = cls; }
       setTx(e.children[1], m.label || ''); setTx(e.children[2], `${Math.round(Math.hypot(m.p.x - p.pos.x, m.p.z - p.pos.z))}M`);
@@ -236,14 +245,16 @@ export function createHUD(G) {
     }
     for (let i = en; i < enPool.length; i++) enPool[i].style.opacity = 0;
     // world-space objective markers (screen-edge clamped when off screen)
-    let wi = 0;
+    let wi = 0; const onScr = [];
     for (const m of marks) {
       const d = Math.hypot(m.p.x - p.pos.x, m.p.z - p.pos.z); if (d < 3.5 && m.kind !== 'boss') continue;
       const e = wPool[wi] || (wPool[wi] = wEl()); wi++;
       _v.copy(m.p); _v.y = (m.kind === 'boss' ? 9 : (m.p.y || 0) + 2.6); _v.project(cam);
       const behind = _v.z > 1; let x = _v.x * (behind ? -1 : 1), y = _v.y * (behind ? -1 : 1);
       const off = behind || Math.abs(x) > 0.9 || Math.abs(y) > 0.8; if (off) { const k = Math.max(Math.abs(x) / 0.9, Math.abs(y) / 0.8, 1e-3); x /= k; y /= k; if (behind && Math.abs(y) < 0.6) { x = Math.sign(x || 1) * 0.9; } }
-      e.style.transform = `translate(${((x * 0.5 + 0.5) * innerWidth).toFixed(0)}px,${((-y * 0.5 + 0.5) * innerHeight).toFixed(0)}px)`; e.style.opacity = 1;
+      const sx = (x * 0.5 + 0.5) * innerWidth, sy = (-y * 0.5 + 0.5) * innerHeight;
+      if (onScr.some((q) => q.k === m.kind && Math.hypot(q.x - sx, q.y - sy) < 90)) { e.style.opacity = 0; continue; } onScr.push({ k: m.kind, x: sx, y: sy }); // overlapping marks of one kind: the nearer one only
+      e.style.transform = `translate(${sx.toFixed(0)}px,${sy.toFixed(0)}px)`;
       const ctr = !off && Math.hypot(x * innerWidth / innerHeight, y) < 0.22; // near the crosshair: diamond only, label off, so it never fights the enemy tags
       e.style.opacity = ctr ? 0.55 : 1;
       const cls = 'wmk' + (m.kind ? ' ' + m.kind : '') + (m.kind === 'boss' || d > 12 ? ' pulse' : '') + (ctr ? ' ctr' : ''); if (e._c !== cls) { e._c = cls; e.className = cls; }
@@ -260,9 +271,12 @@ export function createHUD(G) {
     }
     // storm clock
     const F = G.flow?.S; const sc = F?.stormClock;
-    q('.storm .z').style.transform = `scaleX(${sc != null && sc > 0 ? Math.min(1, sc / 180).toFixed(3) : F?.act === 2 ? 1 : 0})`;
-    if (sc != null && sc > 0) { const s = Math.ceil(sc); setTx(stormV, `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`); stormEl.classList.toggle('crit', sc < 15); stormV.classList.remove('tx'); }
-    else { setTx(stormV, F?.act === 2 ? 'IN STORM' : F?.act >= 3 ? 'PASSED' : '--:--'); stormEl.classList.toggle('crit', F?.act === 2); stormV.classList.add('tx'); }
+    const counting = sc != null && sc > 0 && !F?.stormFF;
+    stormZ.style.transform = `scaleX(${counting ? Math.min(1, sc / 180).toFixed(3) : 0})`; // the bar only under a running countdown
+    setTx(stormT, F?.act >= 2 ? 'SANDSTORM' : 'STORM FRONT IN');
+    if (sc != null && sc > 0 && F?.stormFF) { setTx(stormV, 'IMMINENT'); stormEl.classList.add('crit'); stormV.classList.add('tx'); } // the front is accelerating: no countdown that jumps
+    else if (counting) { const s = Math.ceil(sc); setTx(stormV, `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`); stormEl.classList.toggle('crit', sc < 15); stormV.classList.remove('tx'); }
+    else { setTx(stormV, F?.act === 2 ? 'ACTIVE' : F?.act >= 3 ? 'PASSED' : '--:--'); stormEl.classList.toggle('crit', F?.act === 2); stormV.classList.add('tx'); }
     rT -= dt; sweep += dt * 2.6; if (rT <= 0) { rT = 1 / 20; radar(heading); }
     // vitals
     const sh = p.shield ?? 0, shM = p.maxShield || 1;
@@ -300,7 +314,7 @@ export function createHUD(G) {
     if (aim) { aim.seenT = 2; onEnemy = true; }
     for (const e of list) { if (e.seenT > 0) e.seenT -= dt; }
     for (const e of list) {
-      if (ti >= tags.length) break; if (e !== aim && !(e.scanT > 0)) continue;
+      if (ti >= tags.length) break; if (e !== aim) continue; // a tag only on what you aim at: the scan shows silhouettes, not a wall of labels
       _v.copy(e.root.position).setY(2.05).project(cam); _w.copy(e.root.position).setY(0.05).project(cam); if (_v.z > 1 || _w.z > 1) continue;
       const tg = tags[ti++]; const x = (_v.x * 0.5 + 0.5) * innerWidth, yTop = (-_v.y * 0.5 + 0.5) * innerHeight, yBot = (-_w.y * 0.5 + 0.5) * innerHeight;
       const h = Math.max(18, yBot - yTop), w = h * 0.5;

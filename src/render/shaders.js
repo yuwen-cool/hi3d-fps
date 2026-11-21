@@ -22,9 +22,12 @@ export const DEPTH_HALF = COMMON + /* glsl */`
 uniform sampler2D tDepth; uniform vec2 uSrcRes;
 out vec4 o;
 void main(){
-  ivec2 p = ivec2(gl_FragCoord.xy * 2.0);
-  p = min(p, ivec2(uSrcRes) - 1);
-  float d = texelFetch(tDepth, p, 0).r;
+  // checkerboard min/max of the 2x2 block: alternate texels keep the nearest and the farthest surface, so thin near
+  // structures (lattice towers, rails) and the sky behind them are both present at half res and the upsample finds a match
+  ivec2 p0 = ivec2(gl_FragCoord.xy) * 2, mx = ivec2(uSrcRes) - 1; bool near = ((int(gl_FragCoord.x) + int(gl_FragCoord.y)) & 1) == 0;
+  float dn = 1.0, df = 0.0;
+  for (int j = 0; j < 2; j++) for (int i = 0; i < 2; i++) { float s = texelFetch(tDepth, min(p0 + ivec2(i, j), mx), 0).r; if (s < 0.05) continue; dn = min(dn, s); df = max(df, s); }
+  float d = df == 0.0 ? texelFetch(tDepth, min(p0, mx), 0).r : (near ? dn : df);
   float z = d < 0.05 ? 0.01 : linZ(d);
   o = vec4(z, d, 0.0, 1.0);
 }`;
@@ -197,15 +200,20 @@ void main(){
   if (d < 0.05) { o = col; return; }        // weapon untouched
   float zc = linZ(d);
   vec2 hp = vUv * uHalfRes - 0.5; vec2 f = fract(hp); vec2 b = (floor(hp) + 0.5) / uHalfRes; vec2 px = 1.0 / uHalfRes;
-  vec4 aoS = vec4(0.0), vS = vec4(0.0); float wS = 0.0;
-  for (int j = 0; j < 2; j++) for (int i = 0; i < 2; i++) {
-    vec2 uv = b + vec2(i, j) * px;
-    float bw = (i == 0 ? 1.0 - f.x : f.x) * (j == 0 ? 1.0 - f.y : f.y);
-    float zh = texture(tZ, uv).r;
-    float w = bw / (0.015 + abs(zh - zc) / zc);
-    aoS += texture(tAO, uv) * w; vS += texture(tVol, uv) * w; wS += w;
+  vec4 aoS = vec4(0.0), vS = vec4(0.0); float wS = 0.0, bestE = 1e9; vec2 bestUv = b;
+  for (int j = 0; j < 4; j++) { // the 2x2 bilinear footprint plus the ring around it (checkerboard depth: a match is usually close)
+    for (int i = 0; i < 4; i++) {
+      vec2 uv = b + vec2(i - 1, j - 1) * px; float zh = texture(tZ, uv).r, e = abs(zh - zc) / zc;
+      if (e < bestE) { bestE = e; bestUv = uv; }
+      if (i == 0 || j == 0 || i == 3 || j == 3) continue;
+      float bw = (i == 1 ? 1.0 - f.x : f.x) * (j == 1 ? 1.0 - f.y : f.y);
+      float w = bw / (0.015 + e);
+      aoS += texture(tAO, uv) * w; vS += texture(tVol, uv) * w; wS += w;
+    }
   }
   aoS /= wS; vS /= wS;
+  { float bilE = 0.0; vec2 c = b + f * px; bilE = abs(texture(tZ, c).r - zc) / zc;
+    if (bilE > 0.08 && bestE < 0.05) { aoS = texture(tAO, bestUv); vS = texture(tVol, bestUv); } } // no good blend here: take the sample from the same surface
   if (uUseAO == 1) {
     float lit = smoothstep(0.16, 0.85, luma(col.rgb) * uExposureHint);
     float a = mix(1.0, aoS.r, uAOStrength * (1.0 - 0.8 * lit));
@@ -255,7 +263,7 @@ void main(){
     float dist = length(wq - uScan.xyz), r = uScan.w;
     float w = 0.28 + r * 0.018;
     float ring = exp(-pow((dist - r) / w, 2.0)) + 0.35 * exp(-pow((dist - r + w * 3.0) / (w * 2.5), 2.0));
-    float behind = step(dist, r) * exp(-(r - dist) / 7.0);
+    float behind = step(dist, r) * exp(-(r - dist) / 2.6); // the grid only trails the ring briefly: a sweep, not a wireframe view
     vec3 dx = dFdx(wq), dy = dFdy(wq); vec3 n = abs(normalize(cross(dx, dy) + 1e-6));
     vec3 gp = wq * 0.75; vec3 g = abs(fract(gp) - 0.5) / max(fwidth(gp), vec3(1e-4));
     float lx = 1.0 - clamp(min(g.y, g.z) - 0.5, 0.0, 1.0), ly = 1.0 - clamp(min(g.x, g.z) - 0.5, 0.0, 1.0), lz = 1.0 - clamp(min(g.x, g.y) - 0.5, 0.0, 1.0);
@@ -263,7 +271,7 @@ void main(){
     float line = lx * n.x + ly * n.y + lz * n.z;
     float near = 1.0 - smoothstep(45.0, 90.0, zc);
     vec3 cy = vec3(0.32, 0.92, 1.0);
-    col.rgb += cy * (ring * 7.0 + line * behind * 1.6 + behind * 0.05) * uScanA * near;
+    col.rgb += cy * (ring * 6.0 + line * behind * 0.9 + behind * 0.04) * uScanA * near;
   }
   o = vec4(max(col.rgb, 0.0), 1.0);
 }`;
@@ -397,7 +405,7 @@ void main(){
     vec2 su = vUv * vec2(uRes.x / uRes.y, 1.0); float st = 0.0;
     for (int i = 0; i < 3; i++) { float fi = float(i); vec2 q = su * vec2(2.5 + fi * 2.0, 55.0 + fi * 25.0) + vec2(uTime * (6.0 + fi * 3.5), fi * 7.0);
       float h = hash12(floor(q)); float fr = fract(q.x); st += step(0.992 - fi * 0.003, h) * smoothstep(0.0, 0.08, fr) * smoothstep(0.55, 0.15, fr) * (0.6 + 0.4 * h); }
-    m += vec3(1.0, 0.78, 0.52) * st * 0.12 * uStormLook * (0.15 + 0.85 * edge);
+    m += vec3(1.0, 0.78, 0.52) * st * 0.05 * uStormLook * edge * edge; // only a faint scatter at the very rim: in the middle of the view it read as a fault
     m = mix(m, m * vec3(0.92, 0.78, 0.62), edge * uStormLook * 0.35); // dust packed in the visor rim
   }
   if (uOver > 0.001) { // overdrive: the world drains to cold blue, heat (fire, tracers, outlines) stays hot

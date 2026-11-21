@@ -10,14 +10,14 @@ export function createCine(G) {
   const card = el.querySelector('.card'), calls = el.querySelector('.calls');
   const S = { cur: null, t: 0, skip: false };
   const _p = new THREE.Vector3();
-  const onSkip = (e) => { if (S.cur && S.t > 0.6 && (e.type === 'mousedown' || ['Space', 'Enter', 'Escape'].includes(e.code))) S.skip = true; };
+  const onSkip = (e) => { if (S.cur && !S.cur.noSkip && S.t > 0.6 && (e.type === 'mousedown' || ['Space', 'Enter', 'Escape'].includes(e.code))) S.skip = true; };
   addEventListener('keydown', onSkip); addEventListener('mousedown', onSkip);
 
   function play(shot) {
     if (G.params.shot && !G.params.cine) { shot.start?.(); shot.end?.(); return; } // capture tools skip cutscenes unless asked
     S.cur = shot; S.t = 0; S.skip = false; S.fov0 = cam.fov;
     G.cinematic = true; G.camLocked = true; G.hudHidden = true; G.viewModelVisible = false;
-    el.classList.add('on');
+    el.classList.add('on'); el.querySelector('.skip').style.display = shot.noSkip ? 'none' : '';
     card.className = 'card'; if (shot.card) { card.querySelector('.cl').textContent = shot.card.cls || ''; card.querySelector('.nm').textContent = shot.card.name || ''; card.querySelector('.th').innerHTML = shot.card.threat || ''; }
     calls.innerHTML = (shot.callouts || []).map((c) => `<div class="call"><i></i><b></b><span>${c.label}</span></div>`).join('');
     shot.start?.();

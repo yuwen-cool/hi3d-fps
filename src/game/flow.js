@@ -16,6 +16,7 @@ const WAVES = [{ n: 4, ch: 1 }, { n: 3, ch: 1, dr: 3 }, { n: 4, ch: 1, hv: 1, dr
 // act 3: the colossus walks the tank farm's lanes (22 m north-south, 26 m east-west), round the crossroads
 const BOSS_PATH = [V(-47, 0, -28), V(-46, 0, -13), V(-47, 0, -30), V(-61, 0, -30), V(-47, 0, -45), V(-33, 0, -30)];
 const BOSS_IN = V(-92, 0, -30), BOSS_TRAP = V(-50, 0, -31);
+const GATE_W = V(-21.6, 1.4, -24); // the yard's west gate onto the tank farm lane
 const STORM_CLOCK = 240; // act 1 has two valves now (yard, then the gallery in the process unit)
 // the dropship settles over the pad nose-west (wings across the wall line), belly ~3.4 m up; the boarding shot is taken from inside the yard
 const SHIP = { hover: V(-47, 3.4, 1), yaw: Math.PI / 2, cam0: V(-36, 1.8, -8), cam1: V(-38.5, 2.6, -5) };
@@ -56,6 +57,8 @@ export function createFlow(G) {
   // is a world point on screen and not hidden behind geometry?
   const _iv = new THREE.Vector3(), _ce = new THREE.Vector3();
   function inView(p, m = 0.8) { const cam = G.R.camera; _iv.copy(p).project(cam); if (_iv.z > 1 || Math.abs(_iv.x) > m || Math.abs(_iv.y) > m) return false; return G.phys.los(cam.getWorldPosition(_ce), p); }
+  // for set pieces: really visible — a ray against the scene meshes (roofs, decks, pipes), not just the collision boxes
+  function seen(p, m = 0.8, r = 3) { if (!inView(p, m)) return false; const c = G.R.camera.getWorldPosition(_ce), d = p.clone().sub(c), L = d.length(); const h = G.phys.raycast(c, d.normalize(), L); return !h || h.distance > L - r; } // r: the target's own radius
   const valveA = () => G.level.valves?.find((v) => v.id === 'A'), valveB = () => G.level.valves?.find((v) => v.id === 'B');
   G.obj = null;
   function obj(o) { G.obj = { ...G.obj, ...o }; }
@@ -100,7 +103,7 @@ export function createFlow(G) {
     const vA = valveA()?.pos || V(-7, 0, -25);
     for (const [p, y] of [[V(vA.x - 2.5, 0, vA.z + 3.2), 2.6], [V(vA.x + 3.2, 0, vA.z + 1.5), -2.2], [V(-5, 0, -12), 0.3], [V(6, 0, -10), -0.4]]) if (!G.phys.blocked(p.x, p.z, 0.45)) E()?.spawn(p, { yaw: y });
     obj({ act: 1, title: 'ACT 1 // DUSK', line: valveA() ? 'OPEN VALVE A' : 'CLEAR THE YARD', count: valveA() ? [0, 1] : null, marks: valveA() ? [{ p: vA, label: 'A', name: 'VALVE A' }] : [], sub: null });
-    hud()?.banner?.('ACT 1 // DUSK', { sub: 'OPEN VALVE A — HOLD THE YARD', dur: 3.5 });
+    hud()?.banner?.('ACT 1 // DUSK', { sub: 'OPEN VALVE A — HOLD THE YARD', dur: 3.5 , pri: 3 });
     later(0.7, () => { say('deploy'); say('valve'); });
     // the colossus is already out there: a silhouette walking along the storm front, lit by the lightning
     later(9, () => {
@@ -144,7 +147,7 @@ export function createFlow(G) {
     if (G.player.s.pos.distanceTo(P_.at) < 2.4) {
       P_.taken = true; G.weapon.unlockLance(); G.weapon.swapTo('lance');
       obj({ marks: (G.obj?.marks || []).filter((m) => m.kind !== 'pick') });
-      hud()?.banner?.('ARC-7 LANCE', { kind: 'good', sub: 'HOLD FIRE TO CHARGE — PIERCES SHIELDS', dur: 3 });
+      hud()?.banner?.('ARC-7 LANCE', { kind: 'good', sub: 'HOLD FIRE TO CHARGE — PIERCES SHIELDS', dur: 3 , pri: 1 });
       hud()?.hint?.([['2', 'LANCE'], ['1', 'CARBINE'], ['LMB', 'HOLD TO CHARGE']], 6); G.audio?.play?.('bolt', { gain: 1, rate: 0.8 });
     }
   }
@@ -163,7 +166,7 @@ export function createFlow(G) {
       ps.pos.set(4.5, 0, -33); ps.yaw = 0; // at the yard's south gate, facing the process unit
       Object.assign(env() || {}, { front: 150, storm: 1, night: 0 }); setAct(1); S.wave = 0; toStorm(false);
     }
-    hud()?.boot?.(); if (n < 3) hud()?.banner?.(`ACT ${n} // CHECKPOINT`, { sub: 'THE LANCE IS LOADED — VALVES ARE OPEN', dur: 3 }); // act 3 has its own card
+    hud()?.boot?.(); if (n < 3) hud()?.banner?.(`ACT ${n} // CHECKPOINT`, { sub: 'THE LANCE IS LOADED — VALVES ARE OPEN', dur: 3 , pri: 3 }); // act 3 has its own card
   }
   // ---------- kill feel + bookkeeping ----------
   G.events.on('enemy:killed', (e) => {
@@ -184,6 +187,13 @@ export function createFlow(G) {
   G.events.on('boss:overload', () => { S.bossPhase = 'trap'; say('overload'); hud()?.banner?.('IT IS OVERLOADING', { kind: 'crit', sub: 'IGNITE THE FLARE LINE', dur: 3.2 }); G.audio?.play?.('alarm', { gain: 0.8 });
     const ig = igniter(); if (ig) { ig.lamp.material.color.setRGB(9, 1.2, 0.2); obj({ line: 'IGNITE THE FLARE LINE', count: null, unit: null, marks: [{ p: ig.pos, label: 'F', name: 'IGNITER' }] }); } });
   G.events.on('boss:dead', () => { S.bossDead = true; });
+  // its death is the climax: a slow circling shot as it goes down and blows, then back to the player
+  G.events.on('boss:dying', () => {
+    const B = G.boss; if (!G.cine || !B) return; const c0 = B.hull.position.clone(), a0 = Math.atan2(G.R.camera.position.x - c0.x, G.R.camera.position.z - c0.z);
+    G.cine.play({ dur: 6.5,
+      cam: (t) => { const a = a0 + t * 0.16, r = 34 - t * 1.5, look = B.hull.position.clone().add(V(0, 2, 0)); return { pos: V(c0.x + Math.sin(a) * r, 3.2 + t * 0.35, c0.z + Math.cos(a) * r), look, fov: 50 - t * 1.2 }; },
+      card: { cls: 'TARGET', name: 'COLOSSUS DESTROYED', threat: 'SECTOR 7 // <b>CLEAR</b>', at: 3.2 } });
+  });
   G.events.on('scan:fire', () => { S.scanned = true; });
   if (G.params.shot && !G.params.noenemies) setTimeout(start, 0);
 
@@ -209,7 +219,7 @@ export function createFlow(G) {
       v.lamp.material.color.setRGB(0.6, 5, 1.2);
       G.audio?.play?.('pressure', { pos: v.top, ref: 10, gain: 1.1 }); G.audio?.play?.('objective', { gain: 0.8 }); G.player.addShake(0.25);
       for (let i = 0; i < 24; i++) G.fxs?.emit(true, { pos: v.top.clone().add(V(0, -0.5, 0)), vel: V((Math.random() - 0.5) * 3, 1.5 + Math.random() * 2, (Math.random() - 0.5) * 3), life: 1.6, size: 0.15, size1: 1.2, col: G.fxs.litColor([0.85, 0.85, 0.85]), alpha: 0.35, soft: true, drag: 1.5, rise: 0.8 });
-      hud()?.banner?.('PRESSURE LINE A ONLINE', { kind: 'good', dur: 2.8 }); say('opened');
+      hud()?.banner?.('PRESSURE LINE A ONLINE', { kind: 'good', dur: 2.8 , pri: 1 }); say('opened');
       obj({ count: [1, 1], marks: [] }); S.step = 'hold'; S.waveT = 2.5; G.events.emit('valve:open', { id: v.id });
       later(2.5, dropPod);
     } });
@@ -219,14 +229,14 @@ export function createFlow(G) {
     const v = valveB(); if (!v || v.open) return;
     holdTick(v, dt, { label: 'HOLD — OPEN VALVE B', hold: 1.6, col: [0.2, 0.7, 1], done: () => {
       v.lamp.material.color.setRGB(0.6, 5, 1.2); G.audio?.play?.('pressure', { pos: v.top, ref: 10, gain: 1.1 }); G.audio?.play?.('objective', { gain: 0.8 }); G.player.addShake(0.25);
-      hud()?.banner?.('PRESSURE LINE B ONLINE', { kind: 'good', dur: 2.8 }); say('openedB'); G.events.emit('valve:open', { id: v.id });
+      hud()?.banner?.('PRESSURE LINE B ONLINE', { kind: 'good', dur: 2.8 , pri: 1 }); say('openedB'); G.events.emit('valve:open', { id: v.id });
       S.step = 'storm'; S.stormFF = true; obj({ line: 'BRACE FOR THE STORM', count: null, unit: null, marks: [] }); G.audio?.play?.('alarm', { gain: 0.6 });
     } });
   }
   function toValveB() {
     S.step = 'valveB'; const v = valveB(); if (!v) { S.step = 'storm'; S.stormFF = true; return; }
     say('valveB'); obj({ line: 'OPEN VALVE B — PIPE GALLERY', count: [0, 1], unit: null, marks: [{ p: v.top, label: 'B', name: 'VALVE B' }] });
-    hud()?.banner?.('PROCESS UNIT', { sub: 'VALVE B — TOP OF THE PIPE GALLERY', dur: 3 });
+    hud()?.banner?.('PROCESS UNIT', { sub: 'VALVE B — TOP OF THE PIPE GALLERY', dur: 3 , pri: 1 });
     // a guard on the gallery: two riflemen under it, a shield heavy on the approach
     for (const [p, k] of [[V(-6, 0, -55), 'rifle'], [V(8, 0, -56), 'rifle'], [V(0, 0, -47), 'heavy'], [V(-14, 0, -64), 'rifle']]) if (!G.phys.blocked(p.x, p.z, 0.45)) { const e = E()?.spawn(p, { yaw: 0, kind: k }); if (e) e.state = 'patrol'; }
   }
@@ -237,6 +247,7 @@ export function createFlow(G) {
     G.audio?.play?.('whoomp', { gain: 1.3 }); G.audio?.play?.('pressure', { gain: 1.2, rate: 1.3 }); G.player.addShake(0.5); G.R.fx.punch = 0.8;
     hud()?.banner?.('FLARE LINE IGNITED', { kind: 'good', dur: 2.5 }); G.events.emit('trap:ignite', {});
     G.fire?.add(from.clone().addScaledVector(dir, 1.2).setY(1.1), { size: 2.6, life: 7, dir: dir.clone().add(V(0, 0.12, 0)), dmg: 0, smoke: false });
+    G.player.assist?.(B.hull.position.clone(), 0.5, 2.6); // the fire wall reaches it: be looking
     const n = Math.ceil((L - 2.5) / 1.5);
     for (let i = 0; i <= n; i++) later(0.05 * i, () => { const p = from.clone().addScaledVector(dir, 2.5 + i * 1.5).setY(0.1); G.fire?.add(p, { size: 1.5 + i * 0.06, life: 30 + G.rng() * 20, dmg: 10 }); G.R.flash(p.clone().setY(1.5), 0xff9a40, 25, 8, 0.15); });
     for (let i = 0; i < 6; i++) later(0.6 + i * 0.22, () => { G.fxs?.explosion(B.hull.position.clone().add(V((G.rng() - 0.5) * 7, (G.rng() - 0.3) * 4, (G.rng() - 0.5) * 7)), 1.2 + G.rng() * 0.8); G.player.addShake(0.35); });
@@ -245,6 +256,23 @@ export function createFlow(G) {
     later(1.7, () => { G.boss.trapKill(); G.slowmo(2.2, 0.25); });
   }
 
+  // a short camera insert for a set piece the player isn't looking at: a vantage point with a clear view of the target
+  // (boxes only; tried from the player's side first), a slow push-in, letterboxed. Returns false if none can play.
+  function vantage(target, offs) {
+    const pp = G.player.s.pos, b = { minX: -72, maxX: 22, minZ: -74, maxZ: 8 }; // the play area
+    const cands = offs.map((o) => target.clone().add(o)).sort((a, c) => a.distanceTo(pp) - c.distanceTo(pp));
+    for (const c of cands) { if (c.x < b.minX + 2 || c.x > b.maxX - 2 || c.z < b.minZ + 2 || c.z > b.maxZ - 2) continue;
+      if (G.phys.blocked(c.x, c.z, 0.6, c.y - 1.5, c.y + 1.5)) continue;
+      if (G.phys.los(c, target) && G.phys.los(c, target.clone().setY(target.y + 6))) return c; }
+    return null;
+  }
+  function insert(target, offs, o) {
+    if (!G.cine || G.cine.playing || S.state !== 'play') return false; const c0 = vantage(target, offs); if (!c0) return false;
+    const c1 = c0.clone().lerp(target, 0.12).setY(c0.y - 0.6);
+    G.cine.play({ dur: o.dur, cam: (t) => { const k = Math.min(1, t / o.dur), e = k * k * (3 - 2 * k); return { pos: c0.clone().lerp(c1, e), look: o.look ? o.look(t) : target, fov: 52 - 6 * e, roll: Math.sin(t * 1.7) * 0.004 }; },
+      start: o.start, end: o.end });
+    return true;
+  }
   // the distillation column behind the colossus topples toward the yard
   function fellTower() {
     const o = G.level.fallTower; if (!o || S.fell) return; S.fell = { o, t: 0, axis: V(1, 0, 0.25).normalize() };
@@ -252,7 +280,11 @@ export function createFlow(G) {
     G.events.emit('tower:fall', { pos: o.position.clone() });
   }
   // the column on the ground: a long box to stand behind, robots path round it
-  function settleTower(f) { const base = f.o.position, mn = V(base.x - 1.6, 0, base.z), mx = V(base.x + 1.6, 2.6, base.z + 15); G.phys.addBox(mn, mx, 'metal'); E()?.reblock?.(mn, mx); }
+  function settleTower(f) { const base = f.o.position, mn = V(base.x - 1.6, 0, base.z), mx = V(base.x + 1.6, 2.6, base.z + 15);
+    for (const o of G.phys.query(mn.x, mn.z, mx.x, mx.z)) if (o.max.y < 2.7 && o.max.x - o.min.x < 4 && o.max.z - o.min.z < 4 && o.min.x < mx.x && o.max.x > mn.x && o.min.z < mx.z && o.max.z > mn.z) { mn.min(V(o.min.x, 0, o.min.z)); mx.max(V(o.max.x, 2.6, o.max.z)); } // what it lands on is part of the heap: no slots beside it
+    G.phys.addBox(mn, mx, 'metal'); E()?.reblock?.(mn, mx);
+    const pp = G.player.s.pos, r = 0.45; // never seal the player inside it: out to the nearer long side
+    if (pp.x > mn.x - r && pp.x < mx.x + r && pp.z > mn.z - r && pp.z < mx.z + r && pp.y < mx.y) pp.x = pp.x - mn.x < mx.x - pp.x ? mn.x - r - 0.05 : mx.x + r + 0.05; }
   function towerTick(dt) {
     const f = S.fell; if (!f || f.done) return; f.t += dt;
     const k = Math.min(1, Math.pow(f.t / 3.2, 2.2)); f.o.rotation.set(0, f.o.rotation.y, 0); f.o.rotateOnWorldAxis(f.axis, k * 1.45);
@@ -283,7 +315,7 @@ export function createFlow(G) {
     obj({ act: 2, title: 'ACT 2 // SANDSTORM', line: 'SURVIVE THE STORM', count: [0, 2], unit: 'WAVES', marks: [], sub: null });
     G.audio?.play?.('alarm', { gain: 0.7 });
     stormShot(() => {
-      hud()?.banner?.('SANDSTORM', { kind: 'crit', sub: 'VISIBILITY LOST — USE YOUR SCAN', dur: 3.5 }); hud()?.boot?.();
+      hud()?.banner?.('SANDSTORM', { kind: 'crit', sub: 'VISIBILITY LOST — USE YOUR SCAN', dur: 3.5 , pri: 3 }); hud()?.boot?.();
       say('storm'); later(3, () => { if (!S.scanned) hud()?.hint?.([['Q', 'SCAN PULSE']], 7); });
     });
     later(14, () => G.boss?.hideDistant()); // swallowed by the storm
@@ -299,8 +331,11 @@ export function createFlow(G) {
     // the column comes down once the player can see it (assist the view after a few seconds otherwise)
     if (S.towerT != null && !S.fell && G.level.fallTower) {
       S.towerT += dt; const top = G.level.fallTower.position.clone().setY(13);
-      if (S.towerT > 1.2 && inView(top, 0.85)) fellTower();
-      else if (S.towerT > 4.5) { G.player.assist?.(top, 0.8, 0.3); if (S.towerT > 5.3) fellTower(); }
+      if (S.towerT > 1.2 && seen(top, 0.85)) fellTower();
+      else if (S.towerT > 3) { // not watching: cut to it
+        const base = G.level.fallTower.position, mid = base.clone().setY(7);
+        if (!insert(mid, [V(24, 8, 8), V(-24, 8, 8), V(20, 10, 22), V(-20, 10, 22), V(16, 6, 30)], { dur: 4.6, look: (t) => base.clone().add(V(0, 11 - 8 * Math.min(1, t / 3.6), 10 * Math.min(1, t / 3.6))), start: () => fellTower() })) fellTower();
+      }
     }
     // supply crates: ammo, grenades and health
     for (const c of G.level.crates || []) if (c.distanceTo(G.player.s.pos) < 2.2 && !(c.cdT > S.t)) { const a = G.weapon?.resupply(), h = G.player.heal?.(50); if (a || h) { c.cdT = S.t + 1.5; hud()?.addFeed?.('SUPPLY CRATE', h ? '+AMMO +HP' : '+AMMO'); } }
@@ -332,9 +367,11 @@ export function createFlow(G) {
       if (ev) ev.front = S.actT < 4.6 ? lerp(150, 85, S.actT / 4.6) : lerp(85, -140, sstep(S.actT, 4.6, 20)); // rolls in fast under the opening shot, then over the yard
       // lightning takes the storage tank — when the player is looking at it (or soon after, regardless)
       const pp2 = G.player.s.pos, tk = !S.tankHit && G.level.explosives.filter((o) => o.userData.explosive?.big && !o.userData.explosive.dead && !o.userData.explosive.mega && o.position.x > -22).sort((a, b) => a.position.distanceTo(pp2) - b.position.distanceTo(pp2))[0];
-      if (tk && S.actT > 6 && (inView(tk.position.clone().setY(9), 0.8) || S.actT > 45)) {
-        const seen = S.actT <= 45; S.tankHit = true; G.env?.strike(tk.position.clone().setY(30));
-        later(0.12, () => { G.explosives?.hurt(tk, 9999); if (seen) { G.slowmo(1.3, 0.3); G.player.addShake(0.6); G.player.assist?.(tk.position.clone().setY(5), 0.4, 1.6); } });
+      const strikeTank = (cine) => { S.tankHit = true; G.env?.strike(tk.position.clone().setY(30)); later(0.12, () => { G.explosives?.hurt(tk, 9999); G.slowmo(1.3, 0.3); G.player.addShake(0.6); if (!cine) G.player.assist?.(tk.position.clone().setY(5), 0.4, 1.6); }); };
+      if (tk && S.actT > 6 && seen(tk.position.clone().setY(9), 0.8, 8)) strikeTank(false);
+      else if (tk && S.actT > 34 && !S.tankLook) { S.tankLook = true; // not looked at: cut to it, the bolt lands half a second in
+        const at = tk.position.clone().setY(6);
+        if (!insert(at, [0, 1, 2, 3, 4, 5, 6, 7].map((i) => V(Math.cos(i * 0.785) * 26, 7, Math.sin(i * 0.785) * 26)), { dur: 3.2, look: () => at, start: () => later(0.5, () => strikeTank(true)) })) strikeTank(false);
       }
       if (S.wave >= 1) obj({ count: [S.wave - 1 + (clear ? 1 : 0), 2] });
       if (clear) {
@@ -350,11 +387,13 @@ export function createFlow(G) {
     // ---- act III: night falls on the burning yard; the colossus comes ----
     } else if (S.act === 3) {
       if (ev) { ev.night = sstep(S.actT, 0, 10); ev.storm = lerp(1, 0.05, sstep(S.actT, 0, 10)); ev.front = Math.min(ev.front, -140); } // the storm blows out: a clear night, a little dust left
-      if (S.actT > 6 && !S.bossIn) {
+      if (!S.bossIn && S.actT > 3 && !hostiles()) { const inC = G.player.s.pos.x < -22, line = inC ? 'TAKE COVER IN THE TANK FARM' : 'MOVE TO THE TANK FARM';
+        if (G.obj?.line !== line) obj({ line, count: null, unit: null, marks: inC ? [] : [{ p: GATE_W, label: '▸', name: 'TANK FARM' }] }); }
+      if (S.actT > 12 && !S.bossIn && (!hostiles() || S.actT > 35)) {
         S.bossIn = true; G.boss?.hideDistant(); G.boss?.spawn(BOSS_IN.clone(), Math.PI / 2, BOSS_PATH); G.boss.S.trap = BOSS_TRAP.clone(); G.audio?.play?.('alarm', { gain: 0.9 });
         revealBoss(() => {
           spawnWave(WAVES[3].n, WAVES[3].ch, null, WAVES[3]); hud()?.boot?.();
-          hud()?.banner?.('WARNING // MASSIVE CONTACT', { kind: 'crit', sub: 'COLOSSUS — CLASS-IV SIEGE WALKER', dur: 3.5 });
+          hud()?.banner?.('WARNING // MASSIVE CONTACT', { kind: 'crit', sub: 'COLOSSUS — CLASS-IV SIEGE WALKER', dur: 3.5 , pri: 3 });
           say('boss'); later(5, () => { if (G.player.s.pos.x > -22) say('tankfarm'); }); obj({ line: 'BREAK A LEG ACTUATOR', count: [0, 1], unit: 'LEGS' }); S.bossPhase = 'legs';
         });
       }
@@ -370,19 +409,19 @@ export function createFlow(G) {
     if (S.state === 'extract' && S.shipReady && G.player.s.pos.distanceTo(S.extract) < 3.2) { S.state = 'won'; G.obj = null; G.ship ? board() : G.events.emit('flow:won'); }
   }
   function toExtract() {
-    S.state = 'extract'; S.shipReady = !G.ship; say('dead'); hud()?.banner?.('COLOSSUS DESTROYED', { kind: 'good', sub: 'REACH THE PAD — DROPSHIP INBOUND', dur: 3.5 });
+    S.state = 'extract'; S.shipReady = !G.ship; say('dead'); hud()?.banner?.('COLOSSUS DESTROYED', { kind: 'good', sub: 'REACH THE PAD — DROPSHIP INBOUND', dur: 3.5 , pri: 3 });
     obj({ line: G.ship ? 'DROPSHIP INBOUND — HOLD AT THE PAD' : 'REACH EXTRACTION', count: null, marks: [{ p: S.extract, label: 'X', kind: 'ext', name: 'EXTRACTION' }] }); G.events.emit('flow:extract');
     if (G.ship) { G.ship.inbound(S.extract, SHIP); later(4, () => say('shipIn')); }
   }
   G.events.on('ship:ready', () => {
     if (S.state !== 'extract') return; S.shipReady = true; say('board');
-    obj({ line: 'BOARD THE DROPSHIP', marks: [{ p: S.extract, label: 'X', kind: 'ext', name: 'DROPSHIP' }] }); hud()?.banner?.('DROPSHIP ON THE PAD', { kind: 'good', sub: 'GET ABOARD', dur: 2.5 });
+    obj({ line: 'BOARD THE DROPSHIP', marks: [{ p: S.extract, label: 'X', kind: 'ext', name: 'DROPSHIP' }] }); hud()?.banner?.('DROPSHIP ON THE PAD', { kind: 'good', sub: 'GET ABOARD', dur: 2.5 , pri: 1 });
   });
   // boarding: from inside the yard, watch the ship come off the pad and turn west over the burning wreck
   function board() {
     say('won'); const sh = G.ship.S, C0 = SHIP.cam0, C1 = SHIP.cam1, look = V();
     G.cine.play({
-      dur: 600, // holds on the empty sky behind the results screen
+      dur: 600, noSkip: true, // the backdrop to the results screen: nothing to skip
       start() { G.ship.liftoff(() => G.events.emit('flow:won')); },
       cam(t) { look.lerp(sh.pos.clone().add(V(0, 1.5, 0)), t < 0.05 ? 1 : 0.06); return { pos: C0.clone().lerp(C1, ease(Math.min(1, t / 9))), look, fov: 58 - 14 * ease(Math.min(1, t / 7)) }; },
       end() {},
@@ -409,10 +448,11 @@ export function createFlow(G) {
       end: () => { const ps = G.player.s, d = B.hull.position.clone().sub(G.R.camera.position); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch = THREE.MathUtils.clamp(Math.atan2(d.y - 2, Math.hypot(d.x, d.z)), -0.3, 0.5); done(); },
     });
   }
+  // the storm blows out and night comes down first; the act card when it is dark; the machine once the yard is quiet
   function toNight() {
     if (S.act !== 2) return; S.wave = 2; setAct(3); S.waveT = 7;
-    obj({ act: 3, title: 'ACT 3 // NIGHT', line: 'STAND BY', count: null, unit: null, marks: [] }); say('passing');
-    hud()?.banner?.('ACT 3 // NIGHT', { sub: 'THE STORM PASSES', dur: 3 });
+    obj({ act: 3, title: 'ACT 3 // NIGHT', line: hostiles() ? 'CLEAR THE LAST HOSTILES' : 'MOVE TO THE TANK FARM', count: null, unit: null, marks: hostiles() ? [] : [{ p: GATE_W, label: '▸', name: 'TANK FARM' }] }); say('passing');
+    later(5, () => hud()?.banner?.('ACT 3 // NIGHT', { sub: 'THE STORM HAS PASSED', dur: 3.2, pri: 3 }));
   }
   return { update, S, start, deploy, checkpoint, setAct, fellTower, toExtract, dropPod };
 }

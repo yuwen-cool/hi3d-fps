@@ -24,10 +24,10 @@ export function createDropship(G) {
 
   // ---- lights + glow (created up front so the light count never changes mid-game) ----
   const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.22, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.12, 'rgba(255,255,255,0.5)'); g.addColorStop(0.35, 'rgba(255,255,255,0.08)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
   const spr = (r, g, b, s) => { const m = new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(r, g, b), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, toneMapped: false, fog: false }); const sp = new THREE.Sprite(m); sp.scale.setScalar(s); sp.userData.base = m.color.clone(); hull.add(sp); return sp; };
   const engines = [spr(1.6, 1.0, 0.55, 1.7), spr(1.6, 1.0, 0.55, 1.7)];
-  const navR = spr(6, 0.25, 0.15, 0.5), navG = spr(0.2, 6, 0.6, 0.5), strobe = spr(8, 8, 8, 1.2), beacon = spr(5, 0.4, 0.12, 0.45);
+  const navR = spr(6, 0.25, 0.15, 0.5), navG = spr(0.2, 6, 0.6, 0.5), strobe = spr(10, 10, 10, 0.7), beacon = spr(5, 0.4, 0.12, 0.45);
   // its belly light borrows the renderer's flash pool while it flies (a permanent light would cost every pixel all game)
   const under = { intensity: 0, position: V() }, underLocal = V(0, -0.6, 0);
   const spot = new THREE.SpotLight(0xdde8ff, 0, 80, 0.36, 0.55, 1.4); spot.castShadow = false; const spotT = new THREE.Object3D(); scene.add(spot, spotT); spot.target = spotT;

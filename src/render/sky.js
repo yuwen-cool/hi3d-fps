@@ -15,7 +15,7 @@ void main(){ vDir = normalize(position); vec4 p = projectionMatrix * modelViewMa
 
 const SKYFN = /* glsl */`
 uniform vec3 uSunDir, uSunCol, uZenith, uHorizon, uAway, uGround;
-uniform float uDisk, uTime, uEnv;
+uniform float uDisk, uTime, uEnv, uMoon;
 float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x), mix(h21(i + vec2(0, 1)), h21(i + vec2(1, 1)), f.x), f.y); }
@@ -39,6 +39,14 @@ vec3 skyColor(vec3 d){
   float m = max(mu, 0.0);
   col += uSunCol * (pow(m, 8.0) * 0.35 + pow(m, 64.0) * 0.9 + pow(m, 600.0) * 3.0 + pow(m, 6000.0) * 14.0) * (1.0 - 0.6 * uEnv);
   if (uEnv < 0.5) col += uSunCol * smoothstep(0.99992, 0.99997, mu) * 110.0 * uDisk;
+  // night: a moon where the key light is, its halo, and stars that fade into the horizon haze (main view only)
+  if (uEnv < 0.5 && uMoon > 0.0) {
+    vec3 mc = vec3(0.75, 0.85, 1.0);
+    col += mc * uMoon * (smoothstep(0.99978, 0.99986, mu) * 9.0 + pow(m, 900.0) * 0.8 + pow(m, 60.0) * 0.12 + pow(m, 8.0) * 0.025);
+    if (d.y > 0.0) { vec3 q = d * 260.0; vec3 c = floor(q); float r = fract(sin(dot(c, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+      float st = step(0.9965, r) * smoothstep(0.42, 0.06, length(fract(q) - 0.5)) * (0.6 + 0.4 * sin(uTime * (2.0 + r * 9.0) + r * 40.0));
+      col += vec3(0.9, 0.95, 1.0) * st * (r - 0.9965) * 900.0 * uMoon * smoothstep(0.08, 0.35, d.y) * (1.0 - smoothstep(0.9993, 0.9999, mu)); }
+  }
   // below horizon: dusty ground bounce
   if (d.y < 0.0) col = mix(hor * 0.9, uGround, smoothstep(0.0, 0.25, -d.y));
   return col;
@@ -74,7 +82,7 @@ export function makeSkyMaterial(sunDir, sunCol, env = false) {
     toneMapped: false, fog: false,
     uniforms: {
       uSunDir: { value: sunDir }, uSunCol: { value: sunCol }, uZenith: { value: SKY.zenith }, uHorizon: { value: SKY.horizon },
-      uAway: { value: SKY.horizonAway }, uGround: { value: SKY.ground }, uDisk: { value: 1 }, uTime: { value: 0 }, uEnv: { value: env ? 1 : 0 },
+      uAway: { value: SKY.horizonAway }, uGround: { value: SKY.ground }, uDisk: { value: 1 }, uTime: { value: 0 }, uEnv: { value: env ? 1 : 0 }, uMoon: { value: 0 },
     },
   });
 }

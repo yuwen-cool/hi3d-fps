@@ -29,7 +29,7 @@ export function createOverdrive(G) {
     if (S.active) {
       S.t += dt; const k = S.t / S.dur;
       for (const e of G.enemies?.list || []) if (e.alive) e.scanT = Math.max(e.scanT || 0, 0.6);
-      G.R.fx.over = Math.min(1, S.t * 5) * (k > 0.88 ? (1 - k) / 0.12 : 1);
+      G.R.fx.over = Math.min(1, S.t * 5) * (k > 0.88 ? (1 - k) / 0.12 : 1) * (1 - 0.5 * (G.env?.S.inside || 0)); // on top of the storm's own grade it went near-black
       if (S.t >= S.dur || G.player.s.dead) { S.active = false; G.enemyTime = 1; G.R.fx.over = 0; G.events.emit('od:end'); G.audio?.play?.('scan', { gain: 0.5, rate: 1.5 }); }
     }
   }

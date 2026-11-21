@@ -13,7 +13,7 @@ const ev = (f, a) => p.evaluate(f, a);
 const face = () => ev(() => { const G = __G, h = G.boss.hull.position, d = h.clone().sub(G.R.camera.position); G.player.s.yaw = Math.atan2(-d.x, -d.z); G.player.s.pitch = Math.atan2(d.y - 2.5, Math.hypot(d.x, d.z)); __step(2); });
 // straight to act 3 with the boss in, clear the small fry
 await ev(() => { const G = __G; G.god = true; G.flow.S.stormClock = 0.01; __step(10); G.flow.S.actT = 200; __step(3); for (let i = 0; i < 40 && !G.boss.S.active; i++) __step(30); __step(60 * 12, 1 / 60);
-  for (const e of G.enemies.list) if (e.alive) G.enemies.damage(e, 999, { part: 'body', point: e.root.position.clone() }, new G.THREE.Vector3(0, 0, 1)); __step(30); G.player.s.pos.set(-15, 0, -3); __step(2); });
+  for (const e of G.enemies.list) if (e.alive) G.enemies.damage(e, 999, { part: 'body', point: e.root.position.clone() }, new G.THREE.Vector3(0, 0, 1)); __step(30); G.player.s.pos.set(-40, 0, -22); __step(2); }); // the tank farm crossroads
 await face(); await shot('01_knees');
 await ev(() => { const G = __G, L = G.boss.legs.slice().sort((a, b) => a.k.w.distanceTo(G.player.s.pos) - b.k.w.distanceTo(G.player.s.pos))[0]; G.boss.damage({ knee: L, point: L.k.w.clone() }, 999); __step(8); });
 await shot('02_leg_break');

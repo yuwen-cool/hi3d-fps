@@ -27,7 +27,7 @@ export function ibeam(len, axis, x, y, z, s = 0.36) {
   return out;
 }
 // a straight cylinder between two points
-export function tube(a, b, r, seg = 16) {
+export function tube(a, b, r, seg = 28) {
   const d = b.clone().sub(a), L = d.length(); const g = new THREE.CylinderGeometry(r, r, L, seg, 1, true);
   g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(V(0, 1, 0), d.normalize())); g.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2); return g;
 }

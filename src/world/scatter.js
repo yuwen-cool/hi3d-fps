@@ -130,7 +130,7 @@ export async function dress(G, root) {
   const pipeMat = triplanarMaterial('rusty_metal_02', { metres: 1.2, cls: 'rust', tint: 0xa89684 });
   const pg = [];
   const pipe = (a, b, r) => {
-    const d = b.clone().sub(a); const L = d.length(); const g = new THREE.CylinderGeometry(r, r, L, 18, 1, true);
+    const d = b.clone().sub(a); const L = d.length(); const g = new THREE.CylinderGeometry(r, r, L, 28, 1, true);
     g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize())); g.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2); pg.push(g);
     for (let t = 1.6; t < L - 0.5; t += 3.2) { const f = new THREE.CylinderGeometry(r * 1.45, r * 1.45, 0.07, 18); f.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize())); const p = a.clone().addScaledVector(d, t / L); f.translate(p.x, p.y, p.z); pg.push(f); }
   };

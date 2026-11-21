@@ -67,7 +67,7 @@ export function createFX(G) {
   function emit(p, o) {
     if (p.P.length >= p.n) p.P.shift();
     p.P.push({ x: o.pos.x, y: o.pos.y, z: o.pos.z, vx: o.vel?.x || 0, vy: o.vel?.y || 0, vz: o.vel?.z || 0, life: o.life, age: 0, s0: o.size, s1: o.size1 ?? o.size,
-      r: o.col[0], g: o.col[1], b: o.col[2], a0: o.alpha ?? 1, grav: o.grav ?? 0, drag: o.drag ?? 0, stretch: o.stretch || 0, rot: rnd() * 6.28, vr: (rnd() - 0.5) * (o.spin || 0), soft: o.soft ? 1 : 0, rise: o.rise || 0, fadeIn: o.fadeIn || 0 });
+      r: o.col[0], g: o.col[1], b: o.col[2], a0: o.alpha ?? 1, grav: o.grav ?? 0, drag: o.drag ?? 0, stretch: o.stretch || 0, rot: rnd() * 6.28, vr: (rnd() - 0.5) * (o.spin || 0), soft: o.soft ? 1 : 0, rise: o.rise || 0, fadeIn: o.fadeIn || 0, still: !!o.still });
   }
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   function cone(n, spread) { const d = n.clone(); d.x += (rnd() - 0.5) * spread; d.y += (rnd() - 0.5) * spread; d.z += (rnd() - 0.5) * spread; return d.normalize(); }
@@ -200,7 +200,7 @@ export function createFX(G) {
       const p = P[i]; p.age += dt; if (p.age >= p.life) continue;
       const k = Math.exp(-p.drag * dt);
       p.vx *= k; p.vz *= k; p.vy = p.vy * k - p.grav * dt + p.rise * dt;
-      p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; if (p.y < 0.01 && p.grav > 0) { p.y = 0.01; p.vy *= -0.3; p.vx *= 0.5; p.vz *= 0.5; }
+      if (!p.still) { p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; } if (p.y < 0.01 && p.grav > 0) { p.y = 0.01; p.vy *= -0.3; p.vx *= 0.5; p.vz *= 0.5; }
       p.rot += p.vr * dt;
       const t = p.age / p.life;
       const size = p.s0 + (p.s1 - p.s0) * (1 - (1 - t) * (1 - t));
@@ -209,7 +209,7 @@ export function createFX(G) {
       const sp = Math.hypot(p.vx, p.vy, p.vz);
       b.iPos.array.set([p.x, p.y, p.z, size], n * 4);
       b.iCol.array.set([p.r, p.g, p.b, a], n * 4);
-      b.iVel.array.set(p.stretch && sp > 0.1 ? [p.vx / sp, p.vy / sp, p.vz / sp, p.stretch * Math.min(1, sp / 10)] : [0, 0, 0, 0], n * 4);
+      b.iVel.array.set(p.stretch && sp > 0.1 ? [p.vx / sp, p.vy / sp, p.vz / sp, p.stretch * (p.still ? 1 : Math.min(1, sp / 10))] : [0, 0, 0, 0], n * 4);
       b.iRot.array.set([p.rot, p.soft], n * 2);
       P[n++] = p;
     }
