@@ -219,6 +219,96 @@
    "n": 1,
    "sec": 12,
    "prompt": "Large fire burning, crackling and roaring flames, popping embers, seamless loop"
+  },
+  {
+   "key": "uiMove",
+   "n": 1,
+   "sec": 0.5,
+   "prompt": "Short soft futuristic menu hover tick, subtle crisp digital click, clean, dry, no reverb"
+  },
+  {
+   "key": "uiOk",
+   "n": 1,
+   "sec": 0.6,
+   "prompt": "Futuristic military interface confirm sound, firm digital chirp with a short low thump, clean, dry"
+  },
+  {
+   "key": "deploy",
+   "n": 1,
+   "sec": 3.0,
+   "prompt": "Heavy sci-fi combat helmet powering on: deep servo clunk, electronic hum rising, quick digital chirps of systems coming online, ends with a firm lock click"
+  },
+  {
+   "key": "scan",
+   "n": 2,
+   "sec": 2.2,
+   "prompt": "Sci-fi sonar scan pulse for a shooter game: a deep resonant ping followed by an expanding shimmering electronic sweep that fades out, powerful and clean"
+  },
+  {
+   "key": "dash",
+   "n": 2,
+   "sec": 0.6,
+   "prompt": "Fast short whoosh of a soldier dashing forward with a servo-assisted exosuit thrust burst, air rush, punchy, no voice"
+  },
+  {
+   "key": "slide",
+   "n": 1,
+   "sec": 0.9,
+   "prompt": "Body sliding fast across gravel and sand, short gritty scrape, close"
+  },
+  {
+   "key": "melee",
+   "n": 2,
+   "sec": 0.6,
+   "prompt": "Heavy rifle-butt strike smashing into an armoured robot, hard metal clang with a crunch"
+  },
+  {
+   "key": "shieldBreak",
+   "n": 1,
+   "sec": 1.0,
+   "prompt": "Energy shield shattering, glassy crystalline crack with an electrical fizz and a low thud"
+  },
+  {
+   "key": "shieldUp",
+   "n": 1,
+   "sec": 1.0,
+   "prompt": "Energy shield recharging to full, soft rising electronic hum ending in a clean chime"
+  },
+  {
+   "key": "valve",
+   "n": 1,
+   "sec": 1.6,
+   "prompt": "Large rusty industrial valve wheel being turned by hand, heavy metal grinding and squeaking"
+  },
+  {
+   "key": "pressure",
+   "n": 1,
+   "sec": 3.0,
+   "prompt": "Gas surging through a big steel pipeline, deep rushing roar and metallic groaning building up"
+  },
+  {
+   "key": "radio",
+   "n": 2,
+   "sec": 0.5,
+   "prompt": "Military radio squelch click with a short burst of static, start of a transmission"
+  },
+  {
+   "key": "killConfirm",
+   "n": 2,
+   "sec": 0.5,
+   "prompt": "Short satisfying kill confirmation sound for a sci-fi shooter, crisp digital ping with a subtle low punch"
+  },
+  {
+   "key": "alarm",
+   "n": 1,
+   "sec": 2.2,
+   "prompt": "Industrial warning klaxon, two short heavy horn blasts, sci-fi refinery alert"
+  },
+  {
+   "key": "objective",
+   "n": 1,
+   "sec": 1.3,
+   "prompt": "Sci-fi military objective complete sound, rising three-note digital tone with a soft deep impact"
   }
  ],
  "music": [

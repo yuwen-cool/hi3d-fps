@@ -105,11 +105,12 @@ export function createAudio(G) {
     }));
     G.events.emit('audio:samples', { keys: Object.keys(SMP) });
   }).catch(() => {});
-  const idx = {};
-  const pick = (k) => { const a = S[k]; idx[k] = ((idx[k] || 0) + 1 + (a.length > 2 && R() < 0.3 ? 1 : 0)) % a.length; return a[idx[k]]; };
+  const idx = {}; const UIK = new Set(['uiMove', 'uiOk', 'radio', 'killConfirm', 'objective', 'alarm', 'deploy', 'shieldBreak', 'shieldUp', 'scan']);
+  const pick = (k) => { const a = S[k] || SMP[k]; idx[k] = ((idx[k] || 0) + 1 + (a.length > 2 && R() < 0.3 ? 1 : 0)) % a.length; return a[idx[k]]; };
   const last = {};
   function play(k, { bus: b = near, gain = 1, rate = 1, jitter = 0.035, pos = null, ref = 3, roll = 0.6, every = 0 } = {}) {
-    if (ctx.state !== 'running') return;
+    if (ctx.state !== 'running' || !(S[k] || SMP[k])) return;
+    if (UIK.has(k) && b === near) b = dry;
     const now = ctx.currentTime; if (every && last[k] && now - last[k] < every) return; last[k] = now;
     const src = ctx.createBufferSource(); src.buffer = pick(k); src.playbackRate.value = rate * (1 + (R() * 2 - 1) * jitter);
     const g = ctx.createGain(); g.gain.value = gain * (1 - R() * 0.08);
@@ -162,6 +163,12 @@ export function createAudio(G) {
   ev.on('boss:beam', (e) => play('beam', { pos: e.pos, ref: 30, roll: 0.25, gain: 1.2 }));
   ev.on('boss:dying', (e) => play('groan', { pos: e.pos, ref: 30, roll: 0.3, gain: 1 }));
   ev.on('gl:fire', () => play('gl', { gain: 1 }));
+  ev.on('player:dash', () => play('dash', { gain: 0.8, jitter: 0.06 }));
+  ev.on('player:slide', () => play('slide', { gain: 0.9 }));
+  ev.on('player:melee', () => play('dash', { gain: 0.45, rate: 1.35 }));
+  ev.on('melee:hit', (e) => { play('melee', { gain: e.takedown ? 1.2 : 1 }); if (e.takedown) play('impRobot', { gain: 0.8, rate: 0.8 }); });
+  ev.on('player:shieldBreak', () => play('shieldBreak', { gain: 0.8 }));
+  ev.on('player:shieldUp', () => play('shieldUp', { gain: 0.4 }));
   ev.on('ammo:gain', (e) => play(e.full ? 'bolt' : 'magin', { gain: e.full ? 0.8 : 0.35, rate: e.full ? 1 : 1.3 }));
   ev.on('leak', (e) => play('hiss', { pos: e.pos, ref: 4, gain: 0.7, every: 0.2 }));
   ev.on('ignite', (e) => play('whoomp', { pos: e.pos, ref: 6, gain: 1 }));
@@ -202,5 +209,5 @@ export function createAudio(G) {
       let fd = 1e9; for (const f of G.fire?.fires || []) fd = Math.min(fd, f.pos.distanceTo(p) / Math.max(0.5, f.size)); beds.crackle.gain.value += (Math.min(1, 3 / (1 + fd)) * 0.9 - beds.crackle.gain.value) * Math.min(1, dt * 3);
     }
   }
-  return { update, ctx, play, samples: () => Object.keys(SMP) };
+  return { update, ctx, play, samples: () => Object.keys(SMP), setVolume(v) { master.gain.value = 0.9 * v; } };
 }

@@ -33,6 +33,8 @@ export const MODELS = {
   colossus_leg_upper: { len: 6.4, cls: 'paint' },
   colossus_leg_lower: { len: 7.6, cls: 'paint' },
   tank_wreck: { len: 9.0, cls: 'rust' },
+  valve_station: { len: 2.5, cls: 'metal' },
+  valve_wheel: { len: 0.72, cls: 'paint' },
 };
 
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);

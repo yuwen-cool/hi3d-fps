@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { params, events, rng } from './core/ctx.js';
 import { createRenderer } from './render/renderer.js';
+import { createBoot } from './ui/screens.js';
 
 window.__errors = []; window.__frames = 0; window.__ready = false; window.__fatal = null;
 window.addEventListener('error', (e) => window.__errors.push(String(e.message)));
@@ -11,8 +12,8 @@ G.hitstop = (s) => { G.stopT = Math.max(G.stopT, s); };
 G.slowmo = (s, k = 0.3) => { G.slowT = s; G.slowK = k; };
 window.__G = G;
 
-const loading = document.getElementById('loading');
-const setLoad = (t, p) => { if (loading) loading.querySelector('span').textContent = `${t} ${Math.round(p * 100)}%`; };
+const boot0 = createBoot();
+const setLoad = (t, p) => boot0.progress(t, p);
 const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
 
 async function boot() {
@@ -26,7 +27,10 @@ async function boot() {
   await mods.build(G, show, setLoad);
   setLoad('compile', 0.9); await yieldFrame();
   try { await R.renderer.compileAsync(R.scene, R.camera); } catch (e) { console.warn('compileAsync', e); }
-  if (loading) loading.style.display = 'none';
+  if (G.flow) {
+    const { createUI } = await import('./ui/screens.js'); G.ui = createUI(G, boot0);
+    const ie = G.modules.inputEnd; delete G.modules.inputEnd; G.modules.titleCam = G.ui.titleCam; G.modules.inputEnd = ie;
+  } else boot0.out();
 
   if (params.cam) { const v = params.cam.split(',').map(Number); R.camera.position.set(v[0], v[1], v[2]); R.camera.lookAt(v[3], v[4], v[5]); G.camLocked = true; }
   if (params.fov) { R.camera.fov = +params.fov; R.camera.updateProjectionMatrix(); }
@@ -40,10 +44,10 @@ async function boot() {
     if (G.stopT > 0) G.stopT -= real;
     if (G.slowT > 0) G.slowT -= real;
     const slow = G.slowT > 0 ? THREE.MathUtils.lerp(1, G.slowK, Math.min(1, G.slowT / 0.25)) : 1;
-    const dt = real * (G.stopT > 0 ? 0.04 : slow);
+    const dt = G.paused ? 0 : real * (G.stopT > 0 ? 0.04 : slow);
     G.time += dt; G.dt = dt; G.realDt = real;
     for (const [name, m] of Object.entries(G.modules)) {
-      if (!m.update || G.err[name]) continue;
+      if (!m.update || G.err[name] || (G.paused && name !== 'inputEnd')) continue;
       try { m.update(dt); } catch (e) { G.err[name] = 1; console.error(`[${name}]`, e); window.__errors.push(`${name}: ${e.message}`); }
     }
     try { R.frame(dt); } catch (e) { if (!G.err.render) { G.err.render = 1; console.error(e); window.__errors.push('render: ' + e.message); } }
@@ -63,4 +67,4 @@ window.__stats = () => {
   return { calls: G.stats.calls, tris: G.stats.tris, geos: i.memory.geometries, tex: i.memory.textures, programs: i.programs?.length, res: R.res, scale: R.scale, tier: R.tier.name };
 };
 
-boot().catch((e) => { console.error(e); window.__fatal = String(e && e.stack || e); if (loading) loading.querySelector('span').textContent = 'Error: ' + e.message; });
+boot().catch((e) => { console.error(e); window.__fatal = String(e && e.stack || e); boot0.fail(e.message); });

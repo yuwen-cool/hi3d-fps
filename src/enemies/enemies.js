@@ -36,7 +36,10 @@ export async function createEnemies(G) {
   const cell = (x, z) => [THREE.MathUtils.clamp(Math.floor((x - B.minX) / CS), 0, NX - 1), THREE.MathUtils.clamp(Math.floor((z - B.minZ) / CS), 0, NZ - 1)];
   function path(from, to) {
     const [sx, sz] = cell(from.x, from.z), [tx, tz] = cell(to.x, to.z);
-    const S = sz * NX + sx, T = tz * NX + tx; if (block[T]) return null;
+    let S = sz * NX + sx, T = tz * NX + tx;
+    // a goal or start inside a prop's footprint (e.g. someone standing at a valve): use the nearest free cell
+    const free = (k) => { if (!block[k]) return k; const cx = k % NX, cz = Math.floor(k / NX); for (let r = 1; r <= 4; r++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue; const x = cx + dx, z = cz + dz; if (x >= 0 && z >= 0 && x < NX && z < NZ && !block[z * NX + x]) return z * NX + x; } return -1; };
+    T = free(T); S = free(S); if (T < 0 || S < 0) return null;
     const g = new Float32Array(NX * NZ).fill(1e9), came = new Int32Array(NX * NZ).fill(-1), open = [S]; g[S] = 0; const closed = new Uint8Array(NX * NZ);
     const h = (k) => Math.hypot((k % NX) - tx, Math.floor(k / NX) - tz);
     let it = 0;
@@ -75,7 +78,7 @@ export async function createEnemies(G) {
     const death = {}; for (const n of ['Death_A', 'Death_B', 'Death_C', 'Death_D']) if (clips[n]) { const a = mixer.clipAction(clips[n]); a.setLoop(THREE.LoopOnce); a.clampWhenFinished = true; death[n] = a; }
     const hitA = clips.Hit_Chest ? mixer.clipAction(subClip(clips.Hit_Chest, true, 'Hit_U')) : null; if (hitA) { hitA.setLoop(THREE.LoopOnce); }
     const e = {
-      root, o, skinned, kind, c, bones, mats, mixer, act, death, hitA, gun, hp: c.hp, alive: true, state: opts.state || 'patrol', seeT: 0, lostT: 0, think: rnd() * 0.15,
+      root, o, skinned, kind, c, bones, mats, mixer, act, death, hitA, gun, hp: c.hp, maxHp: c.hp, scanT: 0, stagT: 0, knockV: new THREE.Vector3(), lastShotT: -99, alive: true, state: opts.state || 'patrol', seeT: 0, lostT: 0, think: rnd() * 0.15,
       vel: new THREE.Vector3(), yaw: opts.yaw ?? Math.PI, wp: [], goal: null, repath: 0, mode: 'move', modeT: 0, burstN: 0, shotT: 0, token: false,
       lastKnown: null, home: pos.clone(), patrolT: 0, hitSpr: { p: 0, pv: 0, r: 0, rv: 0 }, curL: null, curU: null, deadT: 0, id: list.length, glow: 0,
     };
@@ -141,6 +144,7 @@ export async function createEnemies(G) {
     else if (hw) G.fxs?.impact(hw, dir);
     // near miss whiz
     if (!hitP && t > 0 && closest.distanceTo(pc) < 3.2) G.events.emit('whiz', { pos: closest, d: closest.distanceTo(pc) });
+    e.lastShotT = G.time;
     G.events.emit('enemy:fire', { pos: m.clone(), e });
   }
   function damage(e, dmg, hit, dir) {
@@ -164,7 +168,7 @@ export async function createEnemies(G) {
     G.fxs?.emit(false, { pos: core, life: 0.12, size: 1.2, size1: 0.3, col: [8, 10, 16] });
     for (let i = 0; i < 6; i++) G.fxs?.chunk(hp.clone().add(new THREE.Vector3(rnd() - 0.5, -rnd() * 0.6, rnd() - 0.5).multiplyScalar(0.3)), new THREE.Vector3((rnd() - 0.5) * 4 + dir.x * 3, 2 + rnd() * 3, (rnd() - 0.5) * 4 + dir.z * 3), 0.04 + rnd() * 0.05, 0x2c2b29, 6);
     for (const m of e.mats) m.emissiveIntensity = 0;
-    G.events.emit('enemy:killed', { e, weak, pos: e.root.position.clone() });
+    G.events.emit('enemy:killed', { e, weak, melee: !!e.meleeHit, pos: e.root.position.clone() });
   }
   // ---------- hit test: bone-following spheres/capsules ----------
   const segs = [['head', null, CFG.headR, 'weak'], ['spine_01', 'neck_01', 0.24, 'body'], ['pelvis', 'spine_01', 0.2, 'body'],
@@ -268,6 +272,12 @@ export async function createEnemies(G) {
         if (e.deadT > 15) e.gun.visible = false;
         continue;
       }
+      if (e.scanT > 0) e.scanT -= dt;
+      if (e.stagT > 0) { // knocked back by a melee hit: slide, no thinking or shooting
+        e.stagT -= dt; const nx = e.root.position.x + e.knockV.x * dt, nz = e.root.position.z + e.knockV.z * dt;
+        if (!P.blocked(nx, nz, 0.4)) e.root.position.set(nx, e.root.position.y, nz);
+        e.knockV.multiplyScalar(Math.exp(-7 * dt)); e.root.rotation.y = e.yaw; e.o.updateMatrixWorld(true); placeGun(e, false); continue;
+      }
       if (e.puppet) { // scripted (trailer / showcase): pose only, aim where told
         e.root.rotation.y = e.yaw; play(e, 'L', e.puppetL || 'Pistol_Idle'); play(e, 'U', e.puppetU || 'Pistol_Aim_Neutral', 0.25);
         e.o.updateMatrixWorld(true); placeGun(e, false, e.puppetAim); for (const m of e.mats) m.emissiveIntensity = 4.5 + e.glow * 14; continue;
@@ -345,6 +355,6 @@ export async function createEnemies(G) {
       placeGun(e, aiming || e.state === 'engage');
     }
   }
-  return { update, spawn, list, hitTest, damage, CFG, canReach: (a, b) => !!path(a, b), get alive() { return list.filter((e) => e.alive).length; } };
+  return { update, spawn, list, hitTest, damage, CFG, path, alert, canReach: (a, b) => !!path(a, b), get alive() { return list.filter((e) => e.alive).length; } };
 }
 function angleDiff(a, b) { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }

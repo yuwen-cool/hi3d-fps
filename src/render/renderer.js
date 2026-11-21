@@ -127,7 +127,7 @@ export function createRenderer(G, canvas) {
       uHeightFall: { value: TUNE.volHeightFall }, uBase: { value: TUNE.volBase }, uSteps: { value: tier.vol }, uPL: { value: [0, 1, 2, 3, 4, 5].map(() => new THREE.Vector4()) }, uPLc: { value: [0, 1, 2, 3, 4, 5].map(() => new THREE.Vector3()) }, uPLn: { value: 0 }, uStorm: { value: new THREE.Vector4(0, 0, 1e5, 0) }, uWind: { value: new THREE.Vector2(0.62, 0.77) },
       uInterior: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uInteriorSize: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) }, uInteriorCount: { value: 0 }, uInteriorDust: { value: TUNE.volInteriorDust },
     }),
-    comp: pass(S.COMPOSITE, { tColor: { value: null }, tDepth: { value: null }, tZ: { value: null }, tAO: { value: null }, tVol: { value: null }, uHalfRes: { value: new THREE.Vector2() }, uAOStrength: { value: TUNE.aoStrength }, uExposureHint: { value: 1 }, uUseAO: { value: 1 }, uUseVol: { value: 1 }, uUseSSR: { value: 1 }, uProjV: { value: new THREE.Vector4() }, uCamMat: { value: new THREE.Matrix4() }, uViewUp: { value: new THREE.Vector3() }, uPads: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(1e5, 1e5, 1e5, 1e5)) }, uCorr: { value: new THREE.Vector4(1e5, 1e5, 1e5, 1e5) }, uTime: { value: 0 } }),
+    comp: pass(S.COMPOSITE, { tColor: { value: null }, tDepth: { value: null }, tZ: { value: null }, tAO: { value: null }, tVol: { value: null }, uHalfRes: { value: new THREE.Vector2() }, uAOStrength: { value: TUNE.aoStrength }, uExposureHint: { value: 1 }, uUseAO: { value: 1 }, uUseVol: { value: 1 }, uUseSSR: { value: 1 }, uProjV: { value: new THREE.Vector4() }, uCamMat: { value: new THREE.Matrix4() }, uViewUp: { value: new THREE.Vector3() }, uPads: { value: [0, 1, 2, 3].map(() => new THREE.Vector4(1e5, 1e5, 1e5, 1e5)) }, uCorr: { value: new THREE.Vector4(1e5, 1e5, 1e5, 1e5) }, uTime: { value: 0 }, uScan: { value: new THREE.Vector4(0, 0, 0, 0) }, uScanA: { value: 0 } }),
     down: pass(S.BLOOM_DOWN, { tSrc: { value: null }, uSrcPx: { value: new THREE.Vector2() }, uFirst: { value: 0 } }),
     up: pass(S.BLOOM_UP, { tSrc: { value: null }, tHigh: { value: null }, uSrcPx: { value: new THREE.Vector2() }, uMix: { value: TUNE.bloomMix } }),
     streak: pass(S.STREAK, { tSrc: { value: null }, uStep: { value: new THREE.Vector2() }, uThresh: { value: TUNE.streakThresh }, uFirst: { value: 1 } }),
@@ -135,7 +135,7 @@ export function createRenderer(G, canvas) {
     grade: pass(S.GRADE, {
       tHdr: { value: null }, tBloom: { value: null }, tStreak: { value: null }, tExp: { value: null },
       uBloom: { value: TUNE.bloom }, uStreak: { value: TUNE.streak }, uManualExp: { value: TUNE.manualExp }, uAgx: { value: TUNE.agx }, uVignette: { value: TUNE.vignette }, uSat: { value: TUNE.sat },
-      uLookPow: { value: TUNE.lookPow }, uLookSat: { value: TUNE.lookSat }, uCA: { value: TUNE.ca }, uDamage: { value: 0 }, uLow: { value: 0 }, uAds: { value: 0 }, uFade: { value: 0 }, uFlash: { value: 0 }, uTime: { value: 0 },
+      uLookPow: { value: TUNE.lookPow }, uLookSat: { value: TUNE.lookSat }, uCA: { value: TUNE.ca }, uDamage: { value: 0 }, uLow: { value: 0 }, uAds: { value: 0 }, uFade: { value: 0 }, uFlash: { value: 0 }, uTime: { value: 0 }, uSpeed: { value: 0 },
       uSplitLo: { value: new THREE.Vector3(...TUNE.splitLo) }, uSplitHi: { value: new THREE.Vector3(...TUNE.splitHi) }, uLift: { value: new THREE.Vector3(...TUNE.lift) },
     }),
     final: pass(S.FINAL, { tLdr: { value: null }, uSharpen: { value: TUNE.sharpen }, uGrain: { value: TUNE.grain }, uTime: { value: 0 } }),
@@ -204,7 +204,7 @@ export function createRenderer(G, canvas) {
 
   let frameNo = 0; let time = 0;
   const projV = new THREE.Vector4();
-  const fx = { damage: 0, low: 0, ads: 0, fade: 0, flash: 0 };
+  const fx = { damage: 0, low: 0, ads: 0, fade: 0, flash: 0, speed: 0 };
 
   function frame(dt) {
     time += dt; frameNo++;
@@ -280,6 +280,12 @@ export function createRenderer(G, canvas) {
     c.uHalfRes.value.set(hw, hh); c.uUseAO.value = post.ao ? 1 : 0; c.uUseVol.value = post.vol ? 1 : 0; c.uNear.value = camera.near; c.uFar.value = camera.far;
     c.uProjV.value.copy(projV); c.uCamMat.value.copy(camera.matrixWorld); c.uViewUp.value.set(0, 1, 0).transformDirection(camera.matrixWorldInverse); c.uTime.value = time;
     run(M.comp, T.comp);
+    // scanned robots: additive fresnel silhouettes on top of everything (after the dust, so the storm cannot hide them)
+    if (R_.xray?.on) {
+      R_.xray.mat.uniforms.tDepth.value = T.scene.depthTexture; R_.xray.mat.uniforms.uRes.value.set(T.comp.width, T.comp.height);
+      renderer.setRenderTarget(T.comp); const bg = scene.background; scene.background = null; scene.overrideMaterial = R_.xray.mat; camera.layers.set(2);
+      try { renderer.render(scene, camera); } finally { scene.overrideMaterial = null; scene.background = bg; camera.layers.set(0); }
+    }
     // bloom
     let src = T.comp;
     for (let i = 0; i < T.bloom.length; i++) {
@@ -301,7 +307,7 @@ export function createRenderer(G, canvas) {
     const g = M.grade.uniforms;
     g.tHdr.value = T.comp.texture; g.tBloom.value = T.up[0].texture; g.tStreak.value = T.streakB.texture; g.tExp.value = T.expA.texture;
     g.uBloom.value = post.bloom ? TUNE.bloom : 0; g.uTime.value = time; g.uManualExp.value = TUNE.manualExp * (params.exposure ? +params.exposure : 1);
-    g.uDamage.value = fx.damage; g.uLow.value = fx.low; g.uAds.value = fx.ads; g.uFade.value = fx.fade; g.uFlash.value = fx.flash;
+    g.uDamage.value = fx.damage; g.uLow.value = fx.low; g.uAds.value = fx.ads; g.uFade.value = fx.fade; g.uFlash.value = fx.flash; g.uSpeed.value = fx.speed;
     run(M.grade, T.ldr);
     M.final.uniforms.tLdr.value = T.ldr.texture; M.final.uniforms.uTime.value = time;
     renderer.setViewport(0, 0, W, H);
@@ -311,10 +317,11 @@ export function createRenderer(G, canvas) {
   G.stats = { calls: 0, tris: 0 };
   // wet zones are set by the level once it exists (pads + interior slab)
   const setWet = (pads, corr) => { pads.forEach((p, i) => M.comp.uniforms.uPads.value[i].copy(p)); M.comp.uniforms.uCorr.value.copy(corr); };
-  return {
+  const R_ = {
     setWet, volLights, hemi,
     renderer, scene, camera, viewCam, sun, sky, pmrem, flash, frame, resize, fitShadow, rebuildEnv, setInteriors, fx, post, tier, M, gl,
     get res() { return T ? [T.scene.width, T.scene.height] : [0, 0]; }, get scale() { return dynScale; },
     readExposure() { const b = new Uint16Array(4); renderer.readRenderTargetPixels(T.expA, 0, 0, 1, 1, b); return THREE.DataUtils.fromHalfFloat(b[0]); },
   };
+  return R_;
 }

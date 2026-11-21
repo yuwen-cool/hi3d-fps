@@ -173,6 +173,7 @@ uniform sampler2D tColor, tDepth, tZ, tAO, tVol; uniform vec2 uHalfRes;
 uniform float uAOStrength, uExposureHint; uniform int uUseAO, uUseVol;
 // wet ground: puddles on the concrete pads / corridor slab, screen-space reflections of the floor plane
 uniform int uUseSSR; uniform vec4 uProjV; uniform mat4 uCamMat; uniform vec3 uViewUp; uniform vec4 uPads[4]; uniform vec4 uCorr; uniform float uTime;
+uniform vec4 uScan; uniform float uScanA; // scan pulse: origin.xyz + radius, strength
 out vec4 o;
 float vn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
   return mix(mix(hash12(i), hash12(i + vec2(1, 0)), f.x), mix(hash12(i + vec2(0, 1)), hash12(i + vec2(1, 1)), f.x), f.y); }
@@ -245,6 +246,22 @@ void main(){
     }
   }
   if (uUseVol == 1) col.rgb = col.rgb * vS.a + vS.rgb;
+  if (uScanA > 0.001) {
+    // the ring rides over every surface; behind it the surfaces show a world-space wire grid that fades back
+    vec3 vq = viewPos(vUv, zc); vec3 wq = (uCamMat * vec4(vq, 1.0)).xyz;
+    float dist = length(wq - uScan.xyz), r = uScan.w;
+    float w = 0.28 + r * 0.018;
+    float ring = exp(-pow((dist - r) / w, 2.0)) + 0.35 * exp(-pow((dist - r + w * 3.0) / (w * 2.5), 2.0));
+    float behind = step(dist, r) * exp(-(r - dist) / 7.0);
+    vec3 dx = dFdx(wq), dy = dFdy(wq); vec3 n = abs(normalize(cross(dx, dy) + 1e-6));
+    vec3 gp = wq * 0.75; vec3 g = abs(fract(gp) - 0.5) / max(fwidth(gp), vec3(1e-4));
+    float lx = 1.0 - clamp(min(g.y, g.z) - 0.5, 0.0, 1.0), ly = 1.0 - clamp(min(g.x, g.z) - 0.5, 0.0, 1.0), lz = 1.0 - clamp(min(g.x, g.y) - 0.5, 0.0, 1.0);
+    n /= (n.x + n.y + n.z);
+    float line = lx * n.x + ly * n.y + lz * n.z;
+    float near = 1.0 - smoothstep(45.0, 90.0, zc);
+    vec3 cy = vec3(0.32, 0.92, 1.0);
+    col.rgb += cy * (ring * 7.0 + line * behind * 1.6 + behind * 0.05) * uScanA * near;
+  }
   o = vec4(max(col.rgb, 0.0), 1.0);
 }`;
 
@@ -320,7 +337,7 @@ void main(){
 // grade -> LDR sRGB
 export const GRADE = COMMON + /* glsl */`
 uniform sampler2D tHdr, tBloom, tStreak, tExp;
-uniform float uBloom, uStreak, uManualExp, uAgx, uVignette, uSat, uLookPow, uLookSat, uCA, uDamage, uLow, uAds, uFade, uFlash, uTime;
+uniform float uBloom, uStreak, uManualExp, uAgx, uVignette, uSat, uLookPow, uLookSat, uCA, uDamage, uLow, uAds, uFade, uFlash, uTime, uSpeed;
 uniform vec3 uSplitLo, uSplitHi, uLift;
 out vec4 o;
 vec3 aces(vec3 x){ // Hill fit
@@ -343,6 +360,11 @@ void main(){
   vec2 cc = vUv - 0.5; float r2 = dot(cc * vec2(1.6, 1.0), cc * vec2(1.6, 1.0)) / 0.89;
   vec2 off = cc * r2 * (uCA + uDamage * 0.006);
   vec3 col = vec3(texture(tHdr, vUv - off).r, texture(tHdr, vUv).g, texture(tHdr, vUv + off).b);
+  if (uSpeed > 0.02) { // dash / slide: radial smear toward the edges
+    float k = uSpeed * smoothstep(0.08, 0.9, r2) * 0.05; vec3 acc = col; 
+    for (int i = 1; i <= 5; i++) acc += texture(tHdr, vUv - cc * k * float(i)).rgb;
+    col = acc / 6.0;
+  }
   vec3 bl = texture(tBloom, vUv).rgb;
   col = mix(col, bl, uBloom);
   col += texture(tStreak, vUv).rgb * vec3(0.45, 0.62, 1.0) * uStreak;

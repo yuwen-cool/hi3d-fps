@@ -163,13 +163,34 @@ export async function buildLevel(G) {
     const st = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.72), stripMat); st.position.y = 0.5; g.add(b, st); g.position.set(x, 0, z); g.rotation.y = ry; root.add(g);
     P.addBoxCenter(new THREE.Vector3(x, 0.3, z), new THREE.Vector3(1.0, 0.6, 0.8), 'metal'); crates.push(new THREE.Vector3(x, 0, z));
   }
+  // pressure-line valve stations (act objectives): Hi3D station + its handwheel on a pivot so it can turn
+  const valves = [];
+  for (const [id, x, z, ry] of [['A', -6.8, -25.2, 0.15]]) {
+    if (!have.has('valve_station')) break;
+    const st = await place('valve_station', x, z, ry, { surface: 'metal', shrink: 0.8 });
+    const bb = new THREE.Box3().setFromObject(st); const top = new THREE.Vector3(); bb.getCenter(top); top.y = bb.max.y;
+    let wheel = null;
+    if (have.has('valve_wheel')) {
+      const w = await instance('valve_wheel'); const wb = new THREE.Box3().setFromObject(w).getSize(new THREE.Vector3());
+      // the generated wheel carries its stub axle (longest axis): stand the axle up, disc on top, threaded stem through it
+      const ax = wb.x > wb.y && wb.x > wb.z ? 'x' : wb.z > wb.y ? 'z' : 'y';
+      if (ax === 'x') w.rotation.z = Math.PI / 2; else if (ax === 'z') w.rotation.x = -Math.PI / 2;
+      wheel = new THREE.Group(); wheel.position.set(top.x, top.y - 0.1, top.z); root.add(wheel); wheel.add(w); wheel.updateMatrixWorld(true);
+      const wb2 = new THREE.Box3().setFromObject(w), c = wb2.getCenter(new THREE.Vector3()).sub(wheel.position);
+      w.position.x -= c.x; w.position.z -= c.z; w.position.y -= wb2.max.y - wheel.position.y;
+    }
+    // a small amber status lamp on the plinth: red until opened
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(8, 0.6, 0.2), toneMapped: false }));
+    lamp.position.set(top.x + Math.cos(ry) * 0.9, bb.min.y + 0.45, top.z - Math.sin(ry) * 0.9); root.add(lamp);
+    valves.push({ id, pos: new THREE.Vector3(x, 0, z), top, station: st, wheel, lamp, open: false });
+  }
   // practical lights for the workshop lamps: warm, unshadowed, with a hot bulb so bloom picks them up
   const bulbM = new THREE.MeshBasicMaterial({ color: new THREE.Color(9, 5.2, 2.4), toneMapped: false });
   for (const z of [-3.5, -9.5, -15.5, -21.5]) {
     const l = new THREE.PointLight(new THREE.Color(1.0, 0.6, 0.3), 9, 8.5, 2); l.position.set(C.maxX - 0.75, 3.05, z); root.add(l); R.volLights.push(l);
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), bulbM); b.position.set(C.maxX - 0.48, 3.12, z); root.add(b);
   }
-  G.level = { root, cover: [], layout: LAYOUT, explosives, fallTower, crates };
+  G.level = { root, cover: [], layout: LAYOUT, explosives, fallTower, crates, valves };
   await dress(G, root);
   R.fitShadow(new THREE.Box3(new THREE.Vector3(-62, -1, -84), new THREE.Vector3(42, 30, 22)));
   R.setInteriors([{ c: new THREE.Vector3((C.minX + C.maxX) / 2, C.h / 2, (C.minZ + C.maxZ) / 2), h: new THREE.Vector3((C.maxX - C.minX) / 2, C.h / 2, (C.maxZ - C.minZ) / 2) }]);

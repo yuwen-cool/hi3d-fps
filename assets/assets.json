@@ -143,5 +143,17 @@
   "quality": "high_quality",
   "max_points": 90,
   "prompt": "Game asset concept: the ruined remains of an exploded cylindrical oil storage tank, torn and peeled-back steel walls curling outward, blackened and scorched by fire, collapsed roof plates, twisted ladder, sitting on a cracked concrete ring base. Three-quarter view."
+ },
+ {
+  "name": "valve_station",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: an oil refinery pipeline gate-valve station: a thick horizontal steel pipe section with bolted flanges, a tall gate valve body in the middle with a bare threaded stem sticking straight up out of the top (no handwheel fitted), a round pressure gauge on a short side pipe, all bolted onto a low concrete plinth. Worn yellow and grey paint, dust, oil stains. Three-quarter view."
+ },
+ {
+  "name": "valve_wheel",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: one large cast-iron industrial valve handwheel, round rim with six straight spokes and a thick central hub, chipped red paint over bare metal, flat and symmetric. Isolated single part, three-quarter top view."
  }
 ]

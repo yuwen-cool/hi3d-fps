@@ -133,5 +133,55 @@
  "impSand": [
   "impSand_0.mp3",
   "impSand_1.mp3"
+ ],
+ "uiMove": [
+  "uiMove_0.mp3"
+ ],
+ "uiOk": [
+  "uiOk_0.mp3"
+ ],
+ "deploy": [
+  "deploy_0.mp3"
+ ],
+ "scan": [
+  "scan_0.mp3",
+  "scan_1.mp3"
+ ],
+ "dash": [
+  "dash_0.mp3",
+  "dash_1.mp3"
+ ],
+ "slide": [
+  "slide_0.mp3"
+ ],
+ "melee": [
+  "melee_0.mp3",
+  "melee_1.mp3"
+ ],
+ "shieldBreak": [
+  "shieldBreak_0.mp3"
+ ],
+ "shieldUp": [
+  "shieldUp_0.mp3"
+ ],
+ "valve": [
+  "valve_0.mp3"
+ ],
+ "pressure": [
+  "pressure_0.mp3"
+ ],
+ "radio": [
+  "radio_0.mp3",
+  "radio_1.mp3"
+ ],
+ "killConfirm": [
+  "killConfirm_0.mp3",
+  "killConfirm_1.mp3"
+ ],
+ "alarm": [
+  "alarm_0.mp3"
+ ],
+ "objective": [
+  "objective_0.mp3"
  ]
 }

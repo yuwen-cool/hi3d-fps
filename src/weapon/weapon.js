@@ -142,7 +142,7 @@ export async function createWeapon(G) {
 
   const S = {
     ammo: W.mag, reserve: W.reserve, cool: 0, shots: 0, lastShot: -9, bloom: 0, spread: 0, heat: 0, ads: 0, adsLin: 0, sprint: 0,
-    reloading: false, reloadT: 0, reloadDur: 0, reloadEmpty: false, flashT: 0, flashDur: 0, t: 0, phase: 0, bobAmt: 0, recoilPh: Math.random() * 6, idleT: 0,
+    fired: 0, hits: 0, meleeT: -1, meleeCd: 0, meleeHit: false, meleeTgt: null, reloading: false, reloadT: 0, reloadDur: 0, reloadEmpty: false, flashT: 0, flashDur: 0, t: 0, phase: 0, bobAmt: 0, recoilPh: Math.random() * 6, idleT: 0,
     kZ: spring(520, 30), kP: spring(380, 26), kY: spring(300, 22), kR: spring(300, 20), swY: spring(110, 15), swP: spring(140, 13), jY: spring(140, 13), jP: spring(140, 13), bump: spring(600, 30),
   };
   G.events.on('player:jump', () => { S.jY.v -= 0.22; S.jP.v += 0.7; });
@@ -191,6 +191,7 @@ export async function createWeapon(G) {
     const end = _o.clone().addScaledVector(_d, hitB ? hitB.distance : hitE ? hitE.distance : maxD);
     if (hitB) G.boss.damage(hitB, W.dmg);
     else if (hitE) { const dmg = W.dmg * (hitE.part === 'weak' ? 2.2 : 1); G.enemies.damage(hitE.enemy, dmg, hitE, _d); }
+    S.fired++; if (hitE || hitB) S.hits++;
     G.events.emit('weapon:fire', { muzzle: _m.clone(), dir: _d.clone(), end, hitW: hitE || hitB ? null : hitW, hitE: hitB ? null : hitE, hitB, ads });
     G.events.emit('noise', { pos: _o.clone(), r: 45 });
   }
@@ -223,6 +224,32 @@ export async function createWeapon(G) {
       }
     }
   }
+  // ---------- melee: rifle jab with a short lunge; from behind or on an unaware robot it is a takedown ----------
+  const _me = new THREE.Vector3(), _mc = new THREE.Vector3();
+  function startMelee() {
+    const p = G.player, ps = p.s; S.meleeT = 0; S.meleeCd = 0.7; S.meleeHit = false;
+    cam.getWorldPosition(_me); const f = p.forward; let best = null, bd = 4.8;
+    for (const e of G.enemies?.list || []) {
+      if (!e.alive) continue; e.bones.spine_03.getWorldPosition(_mc); const dx = _mc.x - _me.x, dz = _mc.z - _me.z, hd = Math.hypot(dx, dz);
+      if (hd > bd || (dx * f.x + dz * f.z) / Math.max(0.01, hd) < 0.55 || !G.phys.los(_me, _mc)) continue; best = e; bd = hd;
+    }
+    S.meleeTgt = best;
+    if (best && bd > 1.5) { const dir = best.root.position.clone().sub(ps.pos).setY(0).normalize(); ps.lungeV.copy(dir).multiplyScalar(Math.min(13, (bd - 1.1) / 0.12)); ps.lungeT = 0.12; ps.speedFx = Math.max(ps.speedFx, 0.6); }
+    S.kZ.v -= 2.5; S.kP.v -= 1.5; G.events.emit('player:melee', { lunge: !!best });
+  }
+  function meleeStrike() {
+    S.meleeHit = true; const e = S.meleeTgt, ps = G.player.s; if (!e || !e.alive || e.root.position.distanceTo(ps.pos) > 2.9) return;
+    const dir = e.root.position.clone().sub(ps.pos).setY(0).normalize();
+    const facing = Math.sin(e.yaw) * -dir.x + Math.cos(e.yaw) * -dir.z; // >0: the robot faces the player
+    const takedown = e.state !== 'engage' || facing < -0.2;
+    const pt = e.bones.spine_03.getWorldPosition(new THREE.Vector3());
+    e.meleeHit = true; G.enemies.damage(e, takedown ? 999 : 95, { part: 'body', point: pt }, dir); e.meleeHit = false;
+    if (e.alive) { e.stagT = 0.6; e.knockV.copy(dir).multiplyScalar(7.5); }
+    G.hitstop(takedown ? 0.1 : 0.07); G.player.addShake(0.5); S.kZ.v += 5; S.kR.v += 3;
+    for (let i = 0; i < 14; i++) G.fxs?.emit(false, { pos: pt, vel: new THREE.Vector3((Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6).addScaledVector(dir, 3), life: 0.25 + Math.random() * 0.2, size: 0.014, stretch: 0.06, col: [14, 7, 2.4], grav: 9.8, drag: 2 });
+    R.flash(pt, 0xffb070, 25, 4, 0.06);
+    G.events.emit('melee:hit', { pos: pt, takedown, kill: !e.alive });
+  }
   // ammo economy: every robot you break gives rounds back, and supply crates refill you completely
   const MAXR = 240;
   G.events.on('enemy:killed', () => { const n = Math.min(26, MAXR - S.reserve); if (n > 0) { S.reserve += n; G.events.emit('ammo:gain', { n }); } });
@@ -245,7 +272,10 @@ export async function createWeapon(G) {
     S.cool -= dt;
     updNades(dt);
     if (live && (I.pressed('gl') || G.auto?.gl) && S.sprint < 0.3) { if (G.auto) G.auto.gl = false; launch(); }
-    const trigger = live && (I.st.fire || G.auto?.fire);
+    S.meleeCd -= dt;
+    if (live && (I.pressed('melee') || G.auto?.melee) && S.meleeCd <= 0 && !S.reloading) { if (G.auto) G.auto.melee = false; startMelee(); }
+    if (S.meleeT >= 0) { S.meleeT += dt; if (!S.meleeHit && S.meleeT >= 0.11) meleeStrike(); if (S.meleeT > 0.48) S.meleeT = -1; }
+    const trigger = live && (I.st.fire || G.auto?.fire) && !(S.meleeT >= 0 && S.meleeT < 0.36);
     if (trigger && !S.reloading && S.sprint < 0.3) {
       if (S.ammo <= 0) { if (I.st.pressedFire) { G.events.emit('weapon:dry'); S.bump.v -= 0.08; } if (!S.dryT) S.dryT = 0.32; }
       else { let n = 0; while (S.cool <= 0 && S.ammo > 0 && n < 3) { fire(); S.cool += 60 / W.rpm; n++; } }
@@ -293,11 +323,13 @@ export async function createWeapon(G) {
     P0.x += Math.sin(ph) * 0.006 * bob - S.swY.x * 0.06 + Math.sin(0.85 * t + 1) * 0.0012 * br - (G.player.s.vel.x * G.player.right.x + G.player.s.vel.z * G.player.right.z) / 6.4 * 0.004 * (1 - S.ads);
     P0.y += (Math.sin(2 * ph) * 0.0042 - Math.pow(0.5 + 0.5 * Math.cos(2 * ph + 0.6), 4) * 0.0048) * bob + S.swP.x * 0.05 + Math.sin(1.7 * t) * 0.0016 * br + S.jY.x + S.bump.x * 0.02;
     P0.z += S.kZ.x * 0.055;
+    const mk = S.meleeT < 0 ? 0 : S.meleeT < 0.1 ? ease5(S.meleeT / 0.1) : 1 - ease5((S.meleeT - 0.1) / 0.38);
+    P0.z -= 0.2 * mk; P0.x -= 0.09 * mk; P0.y += 0.05 * mk;
     pose.position.copy(P0);
     const rx = THREE.MathUtils.lerp(W.hipR.x, 0, S.ads) + W.sprintR.x * S.sprint + W.reloadR.x * rw + Math.sin(2 * ph + 0.5) * 0.008 * bob + Math.sin(1.7 * t + 0.8) * 0.0035 * br + S.kP.x * 0.045 + S.jP.x + S.swP.x * 0.6 + S.bump.x * 0.08;
     const ry = THREE.MathUtils.lerp(W.hipR.y, 0, S.ads) + W.sprintR.y * S.sprint * (1 - S.ads) + W.reloadR.y * rw + Math.sin(ph) * 0.01 * bob + Math.sin(0.6 * t) * 0.002 * br + S.kY.x * 0.03 + S.swY.x;
     const rz = THREE.MathUtils.lerp(W.hipR.z, 0, S.ads) + W.sprintR.z * S.sprint + W.reloadR.z * rw + Math.sin(ph) * 0.014 * bob + Math.sin(0.5 * t) * 0.004 * br + S.kR.x * 0.03 + S.swY.x * 0.7;
-    pose.rotation.set(rx, ry, rz);
+    pose.rotation.set(rx - 0.25 * mk, ry + 0.35 * mk, rz + 0.75 * mk);
     // flash
     if (S.flashT > 0) { S.flashT -= dt; const k = Math.sqrt(Math.max(0, S.flashT / S.flashDur)); fm.uniforms.uI.value = fj.uniforms.uI.value = 9.5 * k; flash.visible = S.flashT > 0; }
     else flash.visible = false;

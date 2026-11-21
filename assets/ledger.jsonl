@@ -53,3 +53,7 @@
 {"name": "colossus_leg_upper", "step": "model", "task": "0a7c04a233f345a78d2768eaf4680434", "points": 45}
 {"name": "tank_wreck", "step": "model", "task": "50ed6d8001524441b0690e3cfd1b3fc4", "points": 45}
 {"name": "colossus_hull", "step": "model", "task": "2d0721b2dd2c472e9874909610f1af9f", "points": 45}
+{"name": "valve_station", "step": "image", "task": "a632cf43ddac4f8697761629b442c096", "points": 6}
+{"name": "valve_wheel", "step": "image", "task": "1efd76fbc24c4a31b5b3f1a821684735", "points": 6}
+{"name": "valve_wheel", "step": "model", "task": "c0e879919e6c42949e8e12f7813f8cef", "points": 45}
+{"name": "valve_station", "step": "model", "task": "fd15526fc09c4e43bb8bb2bdf5dfc08a", "points": 45}
