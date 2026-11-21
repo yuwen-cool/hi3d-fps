@@ -48,7 +48,9 @@ export function createEnv(G) {
 
   const _c = new THREE.Vector3(), _w = new THREE.Vector3(dir.x, 0, dir.y), _wind = new THREE.Vector3(-dir.x, 0, -dir.y);
   const clears = [null, null, null, null];
-  G.events.on('explosion', (e) => { if (!e.pos) return; const r = 5 + 4 * (e.size || 1); let i = clears.findIndex((c) => !c); if (i < 0) i = clears.reduce((a, c, j) => (c.t > clears[a].t ? j : a), 0); clears[i] = { p: e.pos.clone().setY(Math.max(1.5, e.pos.y)), r, t: 0 }; });
+  const addClear = (a, b, r, hold) => { let i = clears.findIndex((c) => !c); if (i < 0) i = clears.reduce((m, c, j) => (c.t > clears[m].t ? j : m), 0); clears[i] = { p: a, q: b, r, t: 0, hold }; };
+  G.events.on('explosion', (e) => { if (!e.pos) return; const p = e.pos.clone().setY(Math.max(1.5, e.pos.y)); addClear(p, p.clone(), 5 + 4 * (e.size || 1), 1.6); });
+  G.events.on('storm:tunnel', (e) => addClear(e.a.clone(), e.b.clone(), e.r || 3, 1.6)); // a rail shot burns a tunnel through the sand
   function update(dt) {
     const cam = R.camera.position, t = G.time;
     // inside-ness at the camera (front coordinate along the storm direction)
@@ -74,8 +76,8 @@ export function createEnv(G) {
     R.fx.storm = k;
     // blasts clear the air: a sphere of clean air that the wind fills back in
     for (let i = 0; i < 4; i++) { const c = clears[i], U = vol.uClear.value[i];
-      if (!c) { U.w = 0; continue; } c.t += dt; c.p.addScaledVector(_wind, dt * 1.2);
-      const r = c.r * Math.min(1, c.t / 0.22) * (c.t < 1.6 ? 1 : Math.max(0, 1 - (c.t - 1.6) / 4.5)); U.set(c.p.x, c.p.y, c.p.z, r); if (r <= 0 && c.t > 1.6) clears[i] = null; }
+      if (!c) { U.w = 0; continue; } c.t += dt; c.p.addScaledVector(_wind, dt * 1.2); c.q.addScaledVector(_wind, dt * 1.2);
+      const r = c.r * Math.min(1, c.t / 0.22) * (c.t < c.hold ? 1 : Math.max(0, 1 - (c.t - c.hold) / 4.5)); U.set(c.p.x, c.p.y, c.p.z, r); vol.uClearB.value[i].copy(c.q); if (r <= 0 && c.t > c.hold) clears[i] = null; }
     vol.uFogCol.value.copy(base.fog).lerp(STORM.fog, Math.max(k, 0.4 * S.storm)).lerp(NIGHT.fog, n);
     vol.uSunScale.value = base.sunScale * (1 - 0.75 * k) * (1 - n) * (1 - 0.7 * shade) + base.sunScale * 0.25 * n;
     vol.uAmbient.value = base.amb * (1 + 3.5 * k) * lerp(1, 0.35, n) + S.flash * 0.25;

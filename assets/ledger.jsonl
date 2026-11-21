@@ -69,3 +69,11 @@
 {"name": "tanker_truck", "step": "image", "task": "b8c81e5f4dae4ccea614c281bcec53a9", "points": 6}
 {"name": "mesa", "step": "model", "task": "3ac673c72cba48e59a1e308245e621f0", "points": 45}
 {"name": "tanker_truck", "step": "model", "task": "4f3ee5e710bf450095b78b0398825994", "points": 45}
+{"name": "drop_pod", "step": "image", "task": "974bd45d972d4ea9a81b8d9f67b8ec84", "points": 6}
+{"name": "riot_shield", "step": "image", "task": "0dd879b649e5496b995bcb85c1bbd5cd", "points": 6}
+{"name": "lance", "step": "image", "task": "b0b5120871ef4c318736dc79429f3457", "points": 10}
+{"name": "drone", "step": "image", "task": "b58c99760af748eb825a49a162bf0cee", "points": 6}
+{"name": "drop_pod", "step": "model", "task": "989c9892a13c486499a54c10c615d912", "points": 45}
+{"name": "riot_shield", "step": "model", "task": "f9042906e12d4ae89ff120d14a9c2005", "points": 45}
+{"name": "drone", "step": "model", "task": "73f877ea578448adaa6bb485e3d5ba6a", "points": 45}
+{"name": "lance", "step": "model", "task": "a16ff4b2d2e64a7ea3b0c985cbbc5a5f", "points": 145}

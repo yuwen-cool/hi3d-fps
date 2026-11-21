@@ -98,7 +98,7 @@ uniform vec4 uInterior[4]; uniform vec4 uInteriorSize[4]; uniform int uInteriorC
 uniform vec4 uPL[6]; uniform vec3 uPLc[6]; uniform int uPLn;
 // sandstorm: xz = direction toward the storm, z = front position along it, w = density boost inside
 uniform vec4 uStorm; uniform vec2 uWind;
-uniform vec4 uClear[4]; // blasts punch clear spheres out of the storm: centre.xyz, radius
+uniform vec4 uClear[4]; uniform vec3 uClearB[4]; // clear capsules punched out of the storm (blasts: a == b; rail shots: a tunnel): a.xyz + radius, b
 out vec4 o;
 float h31(vec3 p){ p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
 float vn3(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -112,7 +112,7 @@ float storm(vec3 p){
   vec3 q = p * 0.07 + vec3(uWind.x, -0.2, uWind.y) * uTime * 0.35;
   float n = vn3(q) * 0.6 + vn3(q * 2.3) * 0.4;
   float clear = 1.0;
-  for (int i = 0; i < 4; i++) { float r = uClear[i].w; if (r <= 0.0) continue; float d = length(p - uClear[i].xyz); clear *= smoothstep(r * 0.6, r * 1.05, d + (n - 0.5) * r * 0.35); }
+  for (int i = 0; i < 4; i++) { float r = uClear[i].w; if (r <= 0.0) continue; vec3 a = uClear[i].xyz, ab = uClearB[i] - a; float d = length(p - a - ab * clamp(dot(p - a, ab) / max(dot(ab, ab), 1e-4), 0.0, 1.0)); clear *= smoothstep(r * 0.6, r * 1.05, d + (n - 0.5) * r * 0.35); }
   return 1.0 + uStorm.w * inside * clear * (0.35 + 1.3 * n) * (0.55 + 0.45 * exp(-max(p.y, 0.0) / 40.0));
 }
 float hg(float mu, float g){ float g2 = g * g; return (1.0 - g2) / (12.566 * pow(max(1.0 + g2 - 2.0 * g * mu, 1e-4), 1.5)); }

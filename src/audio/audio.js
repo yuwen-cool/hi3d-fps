@@ -174,6 +174,16 @@ export function createAudio(G) {
   ev.on('boss:beam', (e) => play('beam', { pos: e.pos, ref: 30, roll: 0.25, gain: 1.2 }));
   ev.on('boss:dying', (e) => play('groan', { pos: e.pos, ref: 30, roll: 0.3, gain: 1 }));
   ev.on('gl:fire', () => play('gl', { gain: 1 }));
+  let chargeSrc = null; const stopCharge = () => { if (chargeSrc) { try { chargeSrc.stop(); } catch { /* ended */ } chargeSrc = null; } };
+  ev.on('lance:charge', () => { stopCharge(); chargeSrc = play('lanceCharge', { bus: dry, gain: 0.75, jitter: 0 }); });
+  ev.on('lance:cancel', stopCharge);
+  ev.on('lance:fire', (e) => { stopCharge(); play('lanceFire', { bus: dry, gain: 1.1 + 0.3 * e.k, rate: 1.08 - 0.12 * e.k }); play('thunderNear', { bus: dry, gain: 0.25 + 0.25 * e.k, rate: 1.5 }); musDuckV = Math.min(musDuckV, 0.5); });
+  ev.on('weapon:swap', () => play('swap', { bus: dry, gain: 0.7 }));
+  ev.on('shield:hit', (e) => play('shieldHit', { pos: e.point, ref: 5, gain: e.bash ? 1.3 : 0.75, rate: e.bash ? 0.8 : 1, every: 0.05 }));
+  ev.on('shield:break', (e) => { play('bigBoom', { pos: e.pos, ref: 6, gain: 0.5, rate: 1.8 }); play('clank', { pos: e.pos, ref: 6, gain: 1 }); });
+  ev.on('shield:land', (e) => play('clank', { pos: e.pos, ref: 5, gain: 0.8, rate: 0.85 }));
+  ev.on('drone:lock', (e) => play('droneLock', { pos: e.d.root.position.clone(), ref: 8, roll: 0.4, gain: 1.2 }));
+  ev.on('drone:dive', (e) => play('dash', { pos: e.d.root.position.clone(), ref: 6, gain: 0.9, rate: 0.7 }));
   ev.on('player:dash', () => play('dash', { gain: 0.8, jitter: 0.06 }));
   ev.on('player:slide', () => play('slide', { gain: 0.9 }));
   ev.on('player:melee', () => play('dash', { gain: 0.45, rate: 1.35 }));

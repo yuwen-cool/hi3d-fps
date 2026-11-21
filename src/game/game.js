@@ -14,10 +14,12 @@ export async function buildGame(G, setLoad) {
   setLoad('weapon', 0.5);
   try { const { createWeapon } = await import('../weapon/weapon.js'); G.weapon = await createWeapon(G); mods.push(['weapon', G.weapon]); } catch (e) { console.warn('weapon', e); }
   try { const { createFX } = await import('../fx/fx.js'); G.fxs = createFX(G); mods.push(['fx', G.fxs]); } catch (e) { console.warn('fx', e); }
+  try { const { createBeams } = await import('../fx/beam.js'); G.beams = createBeams(G); mods.push(['beams', G.beams]); } catch (e) { console.warn('beams', e); }
   try { const { createScan } = await import('../fx/scan.js'); G.scan = createScan(G); mods.push(['scan', G.scan]); } catch (e) { console.warn('scan', e); }
   try { const { createFire } = await import('../fx/fire.js'); G.fire = createFire(G); mods.push(['fire', G.fire]); } catch (e) { console.warn('fire', e); }
   setLoad('enemies', 0.65);
   try { const { createEnemies } = await import('../enemies/enemies.js'); G.enemies = await createEnemies(G); mods.push(['enemies', G.enemies]); } catch (e) { console.warn('enemies', e); }
+  try { const { createDrones } = await import('../enemies/drones.js'); G.drones = await createDrones(G); mods.push(['drones', G.drones]); } catch (e) { console.warn('drones', e); }
   try { const { createColossus } = await import('../enemies/colossus.js'); G.boss = await createColossus(G); mods.push(['boss', G.boss]); } catch (e) { console.warn('boss', e); }
   try { const { createExplosives } = await import('../world/explosives.js'); G.explosives = createExplosives(G); mods.push(['explosives', G.explosives]); } catch (e) { console.warn('explosives', e); }
   try { const { createAudio } = await import('../audio/audio.js'); G.audio = createAudio(G); mods.push(['audio', G.audio]); } catch (e) { console.warn('audio', e); }

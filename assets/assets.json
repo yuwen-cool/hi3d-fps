@@ -191,5 +191,30 @@
   "quality": "high_quality",
   "max_points": 90,
   "prompt": "Game asset concept: an abandoned rusted fuel tanker truck, old semi-truck cab with broken windows and a long cylindrical tank trailer, flat tyres, sand drifted against the wheels, faded paint. Three-quarter side view."
+ },
+ {
+  "name": "lance",
+  "multi_view": true,
+  "quality": "master",
+  "max_points": 200,
+  "prompt": "Game weapon asset concept, original near-future electromagnetic rail rifle for a first-person shooter (not a copy of any real gun). Long rectangular twin-rail barrel with exposed copper coil segments along its length and a split prong muzzle, compact angular receiver, ergonomic pistol grip with trigger, a chunky rectangular battery cell inserted in front of the grip, short skeletal stock, a small reflex sight on the top rail. Gunmetal steel and worn olive-tan polymer, a few orange accent marks. Side view, barrel pointing right."
+ },
+ {
+  "name": "riot_shield",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: a heavy combat robot's riot shield, a tall slightly curved rectangular slab of thick scratched steel armour plate, a narrow armoured glass vision slit near the top, bolted reinforcement ribs, yellow and black hazard stripes along the bottom edge, dents and bullet scars. Front three-quarter view."
+ },
+ {
+  "name": "drone",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: a compact sci-fi quadcopter robot drone, four ducted rotors on short arms around an armoured central body, a single round glowing red sensor eye at the front, a small sensor pod slung underneath, dark gunmetal and hazard-orange panels, scuffed and dusty. Three-quarter view from slightly above."
+ },
+ {
+  "name": "drop_pod",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: a military supply drop pod standing upright after landing, a ruggedised armoured cylindrical canister about two metres tall with four short stabiliser fins at the base, a front hatch blown open, scorched heat-shield bottom, olive drab and hazard-yellow paint, stencilled markings. Three-quarter view."
  }
 ]

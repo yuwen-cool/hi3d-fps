@@ -172,3 +172,16 @@
 {"t":"2026-11-21T06:15:42.136Z","key":"shipLoop","take":1,"runId":"01M7YBXZAX69Z4P7NCABW1J8D9","status":"COMPLETED","cost":0}
 {"t":"2026-11-21T06:15:47.672Z","key":"shipPass","take":0,"runId":"01M7YBY57GGA0TD3CN660FE51W","status":"COMPLETED","cost":0}
 {"t":"2026-11-21T06:15:52.532Z","key":"shipPass","take":1,"runId":"01M7YBYAG399G56ENJEKKZTCRF","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T07:06:03.614Z","key":"lanceCharge","take":0,"runId":"01M7YET5V5HQAQ0F11629KZCRH","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T07:06:07.740Z","key":"lanceCharge","take":1,"runId":"01M7YETBJXZ8FMQGYFAXYXJPMR","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T07:06:11.618Z","key":"lanceFire","take":0,"runId":"01M7YETF2QF4HPYK7JZBE8FFZ4","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T07:06:15.248Z","key":"lanceFire","take":1,"runId":"01M7YETJRYRWF7C2ZE4GZMD3BC","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T07:06:21.381Z","key":"droneLoop","take":0,"runId":"01M7YETPEZRPGPAXDC3GR2KF71","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T07:06:28.423Z","key":"droneLoop","take":1,"runId":"01M7YETWZECYMK8P7X99XRT2KM","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T07:06:33.639Z","key":"droneLock","take":0,"runId":"01M7YEV44NPJQSQS386YYM5NZW","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T07:06:37.398Z","key":"droneLock","take":1,"runId":"01M7YEV88C2193K38V2KD7XY9Q","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T07:06:41.261Z","key":"shieldHit","take":0,"runId":"01M7YEVBYQCPYHXF5W9YG785YC","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T07:06:44.675Z","key":"shieldHit","take":1,"runId":"01M7YEVFMVSJ1TDAZF454HMQXQ","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T07:06:48.138Z","key":"shieldHit","take":2,"runId":"01M7YEVK064JS4R0VNMRSMQ88W","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T07:06:52.977Z","key":"swap","take":0,"runId":"01M7YEVPGFYRZMTMFTZJ9FFWFB","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T07:06:57.792Z","key":"swap","take":1,"runId":"01M7YEVVM10ZZ4A4C0YYSVMX6G","status":"COMPLETED","cost":0}

@@ -4,6 +4,7 @@ import { loadRobotRig } from './anim.js';
 import { alignedGun } from '../weapon/align.js';
 import { patchMaterial } from '../mats/patch.js';
 import { createWreck } from './wreck.js';
+import { instance } from '../world/assets.js';
 
 // Hi3D combat robots. AI layer follows docs/SPEC.md §6.1 (perception, attack tokens, firing
 // positions scored away from teammates and into line of sight, telegraph -> burst -> cool).
@@ -11,8 +12,12 @@ import { createWreck } from './wreck.js';
 // upper-body aim/shoot layers.
 const CFG = { hp: 140, headR: 0.15, shotDmg: 5, burst: 4, burstGap: 0.11, cool: [1.0, 1.9], tele: 0.35, spreadFar: 0.06, spreadNear: 0.03,
   run: 4.2, walk: 1.6, accel: 7, turn: 3.0, range: [6, 14], sight: 48, fovCos: Math.cos(1.75), react: 0.55, height: 1.9, maxTokens: 3, tokenGap: 0.7 };
-// kinds: riflemen hold 6-14 m and trade bursts; chargers sprint in and fire on the move (orange visor)
-const KINDS = { rifle: {}, charger: { hp: 110, run: 5.6, range: [2.5, 6], burst: 7, burstGap: 0.075, cool: [0.6, 1.1], tele: 0.3, visor: [2.2, 0.55, 0.12] } };
+// kinds: riflemen hold 6-14 m and trade bursts; chargers sprint in and fire on the move (orange visor);
+// heavies are a size up, walk a riot shield straight at you and fire around it (red visor) — break the shield,
+// get behind them (the power pack on the back is the weak point), lob a grenade over it, or put a lance slug through it
+const KINDS = { rifle: {}, charger: { hp: 110, run: 5.6, range: [2.5, 6], burst: 7, burstGap: 0.075, cool: [0.6, 1.1], tele: 0.3, visor: [2.2, 0.55, 0.12] },
+  heavy: { hp: 340, run: 2.3, range: [4, 10], burst: 6, burstGap: 0.13, cool: [1.1, 1.8], tele: 0.45, visor: [2.6, 0.18, 0.08], scale: 1.18, mass: 2.6, shield: 650, tint: 0.55, turn: 1.5 } };
+const SHIELD = { w: 0.86, h: 1.55, t: 0.07 };
 const HOLD = { fwd: 0.3, down: -0.15, inward: -0.08, rBack: -0.05, rUp: 0.04, lFwd: 0.32, lUp: -0.03, lSide: 0.0, twist: -0.2, lPole: 0.25 };
 const UPPER = /^(spine|neck|head|clavicle|upperarm|lowerarm|hand|index|middle|ring|pinky|thumb)/;
 function subClip(c, upper, name) { return new THREE.AnimationClip(name, c.duration, c.tracks.filter((t) => UPPER.test(t.name.split('.')[0]) === upper)); }
@@ -28,6 +33,14 @@ export async function createEnemies(G) {
   for (const n of ['Pistol_Aim_Neutral', 'Pistol_Shoot', 'Pistol_Idle', 'Pistol_Reload', 'Jog', 'Walk', 'Sprint']) if (clips[n]) U[n] = subClip(clips[n], true, n + '_U');
   const wreck = createWreck(G, skinSrc);
   const gunA = await alignedGun('rifle_v1'); const gunSrc = gunA.group;
+  // riot shield: stand it up with its thin axis along Z (face toward +Z), base at the origin
+  const shieldSrc = await (async () => {
+    const o = await instance('riot_shield'); const g = new THREE.Group(); o.updateMatrixWorld(true);
+    const sz = new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3()); if (sz.x < sz.z) o.rotation.y = Math.PI / 2;
+    o.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(o), c = b.getCenter(new THREE.Vector3()), s2 = b.getSize(new THREE.Vector3());
+    o.position.sub(c); const k = SHIELD.h / s2.y; const inner = new THREE.Group(); inner.add(o); inner.scale.set(SHIELD.w / s2.x, k, k); g.add(inner);
+    g.traverse((m) => { if (m.isMesh) { m.castShadow = m.receiveShadow = true; } }); return g;
+  })();
   const list = [], tokens = { n: 0, last: 0 }; let gripFit = null;
   // ---------- nav grid ----------
   const B = G.level.layout.bounds, CS = 0.5, NX = Math.ceil((B.maxX - B.minX) / CS), NZ = Math.ceil((B.maxZ - B.minZ) / CS);
@@ -64,12 +77,13 @@ export async function createEnemies(G) {
   }
 
   function spawn(pos, opts = {}) {
-    const o = skClone(src); o.scale.setScalar(CFG.height);
+    const kind0 = opts.kind || 'rifle', sc = KINDS[kind0]?.scale || 1;
+    const o = skClone(src); o.scale.setScalar(CFG.height * sc);
     const root = new THREE.Group(); root.add(o); root.position.copy(pos); scene.add(root);
     const bones = {}; o.traverse((b) => { if (b.isBone) bones[b.name] = b; });
     const kind = opts.kind || 'rifle', c = { ...CFG, ...KINDS[kind] };
     let skinned = null;
-    const mats = []; o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); patchMaterial(m.material, 'robot'); if (c.visor) m.material.emissive.setRGB(...c.visor); mats.push(m.material); } if (m.isSkinnedMesh) skinned = m; });
+    const mats = []; o.traverse((m) => { if (m.isMesh) { m.material = m.material.clone(); patchMaterial(m.material, 'robot'); if (c.visor) m.material.emissive.setRGB(...c.visor); if (c.tint) m.material.color.multiplyScalar(c.tint); mats.push(m.material); } if (m.isSkinnedMesh) skinned = m; });
     // rifle in the right hand
     const gun = gunSrc.clone(true); gun.scale.setScalar(1.12); scene.add(gun); // world-space each frame; 1.12x keeps human proportions on a 1.9 m robot
     gun.userData.fit = true;
@@ -84,6 +98,7 @@ export async function createEnemies(G) {
       lastKnown: null, home: pos.clone(), patrolT: 0, hitSpr: { p: 0, pv: 0, r: 0, rv: 0 }, curL: null, curU: null, deadT: 0, id: list.length, glow: 0,
     };
     // bones edited procedurally after the mixer (stance twist, aim pitch, hit springs, arm IK)
+    if (c.shield) { const sh = shieldSrc.clone(true); scene.add(sh); e.shield = { m: sh, hp: c.shield, broken: false, v: new THREE.Vector3(), w: new THREE.Vector3(), c: new THREE.Vector3(), q: new THREE.Quaternion(), flash: 0 }; }
     e.pb = ['spine_02', 'spine_03', 'neck_01', 'head', 'upperarm_l', 'lowerarm_l', 'upperarm_r', 'lowerarm_r'].map((n) => bones[n]);
     e.pq = e.pb.map((b) => b.quaternion.clone());
     play(e, 'L', 'Pistol_Idle', 0); play(e, 'U', 'Pistol_Idle', 0);
@@ -150,6 +165,13 @@ export async function createEnemies(G) {
   }
   function damage(e, dmg, hit, dir) {
     if (!e.alive) return;
+    if (hit.part === 'shield') { // the plate takes it: sparks, a ring, and it wears down
+      const S_ = e.shield; S_.hp -= dmg; S_.flash = 1; G.events.emit('shield:hit', { e, point: hit.point });
+      if (dir) for (let i = 0; i < 6; i++) G.fxs?.emit(false, { pos: hit.point, vel: dir.clone().multiplyScalar(-3 - rnd() * 3).add(new THREE.Vector3((rnd() - 0.5) * 4, rnd() * 3, (rnd() - 0.5) * 4)), life: 0.2 + rnd() * 0.2, size: 0.01, stretch: 0.05, col: [16, 10, 4], grav: 9.8, drag: 2 });
+      if (e.state !== 'engage') { e.lastKnown = G.player.s.pos.clone(); alert(e); }
+      if (S_.hp <= 0) breakShield(e, dir || new THREE.Vector3(0, 0, 1));
+      return;
+    }
     e.hp -= dmg; const weak = hit.part === 'weak';
     const Q = Math.min(1.6, dmg / 28) * (weak ? 1.6 : 1);
     e.hitSpr.pv -= Q * 6 * (0.6 + rnd() * 0.4); e.hitSpr.rv += (rnd() - 0.5) * Q * 8;
@@ -158,6 +180,15 @@ export async function createEnemies(G) {
     if (e.hp <= 0) kill(e, dir, weak);
     else if (hit.part !== 'weak' && e.hitA && dmg >= 26 && rnd() < 0.35) { e.hitA.reset().setEffectiveWeight(0.7).fadeIn(0.05).play(); setTimeout(() => e.hitA.fadeOut(0.25), 250); }
   }
+  function breakShield(e, dir) {
+    const S_ = e.shield; if (S_.broken) return; S_.broken = true;
+    S_.v.copy(dir).setY(0).normalize().multiplyScalar(-2.5).add(new THREE.Vector3(0, 2.5, 0)); S_.w.set((rnd() - 0.5) * 4, (rnd() - 0.5) * 3, -3 - rnd() * 2);
+    e.stagT = 1.3; e.knockV.copy(dir).setY(0).normalize().multiplyScalar(2.5); e.c = { ...e.c, run: 3.8, range: [3, 8] };
+    S_.m.getWorldPosition(S_.c); G.fxs?.electric(S_.c); R.flash(S_.c, 0xffb070, 40, 6, 0.1); G.hitstop(0.06);
+    for (let i = 0; i < 10; i++) G.fxs?.chunk(S_.c.clone().add(new THREE.Vector3(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(0.6)), new THREE.Vector3((rnd() - 0.5) * 5, 2 + rnd() * 3, (rnd() - 0.5) * 5), 0.05 + rnd() * 0.08, 0x4a4844, 6, 1);
+    G.events.emit('shield:break', { e, pos: S_.c.clone() });
+  }
+  function shieldBash(e, dir) { e.stagT = 0.55; e.knockV.copy(dir).multiplyScalar(4); const S_ = e.shield; S_.hp -= 140; S_.flash = 1; G.events.emit('shield:hit', { e, point: S_.m.getWorldPosition(new THREE.Vector3()), bash: true }); if (S_.hp <= 0) breakShield(e, dir.clone().negate()); }
   function kill(e, dir, weak) {
     e.alive = false; e.state = 'dead'; e.deadT = 0; if (e.token) { e.token = false; tokens.n--; }
     e.knock = null;
@@ -169,6 +200,7 @@ export async function createEnemies(G) {
     G.fxs?.emit(false, { pos: core, life: 0.12, size: 1.2, size1: 0.3, col: [8, 10, 16] });
     for (let i = 0; i < 6; i++) G.fxs?.chunk(hp.clone().add(new THREE.Vector3(rnd() - 0.5, -rnd() * 0.6, rnd() - 0.5).multiplyScalar(0.3)), new THREE.Vector3((rnd() - 0.5) * 4 + dir.x * 3, 2 + rnd() * 3, (rnd() - 0.5) * 4 + dir.z * 3), 0.04 + rnd() * 0.05, 0x2c2b29, 6);
     for (const m of e.mats) m.emissiveIntensity = 0;
+    if (e.shield && !e.shield.broken) { e.shield.broken = true; e.shield.v.set(dir.x * 2, 1.5, dir.z * 2); e.shield.w.set(0, 0, -2.5); }
     G.events.emit('enemy:killed', { e, weak, melee: !!e.meleeHit, pos: e.root.position.clone() });
   }
   // ---------- hit test: bone-following spheres/capsules ----------
@@ -176,11 +208,20 @@ export async function createEnemies(G) {
     ['upperarm_l', 'lowerarm_l', 0.08, 'limb'], ['lowerarm_l', 'hand_l', 0.07, 'limb'], ['upperarm_r', 'lowerarm_r', 0.08, 'limb'], ['lowerarm_r', 'hand_r', 0.07, 'limb'],
     ['thigh_l', 'calf_l', 0.1, 'limb'], ['calf_l', 'foot_l', 0.08, 'limb'], ['thigh_r', 'calf_r', 0.1, 'limb'], ['calf_r', 'foot_r', 0.08, 'limb']];
   const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _ray = new THREE.Ray(), _pt = new THREE.Vector3(), _ps = new THREE.Vector3();
-  function hitTest(o, d, maxD) {
+  const _so = new THREE.Vector3(), _sd = new THREE.Vector3(), _sq = new THREE.Quaternion();
+  function shieldHit(e, o, d) { // ray vs the shield's box in its own frame
+    const m = e.shield.m; m.getWorldQuaternion(_sq).invert(); m.getWorldPosition(_so);
+    const lo = o.clone().sub(_so).applyQuaternion(_sq), ld = _sd.copy(d).applyQuaternion(_sq);
+    const H = [SHIELD.w / 2, SHIELD.h / 2, SHIELD.t / 2]; let t0 = -1e9, t1 = 1e9;
+    for (const [k, h] of [['x', H[0]], ['y', H[1]], ['z', H[2]]]) { if (Math.abs(ld[k]) < 1e-6) { if (Math.abs(lo[k]) > h) return null; continue; } let a = (-h - lo[k]) / ld[k], b = (h - lo[k]) / ld[k]; if (a > b) [a, b] = [b, a]; t0 = Math.max(t0, a); t1 = Math.min(t1, b); if (t0 > t1) return null; }
+    return t0 > 0 ? t0 : null;
+  }
+  function hitTest(o, d, maxD, opt = {}) {
     _ray.set(o, d); let best = null;
     for (const e of list) {
       if (!e.alive) continue;
-      const c = e.root.position; if (_ray.distanceSqToPoint(_a.set(c.x, c.y + 1, c.z)) > 2.5) continue;
+      if (e.shield && !e.shield.broken && !opt.pierce) { const t = shieldHit(e, o, d); if (t != null && t < maxD && (!best || t < best.distance)) best = { distance: t, enemy: e, part: 'shield', point: o.clone().addScaledVector(d, t) }; }
+      const c = e.root.position; if (_ray.distanceSqToPoint(_a.set(c.x, c.y + 1, c.z)) > 2.5 * (e.c.scale || 1) ** 2) continue;
       for (const [b0, b1, r, part] of segs) {
         e.bones[b0].getWorldPosition(_a);
         let dist;
@@ -191,7 +232,9 @@ export async function createEnemies(G) {
           e.bones[b1].getWorldPosition(_b);
           const sq = _ray.distanceSqToSegment(_a, _b, _pt, _ps); if (sq > r * r) continue; dist = _pt.distanceTo(o) - r * 0.5;
         }
-        if (dist > 0 && dist < maxD && (!best || dist < best.distance)) best = { distance: dist, enemy: e, part, point: o.clone().addScaledVector(d, dist) };
+        // a heavy's back carries its power pack: body hits from behind count as weak-point hits
+        const pp_ = e.c.shield && part === 'body' && (Math.sin(e.yaw) * d.x + Math.cos(e.yaw) * d.z) > 0.35 ? 'weak' : part;
+        if (dist > 0 && dist < maxD && (!best || dist < best.distance)) best = { distance: dist, enemy: e, part: pp_, point: o.clone().addScaledVector(d, dist) };
       }
     }
     return best;
@@ -252,9 +295,25 @@ export async function createEnemies(G) {
     // right hand -> grip (wrist sits slightly behind/above the grip origin)
     const rT = e.gun.position.clone().addScaledVector(dir, HOLD.rBack).addScaledVector(_upw, HOLD.rUp);
     ik2(B_.upperarm_r, B_.lowerarm_r, B_.hand_r, rT, _upw.clone().multiplyScalar(-1).addScaledVector(_rt, 0.7).addScaledVector(dir, -0.3));
+    if (e.shield && !e.shield.broken) { placeShield(e); return; }
     // left hand -> handguard
     const lT = e.gun.position.clone().addScaledVector(dir, HOLD.lFwd).addScaledVector(_upw, HOLD.lUp).addScaledVector(_rt, HOLD.lSide);
     ik2(B_.upperarm_l, B_.lowerarm_l, B_.hand_l, lT, _upw.clone().multiplyScalar(-1).addScaledVector(_rt, -HOLD.lPole).addScaledVector(dir, 0.15));
+  }
+  // the shield rides on the left forearm: in front of the body, edged left so the rifle can fire past its right side
+  const _sh = new THREE.Vector3();
+  function placeShield(e) {
+    const S_ = e.shield, sc = e.c.scale || 1, f = new THREE.Vector3(Math.sin(e.yaw), 0, Math.cos(e.yaw)), r = new THREE.Vector3(f.z, 0, -f.x);
+    const bob = Math.sin(G.time * 5 + e.id) * 0.02 * Math.min(1, e.vel.length());
+    S_.m.position.copy(e.root.position).addScaledVector(f, 0.62 * sc).addScaledVector(r, 0.16 * sc).setY(e.root.position.y + (SHIELD.h / 2 + 0.38) * sc * 0.9 + bob);
+    S_.m.rotation.set(0.06, e.yaw - 0.12, 0); S_.m.scale.setScalar(sc * 0.95); S_.m.visible = e.root.visible; S_.m.updateMatrixWorld(true);
+    _sh.copy(S_.m.position).addScaledVector(f, -0.12).add(new THREE.Vector3(0, -0.05, 0));
+    ik2(e.bones.upperarm_l, e.bones.lowerarm_l, e.bones.hand_l, _sh, new THREE.Vector3(0, -1, 0).addScaledVector(r, 0.6));
+  }
+  function updShieldDebris(e, dt) { // a broken or dropped shield tumbles and lies where it fell
+    const S_ = e.shield; if (!S_ || !S_.broken || S_.rest) return;
+    S_.v.y -= 9.8 * dt; S_.m.position.addScaledVector(S_.v, dt); S_.m.rotation.x += S_.w.z * dt * 0.5; S_.m.rotation.z += S_.w.x * dt * 0.3;
+    if (S_.m.position.y < 0.08) { S_.m.position.y = 0.08; S_.m.rotation.set(-Math.PI / 2 + 0.05, S_.m.rotation.y, 0); S_.rest = true; G.events.emit('shield:land', { pos: S_.m.position.clone() }); }
   }
   // ---------- update ----------
   function update(dt) {
@@ -266,6 +325,7 @@ export async function createEnemies(G) {
       for (let i = 0; i < e.pb.length; i++) e.pb[i].quaternion.copy(e.pq[i]);
       e.mixer.update(dt);
       for (let i = 0; i < e.pb.length; i++) e.pq[i].copy(e.pb[i].quaternion);
+      if (e.shield) { updShieldDebris(e, dt); if (e.shield.flash > 0) e.shield.flash = Math.max(0, e.shield.flash - dt * 6); }
       if (!e.alive) {
         e.deadT += dt;
         if (e.deadT < 0.05) e.gunV = new THREE.Vector3((rnd() - 0.5) * 2, 2, (rnd() - 0.5) * 2);
@@ -337,7 +397,7 @@ export async function createEnemies(G) {
       if (!P.blocked(np.x, np.z, 0.38, 0.3, 1.6)) e.root.position.copy(np); else e.vel.multiplyScalar(0.2);
       // facing: aim at player when engaged, else face velocity
       const want = (e.state === 'engage' && !pdead) ? Math.atan2(toP.x, toP.z) : (e.vel.lengthSq() > 0.05 ? Math.atan2(e.vel.x, e.vel.z) : e.yaw);
-      e.yaw += THREE.MathUtils.clamp(angleDiff(want, e.yaw), -CFG.turn * dt, CFG.turn * dt);
+      e.yaw += THREE.MathUtils.clamp(angleDiff(want, e.yaw), -(e.c.turn || CFG.turn) * dt, (e.c.turn || CFG.turn) * dt);
       e.root.rotation.y = e.yaw;
       // animation selection (lower = locomotion relative to facing; upper = aim/shoot or match)
       const sp = e.vel.length();
@@ -356,6 +416,6 @@ export async function createEnemies(G) {
       placeGun(e, aiming || e.state === 'engage');
     }
   }
-  return { update, spawn, list, hitTest, damage, CFG, path, alert, canReach: (a, b) => !!path(a, b), get alive() { return list.filter((e) => e.alive).length; } };
+  return { update, spawn, list, hitTest, damage, shieldBash, CFG, KINDS, path, alert, canReach: (a, b) => !!path(a, b), get alive() { return list.filter((e) => e.alive).length; } };
 }
 function angleDiff(a, b) { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d; }

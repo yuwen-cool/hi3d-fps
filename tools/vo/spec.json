@@ -144,6 +144,21 @@
    "key": "board",
    "v": "ctl",
    "text": "Ramp is down! Get aboard, now!"
+  },
+  {
+   "key": "pod",
+   "v": "ctl",
+   "text": "Sending you a lance. Drop pod on your position — grab it."
+  },
+  {
+   "key": "heavy",
+   "v": "ctl",
+   "text": "Shield unit! Get behind it, or put a lance through it."
+  },
+  {
+   "key": "drones",
+   "v": "ctl",
+   "text": "Drones over the wall! Watch the sky — they dive."
   }
  ]
 }

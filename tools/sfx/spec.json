@@ -322,6 +322,43 @@
    "n": 1,
    "sec": 5,
    "prompt": "Heavy military VTOL dropship flying fast low overhead and away, roaring turbines doppler shift, rotor wash gust, fading into the distance"
+  },
+  {
+   "key": "lanceCharge",
+   "n": 1,
+   "sec": 1.2,
+   "prompt": "Sci-fi electromagnetic rail gun charging up, rising electric whine with crackling capacitor hum building in pitch, close up, no music"
+  },
+  {
+   "key": "lanceFire",
+   "n": 2,
+   "sec": 1.8,
+   "prompt": "Sci-fi rail gun firing, a massive sharp electric crack and supersonic boom with a metallic ringing zap and a rolling thunder tail, close up, punchy, no music"
+  },
+  {
+   "key": "droneLoop",
+   "n": 1,
+   "sec": 4,
+   "loop": true,
+   "prompt": "Small quadcopter drone hovering, high pitched buzzing rotors with a slight angry electric whine, steady continuous, no fade"
+  },
+  {
+   "key": "droneLock",
+   "n": 1,
+   "sec": 1,
+   "prompt": "Electronic target lock warning, rapid accelerating beeps rising in pitch then a short whine, sci-fi"
+  },
+  {
+   "key": "shieldHit",
+   "n": 3,
+   "sec": 0.5,
+   "prompt": "Bullet hitting a thick steel riot shield, sharp metallic ping and clang with a short ring, close"
+  },
+  {
+   "key": "swap",
+   "n": 1,
+   "sec": 0.6,
+   "prompt": "Soldier switching weapons, quick fabric rustle and a solid metallic rifle handling clack, close up, short"
   }
  ],
  "music": [

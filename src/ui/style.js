@@ -127,6 +127,12 @@ export const CSS = `
 #hud .amm .top span{font-family:var(--N);font-size:1.5rem;color:var(--bone2)}
 #hud .amm .top.low b{color:var(--red);animation:blink .5s steps(2) infinite}
 #hud .amm .tk{display:flex;gap:2px;height:.5rem;margin-top:.3rem}
+#hud .amm .tk.big{gap:5px;height:.65rem}#hud .amm .tk.big i{background:#8fe3ff;box-shadow:0 0 6px rgba(120,210,255,.6)}#hud .amm .tk.big i.e{background:rgba(143,227,255,.14);box-shadow:none}
+#hud .amm .ws{display:none;justify-content:flex-end;gap:.6rem;margin-top:.35rem;font-family:var(--B);font-weight:600;font-size:.8rem;letter-spacing:.18em;color:var(--bone2)}#hud .amm .ws.has{display:flex}
+#hud .amm .ws span{opacity:.45}#hud .amm .ws span.on{opacity:1;color:var(--bone)}#hud .amm .ws em{font-style:normal;display:inline-block;border:1px solid currentColor;padding:0 .3rem;margin-right:.35rem;font-size:.75rem}
+#hud .chg{position:absolute;left:50%;top:50%;width:4.2rem;height:4.2rem;transform:translate(-50%,-50%) rotate(-90deg);opacity:0;transition:opacity .12s;pointer-events:none;overflow:visible}#hud .chg.on{opacity:1}
+#hud .chg circle{fill:none;stroke-width:2.2}#hud .chg .bg{stroke:rgba(143,227,255,.18)}#hud .chg .fg{stroke:#8fe3ff;stroke-dasharray:100;stroke-dashoffset:100;filter:drop-shadow(0 0 4px rgba(120,210,255,.9))}
+#hud .chg .tk{stroke:#8fe3ff;stroke-width:2;opacity:0}#hud .chg.full .tk{opacity:1;animation:blink .18s steps(2) infinite}#hud .chg.full .fg{stroke:#fff}
 #hud .amm .tk i{flex:1;background:var(--bone);transform:skewX(-18deg)}
 #hud .amm .top.low~.tk i{background:var(--red)}#hud .amm .tk i.e{background:rgba(239,229,207,.16)}
 #hud .amm .tk.rl i{background:rgba(239,229,207,.16)}#hud .amm .tk.rl i.f{background:var(--bone)}

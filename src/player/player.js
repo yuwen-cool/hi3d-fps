@@ -7,7 +7,7 @@ export const MOVE = { walk: 3.8, sprint: 6.4, crouch: 1.9, ads: 2.4, accel: 34, 
 export function createInput(canvas) {
   const keys = new Set(), pressed = new Set();
   const st = { dx: 0, dy: 0, fire: false, ads: false, locked: false, pressedFire: false };
-  const map = { KeyX: 'ult', KeyW: 'fwd', KeyS: 'back', KeyA: 'left', KeyD: 'right', ShiftLeft: 'sprint', ShiftRight: 'sprint', Space: 'jump', ControlLeft: 'crouch', KeyC: 'crouch', KeyR: 'reload', KeyF: 'melee', KeyV: 'melee', KeyG: 'gl', KeyQ: 'scan', KeyE: 'use' };
+  const map = { KeyX: 'ult', KeyW: 'fwd', KeyS: 'back', KeyA: 'left', KeyD: 'right', ShiftLeft: 'sprint', ShiftRight: 'sprint', Space: 'jump', ControlLeft: 'crouch', KeyC: 'crouch', KeyR: 'reload', KeyF: 'melee', KeyV: 'melee', KeyG: 'gl', KeyQ: 'scan', KeyE: 'use', Digit1: 'w1', Digit2: 'w2' };
   const clear = () => { keys.clear(); st.fire = st.ads = false; };
   addEventListener('keydown', (e) => { const a = map[e.code]; if (!a) return; if (!keys.has(a)) pressed.add(a); keys.add(a); e.preventDefault(); });
   addEventListener('keyup', (e) => { const a = map[e.code]; if (a) keys.delete(a); });
@@ -20,6 +20,7 @@ export function createInput(canvas) {
   addEventListener('mouseup', (e) => { if (e.button === 0) st.fire = false; if (e.button === 2) st.ads = false; });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   document.addEventListener('pointerlockchange', () => { st.locked = document.pointerLockElement === canvas; if (!st.locked) clear(); });
+  addEventListener('wheel', (e) => { if (st.locked && Math.abs(e.deltaY) > 4) pressed.add('wswap'); }, { passive: true });
   addEventListener('mousemove', (e) => { if (!st.locked) return; if (Math.abs(e.movementX) > 400 || Math.abs(e.movementY) > 400) return; st.dx += e.movementX; st.dy += e.movementY; });
   return {
     st, keys, clear, down: (a) => keys.has(a), pressed: (a) => pressed.has(a),

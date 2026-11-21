@@ -16,9 +16,13 @@ window.__installBot = () => {
       if (ps.assisting) { G.auto = {}; return; } /* the game is showing us something: watch it */ const eye = G.R.camera.getWorldPosition(new T.Vector3());
       let tgt = null, bd = 1e9, te = null;
       for (const e of G.enemies.list) { if (!e.alive) continue; const h = e.bones.spine_03.getWorldPosition(new T.Vector3()); const d = h.distanceTo(eye); if (d < bd && G.phys.los(eye, h)) { bd = d; tgt = h; te = e; } }
+      for (const dr of G.drones?.list || []) { if (!dr.alive) continue; const h = dr.root.position.clone(); const d = h.distanceTo(eye) * 0.8; if (d < bd && G.phys.los(eye, h)) { bd = d; tgt = h; te = null; } } /* drones first when close: they dive */
+      // the lance for a shielded heavy, the carbine for everything else
+      const W = G.weapon; if (W.S.lanceOn) { const want = te?.shield && !te.shield.broken && (W.kits.find((k) => k.key === 'lance')?.ammo + W.kits.find((k) => k.key === 'lance')?.reserve > 0) ? 'lance' : 'rifle'; if (W.key !== want && W.S.swapT < 0) W.swapTo(want); }
+      const pod = G.flow.S.pod; if (pod?.landed && !pod.taken && !tgt) { go(ps, pod.at, dt); return; }
       const B = G.boss.S;
       if (!tgt && B.active && !B.dead) for (const w of G.boss.targets()) { const cp = w.clone(); const d = cp.clone().sub(eye); const len = d.length(); d.normalize(); if (len < bd && !G.phys.raycast(eye, d, len)) { tgt = cp; bd = len; } }
-      if (G.weapon.S.ammo + G.weapon.S.reserve < 20) { const c = G.level.crates.slice().sort((a, b) => a.distanceTo(ps.pos) - b.distanceTo(ps.pos))[0]; go(ps, c, dt); return; }
+      if (G.weapon.kits.every((k) => k.ammo + k.reserve < (k.key === 'rifle' ? 20 : 2))) { const c = G.level.crates.slice().sort((a, b) => a.distanceTo(ps.pos) - b.distanceTo(ps.pos))[0]; go(ps, c, dt); return; }
       // objective first when nothing is in sight: the marked valve / extraction
       const F = G.flow.S, v = G.level.valves?.[0];
       if (!tgt && F.step === 'valve' && v && !v.open) {
@@ -39,7 +43,7 @@ window.__installBot = () => {
       if (tgt) {
         const d = tgt.clone().sub(eye); const yaw = Math.atan2(-d.x, -d.z), pit = Math.atan2(d.y, Math.hypot(d.x, d.z));
         ps.yaw += Math.atan2(Math.sin(yaw - ps.yaw), Math.cos(yaw - ps.yaw)) * Math.min(1, dt * 8); ps.pitch += (pit - ps.pitch) * Math.min(1, dt * 8);
-        burst += dt; G.auto.fire = (burst % 0.9) < 0.45; G.auto.fwd = 0;
+        burst += dt; G.auto.fire = G.weapon.key === 'lance' ? true : (burst % 0.9) < 0.45; G.auto.fwd = 0;
         if (te && bd < 2.4 && G.weapon.S.meleeCd <= 0) G.auto.melee = true;
         if (G.od?.S.charge >= 1 && !G.od.S.active) G.auto.ult = true;
       }

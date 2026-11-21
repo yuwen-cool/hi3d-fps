@@ -10,7 +10,7 @@ const ICON = {
   melee: '<svg viewBox="0 0 24 24" fill="none" stroke="#efe5cf" stroke-width="2.4"><path d="M5 19l9-9M14 10l2-6 4 4-6 2M4 14l6 6"/></svg>',
 };
 const CARD = { 0: 'N', 45: 'NE', 90: 'E', 135: 'SE', 180: 'S', 225: 'SW', 270: 'W', 315: 'NW' };
-const NAMES = { rifle: 'RIFLEMAN', charger: 'CHARGER' };
+const NAMES = { rifle: 'RIFLEMAN', charger: 'CHARGER', heavy: 'SHIELD HEAVY', drone: 'SEEKER DRONE' };
 const pad3 = (n) => String(Math.round(n) % 360).padStart(3, '0');
 export const bearing = (from, to) => ((Math.atan2(to.x - from.x, -(to.z - from.z)) * 180 / Math.PI) + 360) % 360;
 
@@ -39,8 +39,10 @@ export function createHUD(G) {
     <div class="top"><b>30</b><span>/ 150</span></div>
     <div class="tk">${'<i></i>'.repeat(30)}</div>
     <div class="bot"><span class="gl">GRENADE [G] <i></i><i></i><i></i></span><span class="wn">KR-9 CARBINE</span></div>
+    <div class="ws"><span class="w1 on"><em>1</em>CARBINE</span><span class="w2"><em>2</em>LANCE</span></div>
   </div>
   <div class="xh"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div>
+  <svg class="chg" viewBox="-30 -30 60 60"><circle r="22" class="bg"/><circle r="22" class="fg" pathLength="100"/><path class="tk" d="M0 -27V-17M0 27V17M-27 0H-17M27 0H17"/></svg>
   <div class="hm"><i style="transform:rotate(45deg) translateX(.9rem)"></i><i style="transform:rotate(135deg) translateX(.9rem)"></i><i style="transform:rotate(225deg) translateX(.9rem)"></i><i style="transform:rotate(315deg) translateX(.9rem)"></i></div>
   <div class="pts"></div>
   <div class="kb"><svg viewBox="-50 -50 100 100"></svg><div class="lb"></div></div>
@@ -90,8 +92,8 @@ export function createHUD(G) {
     // objective marks
     for (const m of G.obj?.marks || []) { const [x, y] = put(m.p); c.fillStyle = m.kind === 'boss' ? '#ff3b2b' : m.kind === 'ext' ? '#efe5cf' : '#ff6a14'; const s = (m.kind === 'boss' ? 7 : 5) * dpr; c.save(); c.translate(x, y); c.rotate(Math.PI / 4); c.fillRect(-s, -s, 2 * s, 2 * s); c.restore(); }
     // hostiles: seen, scanned, or firing recently
-    for (const e of G.enemies?.list || []) {
-      if (!e.alive) continue; const vis = e.scanT > 0 || (G.time - (e.lastShotT ?? -99)) < 2.5 || e.seenT > 0; if (!vis) continue;
+    for (const e of [...(G.enemies?.list || []), ...(G.drones?.list || [])]) {
+      if (!e.alive) continue; const vis = e.scanT > 0 || (G.time - (e.lastShotT ?? -99)) < 2.5 || e.seenT > 0 || e.mode === 'lock' || e.mode === 'dive'; if (!vis) continue;
       const [x, y, edge] = put(e.root.position); c.fillStyle = e.scanT > 0 ? '#62f1ff' : '#ff3b2b'; c.globalAlpha = edge ? 0.6 : 1;
       c.beginPath(); c.arc(x, y, 3.2 * dpr, 0, 7); c.fill(); c.globalAlpha = 1;
     }
@@ -106,7 +108,12 @@ export function createHUD(G) {
   const shN = q('.vit .sn'), vit = q('.vit'), amm = q('.amm'), shRow = q('.vit .sh'), shSeg = qa('.vit .sh i b'), hpSeg = qa('.vit .hp i b'), hpN = q('.vit .n');
   const abOd = q('.a.od'), kb = q('.kb'), kbSvg = q('.kb svg'), kbLb = q('.kb .lb'), odf = q('.odf'), odt = q('.odt'), odtBar = q('.odt i');
   const abDash = q('.a.dash'), abScan = q('.a.scan'), rlp = q('.rlp'), gain = q('.amm .gain');
-  const ammC = q('.amm .top'), ammB = q('.amm .top b'), ammS = q('.amm .top span'), glP = qa('.amm .gl i'), tk = q('.amm .tk'), tks = qa('.amm .tk i'), rl = q('.amm .rl');
+  const ammC = q('.amm .top'), ammB = q('.amm .top b'), ammS = q('.amm .top span'), glP = qa('.amm .gl i'), tk = q('.amm .tk'), rl = q('.amm .rl'), wn = q('.amm .wn'), ws = q('.amm .ws'), ws1 = q('.amm .w1'), ws2 = q('.amm .w2');
+  const chg = q('.chg'), chgFg = q('.chg .fg');
+  let tks = qa('.amm .tk i');
+  // the round ticks, the name and the slot row follow whichever gun is up
+  function setGun() { const W = G.weapon; if (!W) return; const n = W.W.mag; tk.innerHTML = '<i></i>'.repeat(n); tk.classList.toggle('big', n < 10); tks = qa('.amm .tk i'); setTx(wn, W.W.label); ws1.classList.toggle('on', W.key === 'rifle'); ws2.classList.toggle('on', W.key === 'lance'); ws.classList.toggle('has', !!W.S.lanceOn); }
+  G.events.on('weapon:switch', setGun); G.events.on('weapon:unlock', setGun);
   const wmks = q('.wmks'), wPool = [];
   const wEl = () => { const m = document.createElement('div'); m.className = 'wmk'; m.innerHTML = '<i class="d"></i><span class="l"></span><div class="r sh0"><span class="nm"></span><em></em></div>'; wmks.appendChild(m); return m; };
   let combatT = 0;
@@ -222,7 +229,7 @@ export function createHUD(G) {
     });
     for (let i = marks.length; i < markPool.length; i++) markPool[i].style.opacity = 0;
     let en = 0;
-    for (const e of G.enemies?.list || []) {
+    for (const e of [...(G.enemies?.list || []), ...(G.drones?.list || [])]) {
       if (!e.alive || !(e.scanT > 0 || (G.time - (e.lastShotT ?? -99)) < 1.5)) continue;
       const rel = ((bearing(p.pos, e.root.position) - heading + 540) % 360) - 180; if (Math.abs(rel) > 76) continue;
       const m = enPool[en] || (enPool[en] = enEl()); en++; m.style.opacity = 1; m.style.transform = `translateX(${(23 + rel * K).toFixed(2)}rem)`; m.style.borderTopColor = e.scanT > 0 ? '#62f1ff' : '';
@@ -271,6 +278,8 @@ export function createHUD(G) {
     setTx(ammB, String(W.S.ammo)); setTx(ammS, `/ ${W.S.reserve}`); const lowA = W.S.ammo <= Math.ceil(W.W.mag * 0.2) && !W.S.reloading; ammC.classList.toggle('low', lowA);
     rlp.classList.toggle('on', lowA && W.S.reserve > 0 && playing && !p.dead);
     glP.forEach((g, i) => g.classList.toggle('f', i < W.S.gl));
+    if (!tks.length || tks.length !== W.W.mag) setGun();
+    { const k = W.S.charge || 0; chg.classList.toggle('on', k > 0.01 && playing && !p.dead); chg.classList.toggle('full', k >= 1); chgFg.style.strokeDashoffset = (100 - 100 * k).toFixed(1); }
     const reloading = W.S.reloading; tk.classList.toggle('rl', reloading); rl.classList.toggle('on', reloading);
     const fillN = reloading ? Math.floor(Math.min(1, W.S.reloadT / Math.max(0.01, W.S.reloadDur)) * W.W.mag) : W.S.ammo;
     tks.forEach((t, i) => { const on = i < fillN; if (t._on !== on) { t._on = on; t.className = reloading ? (on ? 'f' : '') : (on ? '' : 'e'); } });

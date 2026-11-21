@@ -44,6 +44,10 @@ export const MODELS = {
   tank_far: { len: 9.0, cls: 'rust', up: true },
   tower_far: { len: 16.0, cls: 'rust', up: true },
   pumpjack_far: { len: 7.5, cls: 'rust' },
+  lance: { len: 0.86, cls: 'weapon' },
+  riot_shield: { len: 1.55, cls: 'metal', up: true },
+  drone: { len: 0.95, cls: 'paint' },
+  drop_pod: { len: 2.3, cls: 'paint', up: true },
   container_far: { len: 6.1, cls: 'paint' },
 };
 

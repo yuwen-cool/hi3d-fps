@@ -2,7 +2,7 @@
 // KIA and extraction results. Owns pointer lock (deploy / resume) and the title camera.
 import { CSS } from './style.js';
 
-const KEYS = [['W A S D', 'MOVE'], ['MOUSE', 'AIM'], ['LMB', 'FIRE'], ['RMB', 'AIM DOWN SIGHTS'], ['SHIFT', 'DASH / SPRINT'], ['C', 'CROUCH / SLIDE'], ['SPACE', 'JUMP'], ['Q', 'SCAN PULSE'], ['F', 'MELEE'], ['G', 'GRENADE'], ['E', 'INTERACT (HOLD)'], ['R', 'RELOAD'], ['ESC', 'PAUSE']];
+const KEYS = [['W A S D', 'MOVE'], ['MOUSE', 'AIM'], ['LMB', 'FIRE'], ['RMB', 'AIM DOWN SIGHTS'], ['SHIFT', 'DASH / SPRINT'], ['C', 'CROUCH / SLIDE'], ['SPACE', 'JUMP'], ['Q', 'SCAN PULSE'], ['F', 'MELEE'], ['G', 'GRENADE'], ['X', 'OVERDRIVE'], ['1 / 2 / WHEEL', 'CARBINE / LANCE'], ['E', 'INTERACT (HOLD)'], ['R', 'RELOAD'], ['ESC', 'PAUSE']];
 const LS = 'sandline.settings';
 export const settings = (() => { const d = { sens: 1, vol: 0.85, fov: 74, q: 'auto' }; try { return { ...d, ...JSON.parse(localStorage.getItem(LS) || '{}') }; } catch { return d; } })();
 const saveSettings = () => { try { localStorage.setItem(LS, JSON.stringify(settings)); } catch { /* private mode */ } };

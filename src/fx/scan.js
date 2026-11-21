@@ -52,6 +52,7 @@ export function createScan(G) {
       S.t += dt; const k = Math.min(1, S.t / S.dur); S.r = S.maxR * (1 - Math.pow(1 - k, 2.4));
       a = S.t < S.dur ? 1 : Math.max(0, 1 - (S.t - S.dur) / 0.8); if (a <= 0) S.t = -1;
       for (const e of G.enemies?.list || []) if (e.alive && !S.hit.has(e) && e.root.position.distanceTo(S.origin) < S.r) { S.hit.add(e); e.scanT = 6; G.events.emit('scan:reveal', { e }); }
+      for (const d of G.drones?.list || []) if (d.alive && !S.hit.has(d) && d.root.position.distanceTo(S.origin) < S.r) { S.hit.add(d); d.scanT = 6; }
       const B = G.boss?.S; if (B?.active && !B.dead && !S.hit.has(B) && B.pos.distanceTo(S.origin) < S.r + 6) { S.hit.add(B); B.scanT = 6; }
     }
     U.uScan.value.set(S.origin.x, S.origin.y, S.origin.z, S.r); U.uScanA.value = a;

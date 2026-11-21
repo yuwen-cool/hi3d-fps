@@ -292,6 +292,6 @@ export async function createColossus(G) {
     if (S.deathT > 2.8 && !S.final) { S.final = true; G.explosives?.blast(hullH.position.clone(), 3.4, 14, 400); for (let i = 0; i < 6; i++) G.fire?.add(toWorld(V((rnd() - 0.5) * 6, -hullH.position.y + 0.1, (rnd() - 0.5) * 7)), { size: 1 + rnd() * 1.5, life: 200 }); G.events.emit('boss:dead', { pos: hullH.position.clone() }); }
   }
   // what is worth shooting right now (world points), for markers and the test player
-  function targets() { if (!S.active || S.dead || S.overload) return []; return S.legBroken ? cores.filter((c) => c.alive && c.exposed).map((c) => c.light.position) : legs.filter((L) => L.k.alive).map((L) => L.k.w); }
+  function targets() { if (!S.active || S.dead || S.overload) return []; return S.legBroken ? cores.filter((c) => c.alive && c.exposed).map((c) => c.light.getWorldPosition(new THREE.Vector3())) : legs.filter((L) => L.k.alive).map((L) => L.k.w); }
   return { spawn, spawnDistant, hideDistant, worldPos, muzzle, update, hitTest, damage, trapKill, targets, legs, S, root, cores, hull: hullH };
 }

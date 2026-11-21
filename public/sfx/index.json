@@ -273,5 +273,35 @@
  ],
  "vo_board": [
   "vo_board.mp3"
+ ],
+ "lanceCharge": [
+  "lanceCharge_0.mp3"
+ ],
+ "lanceFire": [
+  "lanceFire_0.mp3",
+  "lanceFire_1.mp3"
+ ],
+ "droneLoop": [
+  "droneLoop_0.mp3"
+ ],
+ "droneLock": [
+  "droneLock_0.mp3"
+ ],
+ "shieldHit": [
+  "shieldHit_0.mp3",
+  "shieldHit_1.mp3",
+  "shieldHit_2.mp3"
+ ],
+ "swap": [
+  "swap_0.mp3"
+ ],
+ "vo_heavy": [
+  "vo_heavy.mp3"
+ ],
+ "vo_pod": [
+  "vo_pod.mp3"
+ ],
+ "vo_drones": [
+  "vo_drones.mp3"
  ]
 }

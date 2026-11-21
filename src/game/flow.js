@@ -8,7 +8,8 @@ import * as THREE from 'three';
 //   III NIGHT the colossus walks in from the west; break its two coolant cores; the column falls; extract.
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 const SPAWNS = [[-9, -26], [2, -29], [11, -27], [-16, -21], [-3, -18], [8, -12], [-14, -3], [0, -25], [-8, -10], [7, -9], [-12, -6], [12, -7], [0, -14], [-6, -17], [9, -17]];
-const WAVES = [{ n: 4, ch: 1 }, { n: 4, ch: 1 }, { n: 5, ch: 2 }, { n: 2, ch: 1 }];
+// n robots (ch of them chargers, hv shield heavies) + dr drones over the wall
+const WAVES = [{ n: 4, ch: 1 }, { n: 3, ch: 1, dr: 3 }, { n: 4, ch: 1, hv: 1, dr: 2 }, { n: 2, ch: 1, dr: 2 }];
 const BOSS_PATH = [V(-33, 0, -16), V(-31, 0, -4), V(-34, 0, -24), V(-31, 0, -10)];
 const STORM_CLOCK = 180;
 // the dropship settles over the pad nose-west (wings across the wall line), belly ~3.4 m up; the boarding shot is taken from inside the yard
@@ -31,6 +32,9 @@ const RADIO = {
   won: 'Got you. Bringing you home.',
   shipIn: "Dropship is on approach. Hold at the pad, it's coming in hot.",
   board: 'Ramp is down! Get aboard, now!',
+  pod: 'Sending you a lance. Drop pod on your position — grab it.',
+  heavy: 'Shield unit! Get behind it, or put a lance through it.',
+  drones: 'Drones over the wall! Watch the sky — they dive.',
   lateValve: 'Forget the valve — the storm is on you.',
   horizon: 'Eyes west. Something is walking out there.',
 };
@@ -47,13 +51,19 @@ export function createFlow(G) {
   G.obj = null;
   function obj(o) { G.obj = { ...G.obj, ...o }; }
   const later = (sec, fn) => S.queue.push({ t: S.t + sec, fn }); // game-time timers (deterministic in record mode)
-  function spawnWave(n, ch = 0, near = null) {
+  const hostiles = () => (E()?.alive ?? 0) + (G.drones?.alive ?? 0);
+  function spawnWave(n, ch = 0, near = null, { hv = 0, dr = 0 } = {}) {
     const pp = G.player.s.pos; const ref = near || pp;
     const cand = SPAWNS.map(([x, z]) => V(x, 0, z)).filter((p) => p.distanceTo(pp) > 11 && !G.phys.blocked(p.x, p.z, 0.45) && (E()?.canReach?.(p, pp) ?? true));
     cand.sort((a, b) => a.distanceTo(ref) - b.distanceTo(ref) + (G.rng() - 0.5) * 14);
     const m = Math.min(n, cand.length);
-    for (let i = 0; i < m; i++) S.queue.push({ t: S.t + i * 0.65, fn: () => { const e = E()?.spawn(cand[i], { yaw: Math.atan2(pp.x - cand[i].x, pp.z - cand[i].z), kind: i >= m - ch ? 'charger' : 'rifle' }); if (e) { e.lastKnown = G.player.s.pos.clone(); e.state = 'investigate'; } } });
-    S.pending = m; S.waveN = m; S.waveK = S.kills; S.queue.push({ t: S.t + m * 0.65 + 0.05, fn: () => { S.pending = 0; } });
+    for (let i = 0; i < m; i++) S.queue.push({ t: S.t + i * 0.65, fn: () => { const e = E()?.spawn(cand[i], { yaw: Math.atan2(pp.x - cand[i].x, pp.z - cand[i].z), kind: i < hv ? 'heavy' : i >= m - ch ? 'charger' : 'rifle' }); if (e) { e.lastKnown = G.player.s.pos.clone(); e.state = 'investigate'; } } });
+    // drones come in high over the wall from the storm side, a beat apart
+    const nd = G.drones ? dr : 0;
+    for (let i = 0; i < nd; i++) S.queue.push({ t: S.t + 1.2 + i * 0.8, fn: () => { const a = Math.atan2(STORM_DIR.y, STORM_DIR.x) + (i - (nd - 1) / 2) * 0.5, p = G.player.s.pos; G.drones.spawn(V(p.x + Math.cos(a) * 34, 15 + i, p.z + Math.sin(a) * 34)); } });
+    if (hv) later(2.2, () => say('heavy')); else if (nd) later(1.5, () => say('drones'));
+    const tot = m + nd, last = Math.max(m * 0.65, nd ? 1.2 + nd * 0.8 : 0);
+    S.pending = tot; S.waveN = tot; S.waveK = S.kills; S.queue.push({ t: S.t + last + 0.05, fn: () => { S.pending = 0; } });
   }
   function setAct(a) { S.act = a; S.actT = 0; G.events.emit('flow:act', { act: a }); }
 
@@ -94,10 +104,44 @@ export function createFlow(G) {
     if (!valveA()) S.step = 'hold';
     G.events.emit('flow:start');
   }
+  // ---------- the lance arrives: a drop pod falls out of the sky into the yard, burning, and the player picks it up ----------
+  async function dropPod() {
+    if (S.pod || !G.weapon?.kits?.some((k) => k.key === 'lance')) return;
+    const pp = G.player.s.pos, spots = [V(-2, 0, -12), V(1, 0, -5), V(-6, 0, -8), V(4, 0, -16), V(-10, 0, -14)].filter((p) => !G.phys.blocked(p.x, p.z, 1.2, 0, 3));
+    const at = spots.sort((a, b) => Math.abs(a.distanceTo(pp) - 8) - Math.abs(b.distanceTo(pp) - 8))[0] || pp.clone().add(V(0, 0, -6));
+    const { instance } = await import('../world/assets.js'); const m = await instance('drop_pod');
+    m.position.set(at.x + 18, 90, at.z - 30); m.rotation.y = G.rng() * 6; G.R.scene.add(m);
+    const beacon = new THREE.PointLight(0x7fd0ff, 0, 7, 2); beacon.position.set(at.x, 1.6, at.z); G.R.scene.add(beacon); G.R.volLights.push(beacon);
+    S.pod = { m, at, from: m.position.clone(), t: 0, landed: false, beacon, taken: false };
+    say('pod'); G.audio?.play?.('shipPass', { gain: 0.9, rate: 1.6, pos: m.position.clone(), ref: 30, roll: 0.3 });
+  }
+  function podTick(dt) {
+    const P_ = S.pod; if (!P_ || P_.taken) return; P_.t += dt;
+    if (!P_.landed) { // 2.2 s fall on a steep line, a burning trail behind it
+      const u = Math.min(1, P_.t / 2.2), k = u * u; P_.m.position.lerpVectors(P_.from, P_.at, k);
+      G.fxs?.emit(false, { pos: P_.m.position.clone().add(V(0, 0.5, 0)), vel: P_.from.clone().sub(P_.at).normalize().multiplyScalar(4), life: 0.35, size: 0.6, size1: 0.15, col: [14, 6, 1.5], drag: 1 });
+      G.fxs?.emit(true, { pos: P_.m.position.clone().add(V(0, 1, 0)), vel: V((G.rng() - 0.5), 1, (G.rng() - 0.5)), life: 2.5, size: 0.6, size1: 2.4, col: G.fxs.litColor([0.3, 0.28, 0.26]), alpha: 0.4, soft: true, drag: 0.6, rise: 0.4 });
+      if (u >= 1) {
+        P_.landed = true; G.player.addShake(Math.max(0.25, 0.9 - P_.at.distanceTo(G.player.s.pos) / 25)); G.R.flash(P_.at.clone().setY(1), 0xffa060, 50, 10, 0.12);
+        G.fxs?.explosion(P_.at.clone().setY(0.4), 0.6); G.events.emit('explosion', { pos: P_.at.clone(), size: 0.6 });
+        for (let i = 0; i < 40; i++) { const a = i / 40 * 6.283; G.fxs?.emit(true, { pos: V(P_.at.x + Math.cos(a), 0.2, P_.at.z + Math.sin(a)), vel: V(Math.cos(a), 0.15, Math.sin(a)).multiplyScalar(6 + G.rng() * 4), life: 1.6, size: 0.4, size1: 2.2, col: G.fxs.litColor([0.5, 0.42, 0.32]), alpha: 0.45, soft: true, drag: 2 }); }
+        obj({ marks: [...(G.obj?.marks || []), { p: P_.at, label: '2', kind: 'pick', name: 'ARC LANCE' }] });
+      }
+      return;
+    }
+    P_.beacon.intensity = 6 + 4 * Math.sin(P_.t * 5);
+    if (!(G.obj?.marks || []).some((m) => m.kind === 'pick')) obj({ marks: [...(G.obj?.marks || []), { p: P_.at, label: '2', kind: 'pick', name: 'ARC LANCE' }] });
+    if (G.player.s.pos.distanceTo(P_.at) < 2.4) {
+      P_.taken = true; P_.beacon.intensity = 0; G.weapon.unlockLance(); G.weapon.swapTo('lance');
+      obj({ marks: (G.obj?.marks || []).filter((m) => m.kind !== 'pick') });
+      hud()?.banner?.('ARC-7 LANCE', { kind: 'good', sub: 'HOLD FIRE TO CHARGE — PIERCES SHIELDS', dur: 3 });
+      hud()?.hint?.([['2', 'LANCE'], ['1', 'CARBINE'], ['LMB', 'HOLD TO CHARGE']], 6); G.audio?.play?.('bolt', { gain: 1, rate: 0.8 });
+    }
+  }
   // ---------- kill feel + bookkeeping ----------
   G.events.on('enemy:killed', (e) => {
     S.kills++; G.hitstop(0.055); G.player.addShake(0.32);
-    if (S.state === 'play' && (E()?.alive ?? 1) === 0 && !S.pending) { G.slowmo(1.1, 0.22); finisher(e.pos.clone().setY(1.2)); G.events.emit('flow:lastkill'); }
+    if (S.state === 'play' && hostiles() === 0 && !S.pending) { G.slowmo(1.1, 0.22); finisher(e.pos.clone().setY(1.2)); G.events.emit('flow:lastkill'); }
   });
   // the last robot of a wave overloads: a blue-white discharge, a ring of light along the ground, a punch on the lens
   function finisher(p) {
@@ -140,6 +184,7 @@ export function createFlow(G) {
       for (let i = 0; i < 24; i++) G.fxs?.emit(true, { pos: v.top.clone().add(V(0, -0.5, 0)), vel: V((Math.random() - 0.5) * 3, 1.5 + Math.random() * 2, (Math.random() - 0.5) * 3), life: 1.6, size: 0.15, size1: 1.2, col: G.fxs.litColor([0.85, 0.85, 0.85]), alpha: 0.35, soft: true, drag: 1.5, rise: 0.8 });
       hud()?.banner?.('PRESSURE LINE A ONLINE', { kind: 'good', dur: 2.8 }); say('opened');
       obj({ count: [1, 1], marks: [] }); S.step = 'hold'; S.waveT = 2.5; G.events.emit('valve:open', { id: v.id });
+      later(2.5, dropPod);
     } });
   }
   // the finale: the overloaded machine is stuck on the flare line's outlet; light it
@@ -212,7 +257,12 @@ export function createFlow(G) {
     for (const c of G.level.crates || []) if (c.distanceTo(G.player.s.pos) < 2.2 && !(c.cdT > S.t)) { const a = G.weapon?.resupply(), h = G.player.heal?.(50); if (a || h) { c.cdT = S.t + 1.5; hud()?.addFeed?.('SUPPLY CRATE', h ? '+AMMO +HP' : '+AMMO'); } }
     if (S.state === 'dead') { S.deadT += dt; return; }
     if (S.state !== 'play' && S.state !== 'extract') return;
-    const ev = env(), alive = E()?.alive ?? 0, clear = alive === 0 && !S.pending;
+    podTick(dt);
+    // the last one or two of a wave never sit it out somewhere: after a while they come for you, and they show on the radar
+    { const left = (E()?.list || []).filter((e) => e.alive);
+      if (left.length && left.length <= 2 && !S.pending && !G.boss?.S.active) { S.lingerT = (S.lingerT || 0) + dt; if (S.lingerT > 18) { S.lingerT = 0; for (const e of left) { e.lastKnown = G.player.s.pos.clone(); e.scanT = Math.max(e.scanT || 0, 4); E().alert(e); } } }
+      else S.lingerT = 0; }
+    const ev = env(), alive = hostiles(), clear = alive === 0 && !S.pending;
     // ---- act I ----
     if (S.horizon && G.boss?.S.distant) {
       const H = S.horizon; H.t += dt; H.bolt -= dt; const hp = G.boss.worldPos();
@@ -241,7 +291,7 @@ export function createFlow(G) {
       if (clear) {
         S.waveT -= dt;
         if (S.waveT <= 0) {
-          if (S.wave < 2) { S.wave++; spawnWave(WAVES[S.wave].n, WAVES[S.wave].ch); if (S.wave === 2) say('wave'); hud()?.banner?.(`WAVE ${S.wave} / 2`, { kind: 'crit', dur: 2.2 }); S.waveT = 3; }
+          if (S.wave < 2) { S.wave++; spawnWave(WAVES[S.wave].n, WAVES[S.wave].ch, null, WAVES[S.wave]); if (S.wave === 2 && !WAVES[2].hv) say('wave'); hud()?.banner?.(`WAVE ${S.wave} / 2`, { kind: 'crit', dur: 2.2 }); S.waveT = 3; }
           else if (S.actT > 24) toNight();
         }
       }
@@ -252,7 +302,7 @@ export function createFlow(G) {
       if (S.actT > 6 && !S.bossIn) {
         S.bossIn = true; G.boss?.hideDistant(); G.boss?.spawn(V(-50, 0, -13), Math.PI / 2, BOSS_PATH); G.boss.S.trap = V(-31.5, 0, -4); G.audio?.play?.('alarm', { gain: 0.9 });
         revealBoss(() => {
-          spawnWave(WAVES[3].n, WAVES[3].ch); hud()?.boot?.();
+          spawnWave(WAVES[3].n, WAVES[3].ch, null, WAVES[3]); hud()?.boot?.();
           hud()?.banner?.('WARNING // MASSIVE CONTACT', { kind: 'crit', sub: 'COLOSSUS — CLASS-IV SIEGE WALKER', dur: 3.5 });
           say('boss'); obj({ line: 'BREAK A LEG ACTUATOR', count: [0, 1], unit: 'LEGS' }); S.bossPhase = 'legs';
         });
@@ -314,5 +364,5 @@ export function createFlow(G) {
     obj({ act: 3, title: 'ACT 3 // NIGHT', line: 'STAND BY', count: null, unit: null, marks: [] }); say('passing');
     hud()?.banner?.('ACT 3 // NIGHT', { sub: 'THE STORM PASSES', dur: 3 });
   }
-  return { update, S, start, deploy, setAct, fellTower, toExtract };
+  return { update, S, start, deploy, setAct, fellTower, toExtract, dropPod };
 }
