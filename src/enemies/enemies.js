@@ -58,7 +58,7 @@ export async function createEnemies(G) {
     const free = (k) => { if (!block[k]) return k; const cx = k % NX, cz = Math.floor(k / NX); for (let r = 1; r <= 4; r++) for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) { if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue; const x = cx + dx, z = cz + dz; if (x >= 0 && z >= 0 && x < NX && z < NZ && !block[z * NX + x]) return z * NX + x; } return -1; };
     T = free(T); S = free(S); if (T < 0 || S < 0) return null; tx_ = T % NX; tz_ = (T / NX) | 0;
     // A* on the 0.5 m grid with a binary heap (the map is ~190 x 165 cells)
-    g.fill(1e9); came.fill(-1); closed.fill(0); g[S] = 0; heap.length = 0; push(S, h(S));
+    g.fill(1e9); came.fill(-1); closed.fill(0); g[S] = 0; heap.length = 0; hf.length = 0; push(S, h(S));
     let it = 0;
     while (heap.length && it++ < 60000) {
       const c = pop(); if (c === T) break; if (closed[c]) continue; closed[c] = 1;
@@ -357,6 +357,8 @@ export async function createEnemies(G) {
         if (e.state !== 'engage' && e.seeT > (e.state === 'patrol' ? CFG.react : CFG.react * 0.45)) alert(e);
         if (e.state === 'engage' && e.lostT > 4) { e.state = 'search'; e.searchT = 8 + rnd() * 3; setGoal(e, e.lastKnown); }
       }
+      // a wave's robots are on the radio: when they lose you they head for where you are now, they never drift off to patrol
+      if (e.hunt && e.state !== 'engage' && !pdead) { e.huntT = (e.huntT || 0) - dt; if (e.huntT <= 0) { e.huntT = 2.5; e.state = 'investigate'; e.lastKnown = pp.clone(); setGoal(e, e.lastKnown); } }
       if (e.state === 'search') { e.searchT -= dt; if (e.searchT <= 0) { e.state = 'patrol'; e.home = e.root.position.clone(); } }
       if (e.state === 'patrol') { e.patrolT -= dt; if (e.patrolT <= 0 || (!e.wp.length && !e.goal)) { e.patrolT = 4 + rnd() * 5; const a = rnd() * 6.28; const g = e.home.clone().add(new THREE.Vector3(Math.cos(a) * 4, 0, Math.sin(a) * 4)); if (!P.blocked(g.x, g.z, 0.45)) setGoal(e, g); } }
       // combat mode machine: move -> aim -> tele -> burst -> cool

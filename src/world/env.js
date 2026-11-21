@@ -19,6 +19,8 @@ export function createEnv(G) {
     key: ex.uKey.value, maxE: ex.uMaxE.value, sunCol: sun.color.clone(),
   };
   const MOON = new THREE.Color(0.5, 0.64, 1.0);
+  // at night the key light swings from the sunset (low, west) to a high moon in the north-east: no glare where the colossus walks in
+  const SUN0 = G.sun.dir.clone(), MOON_DIR = new THREE.Vector3(0.38, 0.62, 0.69).normalize(); let lastN = 0;
   const STORM = { zen: new THREE.Color(0.10, 0.065, 0.04), hor: new THREE.Color(0.55, 0.28, 0.12), away: new THREE.Color(0.24, 0.15, 0.09), fog: new THREE.Color(0.62, 0.40, 0.22), hemiSky: new THREE.Color(0.45, 0.30, 0.18) };
   const NIGHT = { zen: new THREE.Color(0.02, 0.03, 0.07), hor: new THREE.Color(0.22, 0.1, 0.06), away: new THREE.Color(0.04, 0.05, 0.09), fog: new THREE.Color(0.17, 0.12, 0.1), hemiSky: new THREE.Color(0.22, 0.27, 0.42) };
   const skySun = sky.uSunCol.value.clone(); sky.uSunCol.value = skySun; const sunCol0 = skySun.clone();
@@ -62,7 +64,7 @@ export function createEnv(G) {
     // sun: swallowed by the storm, then gone at night
     sun.intensity = base.sun * (1 - 0.93 * k) * (1 - n) * (1 - 0.82 * shade) + base.sun * 0.2 * n * (1 - k);
     sun.color.copy(base.sunCol).lerp(MOON, n);
-    hemi.intensity = base.hemi * (1 - 0.35 * k) * lerp(1, 1.25, n) + S.flash * 0.9;
+    hemi.intensity = base.hemi * (1 - 0.35 * k) * lerp(1, 0.55, n) + S.flash * 0.9; // night: a low blue fill, the floods and fires do the lighting
     hemi.color.copy(base.hemiSky).lerp(STORM.hemiSky, k).lerp(NIGHT.hemiSky, n);
     // sky dome
     sky.uZenith.value.copy(base.zen).lerp(STORM.zen, k).lerp(NIGHT.zen, n).multiplyScalar(1 + S.flash * 3);
@@ -79,11 +81,12 @@ export function createEnv(G) {
       if (!c) { U.w = 0; continue; } c.t += dt; c.p.addScaledVector(_wind, dt * 1.2); c.q.addScaledVector(_wind, dt * 1.2);
       const r = c.r * Math.min(1, c.t / 0.22) * (c.t < c.hold ? 1 : Math.max(0, 1 - (c.t - c.hold) / 4.5)); U.set(c.p.x, c.p.y, c.p.z, r); vol.uClearB.value[i].copy(c.q); if (r <= 0 && c.t > c.hold) clears[i] = null; }
     vol.uFogCol.value.copy(base.fog).lerp(STORM.fog, Math.max(k, 0.4 * S.storm)).lerp(NIGHT.fog, n);
-    vol.uSunScale.value = base.sunScale * (1 - 0.75 * k) * (1 - n) * (1 - 0.7 * shade) + base.sunScale * 0.25 * n;
+    vol.uSunScale.value = base.sunScale * (1 - 0.75 * k) * (1 - n) * (1 - 0.7 * shade) + base.sunScale * 0.1 * n;
+    if (Math.abs(n - lastN) > 0.004) { lastN = n; G.sun.dir.copy(SUN0).lerp(MOON_DIR, sstep(n, 0.1, 0.9)).normalize(); R.fitShadow(); }
     vol.uAmbient.value = base.amb * (1 + 3.5 * k) * lerp(1, 0.35, n) + S.flash * 0.25;
     vol.uHorizon.value.copy(base.vhor).lerp(STORM.hor, k).lerp(NIGHT.hor, n);
-    ex.uKey.value = base.key * lerp(1, 0.9, n) * (1 - 0.1 * k);
-    ex.uMaxE.value = lerp(lerp(base.maxE, 2.0, k), 3.2, n);
+    ex.uKey.value = base.key * lerp(1, 0.62, n) * (1 - 0.1 * k);
+    ex.uMaxE.value = lerp(lerp(base.maxE, 2.0, k), 2.2, n); // a night that stays dark: exposure may not lift it back to dusk
     // far wall: stands on the front while it is far, hands over to the volume as it gets close
     const fd = S.front - u;
     wallMat.uniforms.uA.value = S.storm > 0 ? sstep(fd, 12, 55) * (1 - n) : 0;

@@ -53,6 +53,8 @@ export const MODELS = {
   pump_skid: { len: 3.2, cls: 'paint' },
   transformer: { len: 3.0, cls: 'metal' },
   gas_rack: { len: 2.4, cls: 'paint' },
+  forklift: { len: 3.4, cls: 'paint' },
+  pallets: { len: 1.5, cls: 'default' },
   container_far: { len: 6.1, cls: 'paint' },
 };
 

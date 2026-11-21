@@ -7,6 +7,7 @@ import { dress } from './scatter.js';
 import { buildOutskirts, scatterModel } from './outskirts.js';
 import { INTERIOR } from '../mats/patch.js';
 import { ZONES, buildZones, boxGeo, ibeam } from './zones.js';
+import { buildDecals, wearFor } from './decals.js';
 
 // Abandoned desert refinery. Player starts at +Z looking -Z into the low sun (backlit, like
 // target/t1). Three zones (zones.js): A the yard x∈[-21,19], z∈[-31,7] with the workshop corridor x∈[14,20];
@@ -112,7 +113,7 @@ export async function buildLevel(G) {
   let fallTower = null; // the distillation column that comes down at the end
   const jobs = [
     // the process unit's big tank (zone B) and the skyline beyond the workshop
-    place('tank', 10, -40, 0.4, { s: 1.35, surface: 'metal', big: true, shrink: 0.9 }), place('tank', 27, -26, 2.0, { s: 1.15 }),
+    place('tank', 14, -44, 0.4, { s: 1.35, surface: 'metal', big: true, shrink: 0.9 }), // east of the gate lane from the yard place('tank', 27, -26, 2.0, { s: 1.15 }),
     place('tower', -4, -46, 0.2, { s: 1.0 }).then((o) => { fallTower = o; return o; }), place('tower', 5, -52, 1.3, { s: 1.15 }),
     place('tank', 10.2, 2.6, 2.6, { s: 0.9, big: true }), place('tower', -18.4, -28.6, 0.8, { s: 0.75 }),
     place('valves', -14, 1.5, 2.2), place('barrier', -10.5, -1.5, 1.2, { surface: 'concrete' }),
@@ -120,7 +121,7 @@ export async function buildLevel(G) {
     ...optional('container', 11.6, -19.5, 1.45, {}), ...optional('container', -15.5, -13.2, 0.15, {}), ...optional('container', 26, -14, 0.3, { col: false }),
     ...optional('generator', -16.2, -8.8, 1.6, {}), ...optional('generator', 7.6, -27.6, 0.2, {}),
     ...optional('spool', 2.8, -14, 0.7, {}), ...optional('sandbags', 4.6, -3.2, 0.1, { surface: 'concrete' }), ...optional('sandbags', -6.4, -17.8, 2.9, { surface: 'concrete' }),
-    ...optional('scaffold', -13, -42, 0.4, {}), ...optional('scaffold', 18, -46, 1.9, { s: 0.85 }),
+    ...optional('scaffold', -13, -42, 0.4, {}),
     // pipe racks bridging the yard (overhead, walkable underneath: collide only legs)
     place('piperack', -6, -11.5, 0, { s: 1.35, col: false }), place('piperack', 3.6, -11.5, 0, { s: 1.35, col: false }),
     place('piperack', 22, -9, Math.PI / 2, { s: 1.3, col: false }),
@@ -143,7 +144,15 @@ export async function buildLevel(G) {
   // ---------- zones B and C ----------
   const ctx = { G, P, root, steel, conc, grate, gas, pipes, place, optional, jobs, valveSpots: [['A', -6.8, -25.2, 0.15, 0]], lights: [], fences: [], crates: [], zones: {}, zone(id) { return (this.zones[id] ||= { steel: [], conc: [], grate: [], gas: [], pipes: [] }); } };
   buildZones(ctx);
-  if (have.has('fence')) jobs.push(scatterModel(root, 'fence', ctx.fences, { shadow: true, inside: true }));
+  if (have.has('fence')) jobs.push(scatterModel(root, 'fence', ctx.fences, { shadow: false, inside: true }).then((f) => { // one mesh round the whole map: it would cast into the shadow map from everywhere
+    // the colossus walks in through the fence: a section it steps on is flattened, outward, in a burst of dust
+    if (!f) return; const down = new Set(), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), sc = new THREE.Vector3();
+    G.events.on('boss:step', (e) => { if (e.far) return; f.list.forEach((o, i) => { if (down.has(i) || Math.hypot(o.x - e.pos.x, o.z - e.pos.z) > 4.5) return; down.add(i);
+      const tilt = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(Math.cos(o.ry), 0, -Math.sin(o.ry)), (e.pos.x < o.x ? 1 : -1) * 1.45);
+      for (const { im, local } of f.meshes) { m4.compose(p.set(o.x, o.y + 0.15, o.z), tilt.multiply(q.setFromAxisAngle(Y, o.ry)), sc.setScalar(o.s)).multiply(local); im.setMatrixAt(i, m4); im.instanceMatrix.needsUpdate = true; tilt.setFromAxisAngle(new THREE.Vector3(Math.cos(o.ry), 0, -Math.sin(o.ry)), (e.pos.x < o.x ? 1 : -1) * 1.45); }
+      for (let k = 0; k < 14; k++) G.fxs?.emit(true, { pos: new THREE.Vector3(o.x + (G.rng() - 0.5) * 4, 0.4, o.z + (G.rng() - 0.5) * 1), vel: new THREE.Vector3((G.rng() - 0.5) * 4, 1 + G.rng() * 2, (G.rng() - 0.5) * 4), life: 2 + G.rng(), size: 0.6, size1: 2.8, col: G.fxs.litColor([0.5, 0.42, 0.32]), alpha: 0.45, soft: true, drag: 1.4 });
+      G.audio?.play?.('clank', { pos: new THREE.Vector3(o.x, 1, o.z), ref: 10, gain: 1.2, rate: 0.7 }); }); });
+  }));
   add(steel, matSteel, 'steel'); add(conc, matConc, 'concrete'); add(wall, matWall, 'wall'); add(floor, matFloor, 'concrete'); add(grate, matGrate, 'grating');
   add(pipes, matPipe, 'pipes'); add(gas, matGas, 'gas');
   for (const z of Object.values(ctx.zones)) { add(z.steel, matSteel, 'steel'); add(z.conc, matConc, 'concrete'); add(z.grate, matGrate, 'grating'); add(z.pipes, matPipe, 'pipes'); add(z.gas, matGas, 'gas'); }
@@ -207,6 +216,14 @@ export async function buildLevel(G) {
   }
   G.level = { root, cover: [], layout: LAYOUT, explosives, fallTower, crates, valves, updateLights, floodPool, tankSpots: ctx.tankSpots, padLights: ctx.padLights };
   await dress(G, root);
+  // ground wear: stains, cracks, tracks and sand on every slab; lane paint down the tank farm's roads; chevrons at the igniter
+  { const ex = [], put = (c, x, z, sx, sz, ry) => ex.push({ c, x, z, sx, sz, ry });
+    for (let z = -64; z < -8; z += 4) { if (z > -42 && z < -19) continue; put(8, -47, z, 4, 4, 0); put(9, -52.2, z, 4, 4, 0); put(9, -41.8, z, 4, 4, 0); }
+    for (let x = -70; x < -24; x += 4) { if (x > -57 && x < -37) continue; put(8, x, -30, 4, 4, Math.PI / 2); }
+    for (const [x, z, ry] of [[-38.5, -26, 0], [-36, -26, 0]]) put(13, x, z, 2.6, 2.6, ry);
+    for (const [x, z] of [[-47, -24], [-47, -36], [-44, -55], [0, -58], [-12, -60], [10, -61], [-50, -12]]) put(14, x, z, 1.1, 1.1, 0);
+    for (const [x, z, r] of [[-52, -33, 4], [-41, -38, 3], [-58, -22, 3.5]]) put(15, x, z, r, r, 0);
+    buildDecals(G, root, wearFor(G.rng, PADS, ex)); }
   await buildOutskirts(G, root);
   R.fitShadow(new THREE.Box3(new THREE.Vector3(-78, -1, -84), new THREE.Vector3(32, 30, 16)));
   R.setInteriors([{ c: new THREE.Vector3((C.minX + C.maxX) / 2, C.h / 2, (C.minZ + C.maxZ) / 2), h: new THREE.Vector3((C.maxX - C.minX) / 2, C.h / 2, (C.maxZ - C.minZ) / 2) }]);

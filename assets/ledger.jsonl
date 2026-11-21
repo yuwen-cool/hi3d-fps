@@ -87,3 +87,7 @@
 {"name": "pump_skid", "step": "model", "task": "ed3fddb20dc045109528401dad6de58a", "points": 45}
 {"name": "gas_rack", "step": "model", "task": "81d84380b9f84051b515a4709953793c", "points": 45}
 {"name": "transformer", "step": "model", "task": "ea0c6bc279d342208fc8b75250357356", "points": 45}
+{"name": "forklift", "step": "image", "task": "0513c00634a449f980c1b98cfde046f3", "points": 6}
+{"name": "pallets", "step": "image", "task": "ecc37e95a20446d9a4d061c1da637c99", "points": 6}
+{"name": "pallets", "step": "model", "task": "b8b00651ca5543869493a30dda96c0d2", "points": 45}
+{"name": "forklift", "step": "model", "task": "42cba12a3e9d465b8c9be31326a55b6a", "points": 45}

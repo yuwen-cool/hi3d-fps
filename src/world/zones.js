@@ -123,14 +123,14 @@ export function buildZones(ctx) {
   // valve B: on the deck, wheel up
   ctx.valveSpots.push(['B', 5, -60, Math.PI / 2, DY]);
   // ground gas header between the yard and the unit: low cover with gaps lined up with the yard's south gates
-  groundRun(V(-22, 0, -36), V(20, 0, -36), [[0.42, 0.3, -0.35, true], [0.36, 0.24, 0.35, false]], [[-15, -11], [3, 7], [13, 15]]);
+  groundRun(V(-22, 0, -36), V(20, 0, -36), [[0.42, 0.3, -0.35, true], [0.36, 0.24, 0.35, false]], [[-15, -11], [2, 7]]); // gaps in line with the yard's south gates
   // substation: transformers in a fenced pen, the control cabin, pump skids along the gallery
   jobs.push(...optional('cabin', 12.5, -69.5, 0, { s: 1, shrink: 0.9 }), ...optional('transformer', -15.5, -68.5, 0.1, {}), ...optional('transformer', -10.5, -68.8, -0.1, {}),
     ...optional('pump_skid', -9, -55, Math.PI / 2, {}), ...optional('pump_skid', 10.5, -54.5, Math.PI / 2, {}), ...optional('pump_skid', -14, -64.5, 0, {}),
-    ...optional('gas_rack', 3, -64.5, 0, { explosive: true }), ...optional('gas_rack', -20.5, -45, Math.PI / 2, { explosive: true }), ...optional('gas_rack', 12, -49.5, -Math.PI / 2, { explosive: true }));
-  jobs.push(place('container', -16, -40.5, 0.05, {}), place('container', -12, -45, 0.05, {}), place('barrier', -3, -41, 0.3, { surface: 'concrete' }), place('barrier', 12, -57, -0.2, { surface: 'concrete' }),
+    ...optional('gas_rack', 3, -64.5, 0, { explosive: true }), ...optional('gas_rack', -20.5, -45, Math.PI / 2, { explosive: true }), ...optional('gas_rack', 8, -51, -Math.PI / 2, { explosive: true }));
+  jobs.push(place('container', -21, -38, Math.PI / 2, {}), place('container', -12, -45, 0.05, {}), place('barrier', -3, -41, 0.3, { surface: 'concrete' }), place('barrier', 12, -57, -0.2, { surface: 'concrete' }),
     place('barrier', -8, -70, 0.1, { surface: 'concrete' }), place('sandbags', 2, -44, 0.4, { surface: 'concrete' }), place('sandbags', -11, -49, 1.6, { surface: 'concrete' }),
-    place('drums', 9, -46, 0.4), place('drums', -6, -66, 1.2), place('drums', 18, -64, 2.1), place('valves', -2, -55.5, 0.3), place('valves', 11, -63.5, 1.2),
+    place('drums', -6, -46.5, 0.4), place('drums', -6, -66, 1.2), place('drums', 18, -64, 2.1), place('valves', -2, -55.5, 0.3), place('valves', 11, -63.5, 1.2),
     place('generator', 18, -38.5, Math.PI / 2, {}), place('spool', -12, -37.5, 0.6, {}), place('rubble', 4, -70, 0.7, { colH: 0.5, surface: 'concrete' }), place('hazard_fence', -1, -50, 0.1),
     place('lamp', -21.3, -56, Math.PI / 2, { y: 3.4, col: false }), place('lamp', 19.3, -56, -Math.PI / 2, { y: 3.4, col: false }));
   // pump drops: pipes come down off the under-deck bundle into the pump skids, with an elbow at the bottom
@@ -143,7 +143,7 @@ export function buildZones(ctx) {
     place('barrier', -20, -58, Math.PI / 2, { surface: 'concrete' }), place('barrier', 20.5, -61, Math.PI / 2, { surface: 'concrete' }), place('rubble', -6, -51.5, 2.2, { colH: 0.45, surface: 'concrete' }), place('valves', -12, -60, 0.4));
   ctx.crates.push([-3.5, -52, 0.3], [14, -70, 1.4]);
   // floodlights on the gallery: warm sodium pools on the ground floor (they also scatter in the volume)
-  for (const x of [-15.5, 2.5, 14.5]) lights.push([V(x, 7.2, GZ1 + 0.6), 0xffb36b, 26, 16]);
+  for (const x of [-15.5, 2.5, 14.5]) lights.push([V(x, 7.2, GZ1 + 0.6), 0xffb36b, 70, 18]);
 
   // =================== C: TANK FARM ===================
   zone('C');
@@ -184,6 +184,10 @@ export function buildZones(ctx) {
   // sandbag nests at the lane corners, drums and a spool by the bunds
   jobs.push(place('sandbags', -43, -40.5, 0.7, { surface: 'concrete' }), place('sandbags', -51.5, -19.5, 2.4, { surface: 'concrete' }), place('drums', -37, -42, 0.9), place('drums', -57, -17.5, 2.2),
     place('spool', -50, -64, 0.4, {}), place('barrier', -59, -38, 0.2, { surface: 'concrete' }), place('barrier', -36, -20.5, 1.2, { surface: 'concrete' }));
+  // the working clutter of a tank farm: a tanker parked out of the way, a stacked container, a forklift and pallets by the pumps
+  jobs.push(place('tanker_truck', -62, -62.5, 0.05, { shrink: 0.9 }), place('container', -66, 3, 0.1, { y: 2.6, col: false }),
+    ...optional('forklift', -56.5, -36.5, 0.8, {}), ...optional('pallets', -58.5, -40, 0.3, {}), ...optional('pallets', -37, -44.5, 1.4, {}), ...optional('pallets', -54.5, -5.5, 2.2, {}), ...optional('pallets', -40.5, -7.5, 0.6, {}),
+    ...optional('forklift', 5, -71, -0.6, {}), ...optional('pallets', 9, -68.5, 0.2, {}), ...optional('pallets', -20, -41.5, 1.1, {}), ...optional('pallets', 15.5, -38.5, 2.5, {}));
   // cover in the lanes and round the pad
   jobs.push(place('container', -66, 3, 0.1, {}), place('container', -66, -2.6, 0.05, {}), place('container', -28, 4, Math.PI / 2, {}), place('container', -68, -30, Math.PI / 2 + 0.1, {}),
     place('barrier', -47, -20.5, 0.1, { surface: 'concrete' }), place('barrier', -44, -37, 1.4, { surface: 'concrete' }), place('barrier', -51, -33, 0.3, { surface: 'concrete' }), place('barrier', -28, -29, 1.6, { surface: 'concrete' }),
@@ -191,7 +195,7 @@ export function buildZones(ctx) {
     place('generator', -26.5, -20, 0, {}), place('valves', -28, -40, 1.2), place('rubble', -57, -64, 0.3, { colH: 0.5, surface: 'concrete' }), place('hazard_fence', -37, -62, 0.6),
     ...optional('pump_skid', -52, -38, 0, {}), ...optional('transformer', -28, -59, 0, {}), ...optional('gas_rack', -41, -18, Math.PI / 2, { explosive: true }), ...optional('gas_rack', -56, -63, 0, { explosive: true }));
   // flood poles at the four corners of the crossroads
-  for (const [x, z] of [[-39, -19], [-55, -19], [-39, -41], [-55, -41]]) { steel.push(...ibeam(8.6, 'y', x, 0, z, 0.3)); P.addBoxCenter(V(x, 4.3, z), V(0.35, 8.6, 0.35), 'metal'); lights.push([V(x + (x > -47 ? -0.6 : 0.6), 8.6, z), 0xffb36b, 22, 20]); }
+  for (const [x, z] of [[-39, -19], [-55, -19], [-39, -41], [-55, -41]]) { steel.push(...ibeam(8.6, 'y', x, 0, z, 0.3)); P.addBoxCenter(V(x, 4.3, z), V(0.35, 8.6, 0.35), 'metal'); lights.push([V(x + (x > -47 ? -0.6 : 0.6), 8.6, z), 0xffb36b, 80, 22]); }
 
   // =================== perimeter ===================
   zone('P');

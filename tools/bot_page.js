@@ -11,8 +11,12 @@ window.__installBot = () => {
       nav.t -= dt; if (nav.t <= 0 || !nav.goal || nav.goal.distanceTo(target) > 0.5) { nav.pts = G.enemies.path(ps.pos, target) || []; nav.t = 1; nav.goal = target.clone(); }
       const nx = nav.pts.find((q) => q.distanceTo(ps.pos) > 0.7) || target; const d = nx.clone().sub(ps.pos); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch *= 0.9; G.auto = { fwd: 1, str: 0 };
     };
+    const stuck = { p: null, t: 0, esc: 0, side: 1 };
     G.modules.bot = { update(dt) {
       t += dt; const ps = G.player.s; if (ps.dead || !['play', 'extract'].includes(G.flow.S.state)) return;
+      // wedged (walking into something for 2 s): jump and sidestep out, the way a player would
+      if (stuck.esc > 0) { stuck.esc -= dt; G.auto = { fwd: 1, str: stuck.side, jump: stuck.esc > 0.8 }; return; }
+      if ((stuck.t += dt) > 2) { if (stuck.p && stuck.p.distanceTo(ps.pos) < 0.3 && G.auto?.fwd > 0 && !G.auto?.use) { stuck.esc = 1.1; stuck.side = -stuck.side; } stuck.p = ps.pos.clone(); stuck.t = 0; }
       if (ps.assisting) { G.auto = {}; return; } /* the game is showing us something: watch it */ const eye = G.R.camera.getWorldPosition(new T.Vector3());
       let tgt = null, bd = 1e9, te = null;
       for (const e of G.enemies.list) { if (!e.alive) continue; const h = e.bones.spine_03.getWorldPosition(new T.Vector3()); const d = h.distanceTo(eye); if (d < bd && G.phys.los(eye, h)) { bd = d; tgt = h; te = e; } }
@@ -36,8 +40,9 @@ window.__installBot = () => {
       if (!tgt && F.step === 'valveB' && vb && !vb.open) {
         const face = (p) => { const d = p.clone().sub(ps.pos); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch *= 0.9; G.auto = { fwd: 1, str: 0 }; };
         if (ps.pos.y > vb.pos.y - 0.4 && ps.pos.z < -58.6 && ps.pos.z > -61.4) { // on the deck (not still on the top step)
-          if (G.interact?.near && G.interact.v === vb) { const d = vb.top.clone().sub(eye); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch = -0.5; G.auto = { use: true }; return; }
-          const stand = vb.pos.clone().add(new T.Vector3(ps.pos.x < vb.pos.x ? -1.6 : 1.6, 0, 0)); if (stand.distanceTo(ps.pos) < 0.5) { const d = vb.top.clone().sub(eye); ps.yaw = Math.atan2(-d.x, -d.z); G.auto = {}; return; } face(stand); return;
+          // within reach from wherever it got to: face the wheel and hold E; otherwise walk at it
+          if (Math.hypot(ps.pos.x - vb.pos.x, ps.pos.z - vb.pos.z) < 2.2) { const d = vb.top.clone().sub(eye); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch = -0.5; G.auto = { use: true }; return; }
+          face(new T.Vector3(vb.pos.x, ps.pos.y, vb.pos.z)); return;
         }
         const sx = Math.abs(ps.pos.x + 19) < Math.abs(ps.pos.x - 17) ? -19 : 17, base = new T.Vector3(sx, 0, -51.4);
         if (ps.pos.y > 0.2 || Math.hypot(ps.pos.x - sx, ps.pos.z + 51.4) < 0.9) { face(new T.Vector3(sx, ps.pos.y, -59.6)); return; } // on the flight: straight up it
@@ -62,6 +67,6 @@ window.__installBot = () => {
       if (G.weapon.S.ammo === 0 && !G.weapon.S.reloading) G.weapon.startReload();
     } };
     const bot = G.modules.bot; delete G.modules.bot; const ie = G.modules.inputEnd; delete G.modules.inputEnd; G.modules.bot = bot; G.modules.inputEnd = ie;
-    const I = G.input; const d0 = I.down;
+    const I = G.input; const d0 = I.down, p0 = I.pressed; I.pressed = (a) => (a === 'jump' && G.auto?.jump) || p0(a);
     I.down = (a) => (a === 'fwd' && G.auto?.fwd > 0) || (a === 'right' && G.auto?.str > 0) || (a === 'left' && G.auto?.str < 0) || (a === 'use' && G.auto?.use) || d0(a);
 };

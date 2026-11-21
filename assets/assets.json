@@ -246,5 +246,17 @@
   "quality": "high_quality",
   "max_points": 90,
   "prompt": "Game asset concept: a steel cage rack holding a row of tall industrial gas cylinders chained upright, the cylinders painted red and yellow with brass valves on top, hazard labels, scuffed and dusty. Three-quarter view."
+ },
+ {
+  "name": "forklift",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: an abandoned industrial forklift truck, faded yellow paint with rust, a roll cage over the seat, raised fork mast with chains, one flat tyre, sand drifted against the wheels. Three-quarter view."
+ },
+ {
+  "name": "pallets",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: a stack of worn wooden shipping pallets with a few plastic-wrapped sacks and a cardboard box on top, frayed strapping, dusty and sun-bleached. Three-quarter view."
  }
 ]

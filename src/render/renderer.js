@@ -73,7 +73,9 @@ export function createRenderer(G, canvas) {
   const _vmFillDir = new THREE.Vector3(-0.55, 0.65, 0.55).normalize();
   G.sun = { light: sun, dir: sunDir, col: sunCol };
   // fit the ortho shadow box around a world AABB
-  function fitShadow(box) {
+  let shadowBox = null;
+  function fitShadow(box = shadowBox) {
+    if (!box) return; shadowBox = box;
     const c = box.getCenter(new THREE.Vector3());
     const r = box.getSize(new THREE.Vector3()).length() * 0.5 + 2;
     sun.target.position.copy(c); sun.position.copy(c).addScaledVector(sunDir, r * 2);

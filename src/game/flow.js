@@ -66,7 +66,7 @@ export function createFlow(G) {
     const cand = SPAWNS.map(([x, z]) => V(x, 0, z)).filter((p) => p.distanceTo(pp) > 11 && !G.phys.blocked(p.x, p.z, 0.45) && (E()?.canReach?.(p, pp) ?? true));
     cand.sort((a, b) => Math.abs(a.distanceTo(ref) - 20) - Math.abs(b.distanceTo(ref) - 20) + (G.rng() - 0.5) * 12); // ~20 m out: close enough to find you, far enough to be seen coming
     const m = Math.min(n, cand.length);
-    for (let i = 0; i < m; i++) S.queue.push({ t: S.t + i * 0.65, fn: () => { const e = E()?.spawn(cand[i], { yaw: Math.atan2(pp.x - cand[i].x, pp.z - cand[i].z), kind: i < hv ? 'heavy' : i >= m - ch ? 'charger' : 'rifle' }); if (e) { e.lastKnown = G.player.s.pos.clone(); e.state = 'investigate'; } } });
+    for (let i = 0; i < m; i++) S.queue.push({ t: S.t + i * 0.65, fn: () => { const e = E()?.spawn(cand[i], { yaw: Math.atan2(pp.x - cand[i].x, pp.z - cand[i].z), kind: i < hv ? 'heavy' : i >= m - ch ? 'charger' : 'rifle' }); if (e) { e.lastKnown = G.player.s.pos.clone(); e.state = 'investigate'; e.hunt = true; } } });
     // drones come in high over the wall from the storm side, a beat apart
     const nd = G.drones ? dr : 0;
     for (let i = 0; i < nd; i++) S.queue.push({ t: S.t + 1.2 + i * 0.8, fn: () => { const a = Math.atan2(STORM_DIR.y, STORM_DIR.x) + (i - (nd - 1) / 2) * 0.5, p = G.player.s.pos; G.drones.spawn(V(p.x + Math.cos(a) * 34, 15 + i, p.z + Math.sin(a) * 34)); } });
@@ -114,14 +114,15 @@ export function createFlow(G) {
     G.events.emit('flow:start');
   }
   // ---------- the lance arrives: a drop pod falls out of the sky into the yard, burning, and the player picks it up ----------
+  // no new lights mid-game (a new light changes the count and recompiles every lit material): the pod's beacon and the reveal's
+  // key and rim borrow the renderer's flash-light pool, re-flashed every frame for as long as they are needed
   async function dropPod() {
     if (S.pod || !G.weapon?.kits?.some((k) => k.key === 'lance')) return;
     const pp = G.player.s.pos, spots = [V(-2, 0, -12), V(1, 0, -5), V(-6, 0, -8), V(4, 0, -16), V(-10, 0, -14)].filter((p) => !G.phys.blocked(p.x, p.z, 1.2, 0, 3));
     const at = spots.sort((a, b) => Math.abs(a.distanceTo(pp) - 8) - Math.abs(b.distanceTo(pp) - 8))[0] || pp.clone().add(V(0, 0, -6));
     const { instance } = await import('../world/assets.js'); const m = await instance('drop_pod');
     m.position.set(at.x + 18, 90, at.z - 30); m.rotation.y = G.rng() * 6; G.R.scene.add(m);
-    const beacon = new THREE.PointLight(0x7fd0ff, 0, 7, 2); beacon.position.set(at.x, 1.6, at.z); G.R.scene.add(beacon); G.R.volLights.push(beacon);
-    S.pod = { m, at, from: m.position.clone(), t: 0, landed: false, beacon, taken: false };
+    S.pod = { m, at, from: m.position.clone(), t: 0, landed: false, taken: false };
     say('pod'); G.audio?.play?.('shipPass', { gain: 0.9, rate: 1.6, pos: m.position.clone(), ref: 30, roll: 0.3 });
   }
   function podTick(dt) {
@@ -138,10 +139,10 @@ export function createFlow(G) {
       }
       return;
     }
-    P_.beacon.intensity = 6 + 4 * Math.sin(P_.t * 5);
+    if (Math.sin(P_.t * 5) > 0.2 && (P_.blinkT = (P_.blinkT || 0) - dt) <= 0) { P_.blinkT = 1.25; G.R.flash(P_.at.clone().setY(1.6), 0x7fd0ff, 10, 7, 0.5); } // a blinking beacon
     if (!(G.obj?.marks || []).some((m) => m.kind === 'pick')) obj({ marks: [...(G.obj?.marks || []), { p: P_.at, label: '2', kind: 'pick', name: 'ARC LANCE' }] });
     if (G.player.s.pos.distanceTo(P_.at) < 2.4) {
-      P_.taken = true; P_.beacon.intensity = 0; G.weapon.unlockLance(); G.weapon.swapTo('lance');
+      P_.taken = true; G.weapon.unlockLance(); G.weapon.swapTo('lance');
       obj({ marks: (G.obj?.marks || []).filter((m) => m.kind !== 'pick') });
       hud()?.banner?.('ARC-7 LANCE', { kind: 'good', sub: 'HOLD FIRE TO CHARGE — PIERCES SHIELDS', dur: 3 });
       hud()?.hint?.([['2', 'LANCE'], ['1', 'CARBINE'], ['LMB', 'HOLD TO CHARGE']], 6); G.audio?.play?.('bolt', { gain: 1, rate: 0.8 });
@@ -325,10 +326,11 @@ export function createFlow(G) {
         }
       }
       if (S.fell?.done && !S.nightT) S.nightT = S.t + 4;
-      if ((S.nightT && S.t > S.nightT) || S.actT > 150) toNight();
+      if (S.actT > 150 && S.towerT == null && !S.fell) { S.towerT = 0; say('tower'); } // a long storm still ends on the column coming down
+      if ((S.nightT && S.t > S.nightT) || S.actT > 190) toNight();
     // ---- act III: night falls on the burning yard; the colossus comes ----
     } else if (S.act === 3) {
-      if (ev) { ev.night = sstep(S.actT, 0, 10); ev.storm = lerp(1, 0.3, sstep(S.actT, 0, 10)); ev.front = Math.min(ev.front, -140); }
+      if (ev) { ev.night = sstep(S.actT, 0, 10); ev.storm = lerp(1, 0.05, sstep(S.actT, 0, 10)); ev.front = Math.min(ev.front, -140); } // the storm blows out: a clear night, a little dust left
       if (S.actT > 6 && !S.bossIn) {
         S.bossIn = true; G.boss?.hideDistant(); G.boss?.spawn(BOSS_IN.clone(), Math.PI / 2, BOSS_PATH); G.boss.S.trap = BOSS_TRAP.clone(); G.audio?.play?.('alarm', { gain: 0.9 });
         revealBoss(() => {
@@ -372,11 +374,10 @@ export function createFlow(G) {
     const B = G.boss; if (!B || !G.cine) { done(); return; }
     // out on the sand west of the yard, low, the machine walking past toward the refinery
     const A0 = V(-28, 1.1, -25.5), A1 = V(-31, 1.5, -28), look = V(0, 0, 0), lk = V(-80, 8, -30);
-    const key = new THREE.PointLight(0xffb27a, 0, 45, 1.6), rim = new THREE.PointLight(0x9fc8ff, 0, 60, 1.4); G.R.scene.add(key, rim);
     G.cine.play({
       dur: 5.2,
       cam: (t) => { const k = Math.min(1, t / 5.2), e = k * k * (3 - 2 * k); look.copy(B.hull.position).add(V(0, 0.6, 0)); lk.lerp(look, Math.min(1, (G.realDt || 0.016) * 4));
-        key.position.copy(B.hull.position).add(V(10, 2, 14)); rim.position.copy(B.hull.position).add(V(-14, 10, -10)); key.intensity = 260 * Math.min(1, t * 2); rim.intensity = 420 * Math.min(1, t * 2);
+        const ki = Math.min(1, t * 2); G.R.flash(B.hull.position.clone().add(V(10, 2, 14)), 0xffb27a, 260 * ki, 45, 0.05); G.R.flash(B.hull.position.clone().add(V(-14, 10, -10)), 0x9fc8ff, 420 * ki, 60, 0.05);
         return { pos: A0.clone().lerp(A1, e), look: lk, fov: 44 - 8 * e, roll: Math.sin(t * 1.7) * 0.006 }; },
       start: () => { later(0.35, () => G.env?.strike(B.hull.position.clone().add(V(-26, 42, 3)))); later(1.6, () => G.env?.strike(B.hull.position.clone().add(V(-18, 38, -12)))); G.player.addShake(0.4); },
       card: { cls: 'CLASS-IV SIEGE WALKER', name: 'COLOSSUS', threat: 'THREAT LEVEL: <b>EXTREME</b>', at: 1.1 },
@@ -386,7 +387,7 @@ export function createFlow(G) {
         { label: 'COOLANT CORE // ARMOURED', at: () => B.cores[0].light.getWorldPosition(new THREE.Vector3()), t: 2.6, dx: -130, dy: 60 },
         { label: 'BEAM EMITTER', at: () => B.muzzle(), t: 2.9, dx: 120, dy: 40 },
       ],
-      end: () => { G.R.scene.remove(key, rim); const ps = G.player.s, d = B.hull.position.clone().sub(G.R.camera.position); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch = THREE.MathUtils.clamp(Math.atan2(d.y - 2, Math.hypot(d.x, d.z)), -0.3, 0.5); done(); },
+      end: () => { const ps = G.player.s, d = B.hull.position.clone().sub(G.R.camera.position); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch = THREE.MathUtils.clamp(Math.atan2(d.y - 2, Math.hypot(d.x, d.z)), -0.3, 0.5); done(); },
     });
   }
   function toNight() {
