@@ -1,32 +1,149 @@
 {
  "_doc": "Voice lines. key -> public/sfx/vo_<key>.mp3 (registered in public/sfx/index.json). ann = arena announcer, ctl = CONTROL on the radio (the game band-passes it).",
- "voices": { "ann": "GyIXYY876myKNtA1j8NI", "ctl": "pNInz6obpgDQGcFmaJgB" },
+ "voices": {
+  "ann": "GyIXYY876myKNtA1j8NI",
+  "ctl": "pNInz6obpgDQGcFmaJgB"
+ },
  "lines": [
-  { "key": "double", "v": "ann", "text": "Double kill!" },
-  { "key": "triple", "v": "ann", "text": "Triple kill!" },
-  { "key": "rampage", "v": "ann", "text": "Rampage!" },
-  { "key": "unstoppable", "v": "ann", "text": "Unstoppable!" },
-  { "key": "headshot", "v": "ann", "text": "Headshot." },
-  { "key": "takedown", "v": "ann", "text": "Takedown." },
-  { "key": "overdrive", "v": "ann", "text": "Overdrive!" },
-  { "key": "cleared", "v": "ann", "text": "Wave cleared." },
-  { "key": "colossusdown", "v": "ann", "text": "Colossus... down!" },
-  { "key": "deploy", "v": "ctl", "text": "Boots on the ground. Storm front is three minutes out." },
-  { "key": "valve", "v": "ctl", "text": "Valve A is across the yard. Open it — we need pressure on the flare line." },
-  { "key": "contact", "v": "ctl", "text": "Hostiles on the valve. Clear them." },
-  { "key": "opened", "v": "ctl", "text": "Line A is live. Pressure is building. Now hold that yard." },
-  { "key": "inbound", "v": "ctl", "text": "More of them coming over the wall. Hold." },
-  { "key": "storm", "v": "ctl", "text": "Here it comes. You will not see them in that — use your scan." },
-  { "key": "wave", "v": "ctl", "text": "Another group, inside the sand. Ping them before they ping you." },
-  { "key": "passing", "v": "ctl", "text": "Storm is passing... wait. Something big on the west ridge." },
-  { "key": "boss", "v": "ctl", "text": "That is not on any manifest. Its cores are armoured — take out a knee." },
-  { "key": "legdown", "v": "ctl", "text": "Leg is gone! The armour blew — the cores are open, hit them!" },
-  { "key": "overload", "v": "ctl", "text": "It is overloading — it is stuck on the flare line. Light it. Now!" },
-  { "key": "ignited", "v": "ann", "text": "Burn it down!" },
-  { "key": "core", "v": "ctl", "text": "One core down! It is venting — hit the other one." },
-  { "key": "dead", "v": "ctl", "text": "It is down. Get to extraction, west gate. Go." },
-  { "key": "won", "v": "ctl", "text": "Got you. Bringing you home." },
-  { "key": "lateValve", "v": "ctl", "text": "Forget the valve — the storm is on you." },
-  { "key": "horizon", "v": "ctl", "text": "Eyes west. Something is walking out there." }
+  {
+   "key": "double",
+   "v": "ann",
+   "text": "Double kill!"
+  },
+  {
+   "key": "triple",
+   "v": "ann",
+   "text": "Triple kill!"
+  },
+  {
+   "key": "rampage",
+   "v": "ann",
+   "text": "Rampage!"
+  },
+  {
+   "key": "unstoppable",
+   "v": "ann",
+   "text": "Unstoppable!"
+  },
+  {
+   "key": "headshot",
+   "v": "ann",
+   "text": "Headshot."
+  },
+  {
+   "key": "takedown",
+   "v": "ann",
+   "text": "Takedown."
+  },
+  {
+   "key": "overdrive",
+   "v": "ann",
+   "text": "Overdrive!"
+  },
+  {
+   "key": "cleared",
+   "v": "ann",
+   "text": "Wave cleared."
+  },
+  {
+   "key": "colossusdown",
+   "v": "ann",
+   "text": "Colossus... down!"
+  },
+  {
+   "key": "deploy",
+   "v": "ctl",
+   "text": "Boots on the ground. Storm front is three minutes out."
+  },
+  {
+   "key": "valve",
+   "v": "ctl",
+   "text": "Valve A is across the yard. Open it — we need pressure on the flare line."
+  },
+  {
+   "key": "contact",
+   "v": "ctl",
+   "text": "Hostiles on the valve. Clear them."
+  },
+  {
+   "key": "opened",
+   "v": "ctl",
+   "text": "Line A is live. Pressure is building. Now hold that yard."
+  },
+  {
+   "key": "inbound",
+   "v": "ctl",
+   "text": "More of them coming over the wall. Hold."
+  },
+  {
+   "key": "storm",
+   "v": "ctl",
+   "text": "Here it comes. You will not see them in that — use your scan."
+  },
+  {
+   "key": "wave",
+   "v": "ctl",
+   "text": "Another group, inside the sand. Ping them before they ping you."
+  },
+  {
+   "key": "passing",
+   "v": "ctl",
+   "text": "Storm is passing... wait. Something big on the west ridge."
+  },
+  {
+   "key": "boss",
+   "v": "ctl",
+   "text": "That is not on any manifest. Its cores are armoured — take out a knee."
+  },
+  {
+   "key": "legdown",
+   "v": "ctl",
+   "text": "Leg is gone! The armour blew — the cores are open, hit them!"
+  },
+  {
+   "key": "overload",
+   "v": "ctl",
+   "text": "It is overloading — it is stuck on the flare line. Light it. Now!"
+  },
+  {
+   "key": "ignited",
+   "v": "ann",
+   "text": "Burn it down!"
+  },
+  {
+   "key": "core",
+   "v": "ctl",
+   "text": "One core down! It is venting — hit the other one."
+  },
+  {
+   "key": "dead",
+   "v": "ctl",
+   "text": "It's down. Dropship is on the way — get to the pad."
+  },
+  {
+   "key": "won",
+   "v": "ctl",
+   "text": "Got you. Bringing you home."
+  },
+  {
+   "key": "lateValve",
+   "v": "ctl",
+   "text": "Forget the valve — the storm is on you."
+  },
+  {
+   "key": "horizon",
+   "v": "ctl",
+   "text": "Eyes west. Something is walking out there."
+  },
+  {
+   "key": "shipIn",
+   "v": "ctl",
+   "text": "Dropship is on approach. Hold at the pad, it's coming in hot."
+  },
+  {
+   "key": "board",
+   "v": "ctl",
+   "text": "Ramp is down! Get aboard, now!"
+  }
  ]
 }

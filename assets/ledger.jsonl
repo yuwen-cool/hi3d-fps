@@ -57,3 +57,15 @@
 {"name": "valve_wheel", "step": "image", "task": "1efd76fbc24c4a31b5b3f1a821684735", "points": 6}
 {"name": "valve_wheel", "step": "model", "task": "c0e879919e6c42949e8e12f7813f8cef", "points": 45}
 {"name": "valve_station", "step": "model", "task": "fd15526fc09c4e43bb8bb2bdf5dfc08a", "points": 45}
+{"name": "dropship", "step": "image", "task": "2c30af08c8c543bbab5f2a17e8e32b56", "points": 6}
+{"name": "horton_sphere", "step": "image", "task": "7f328bcba12547d7a377ad42ebe22d18", "points": 6}
+{"name": "column_cluster", "step": "image", "task": "16efbd65865441ceba7d35da54bc5048", "points": 6}
+{"name": "mesa", "step": "image", "task": "19ed20414f5a41f4ba7cf0bff2ee6454", "points": 6}
+{"name": "cracker", "step": "image", "task": "e475e2f7a86841008ef22f1dd9030008", "points": 6}
+{"name": "column_cluster", "step": "model", "task": "b9c0bd744e2346d7bafaf7ca41c1bad2", "points": 45}
+{"name": "dropship", "step": "model", "task": "780d97b3cd40411fb6ce0bc20fc2dda3", "points": 45}
+{"name": "horton_sphere", "step": "model", "task": "36d0cca58424424a8c8b4225645bd36d", "points": 45}
+{"name": "cracker", "step": "model", "task": "b4974a5173b54a3a871440fe6f9c84fb", "points": 45}
+{"name": "tanker_truck", "step": "image", "task": "b8c81e5f4dae4ccea614c281bcec53a9", "points": 6}
+{"name": "mesa", "step": "model", "task": "3ac673c72cba48e59a1e308245e621f0", "points": 45}
+{"name": "tanker_truck", "step": "model", "task": "4f3ee5e710bf450095b78b0398825994", "points": 45}

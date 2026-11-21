@@ -26,3 +26,6 @@
 {"t":"2026-11-21T04:07:39.048Z","key":"ignited","runId":"01M7Y4KHYYF3YR5GTJ94M3YVHM","status":"COMPLETED","cost":0}
 {"t":"2026-11-21T04:07:39.088Z","key":"legdown","runId":"01M7Y4KH62PZ3FMNWXJSBBHPQF","status":"COMPLETED","cost":0}
 {"t":"2026-11-21T04:07:39.620Z","key":"overload","runId":"01M7Y4KHNRR5FSWKNWA6YRBJP0","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T06:15:56.749Z","key":"shipIn","runId":"01M7YBYF426BCA3E21PD93WQHY","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T06:15:57.072Z","key":"board","runId":"01M7YBYFGS4NBMJNN4ZQJ23MDY","status":"COMPLETED","cost":0}
+{"t":"2026-11-21T06:36:54.812Z","key":"dead","runId":"01M7YD4V6CC4TZWH17NAZYJDNE","status":"COMPLETED","cost":0}

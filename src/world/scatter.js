@@ -108,27 +108,6 @@ export async function dress(G, root) {
       for (let k = 0; k < n; k++) put(cx + (rnd() - 0.5) * 1.4, cz + (rnd() - 0.5) * 1.4, 0.2 + Math.pow(rnd(), 2) * 0.45); }
     const im = new THREE.InstancedMesh(tuft, gm, l.length); l.forEach((m, k) => im.setMatrixAt(k, m)); im.castShadow = true; im.receiveShadow = true; im.name = 'grass'; root.add(im);
   }
-  // ---- far skyline: procedural refinery silhouettes 70-190 m out, layered so the haze stacks them in depth ----
-  {
-    const sg = []; const C = (r0, r1, h, x, z, seg = 14) => { const g = new THREE.CylinderGeometry(r1, r0, h, seg, 1, false); g.translate(x, h / 2, z); sg.push(g); };
-    const Bx = (w, h, d, x, y, z, ry = 0) => { const g = new THREE.BoxGeometry(w, h, d); g.rotateY(ry); g.translate(x, y, z); sg.push(g); };
-    const rr = () => rnd();
-    for (let i = 0; i < 46; i++) {
-      // bias toward the sun-side arc (-x,-z) where the money shots look, but keep a ring all round
-      const a = (rr() < 0.65 ? -2.45 + (rr() - 0.5) * 2.2 : rr() * 6.28), d = 70 + Math.pow(rr(), 0.8) * 120;
-      const x = Math.cos(a) * d - 2, z = Math.sin(a) * d - 12; const kind = rr();
-      if (kind < 0.3) { const h = 22 + rr() * 30, r = 1.4 + rr() * 2.4; C(r, r * 0.9, h, x, z);
-        for (let k = 1; k < 6; k++) { C(r * 1.45, r * 1.45, 0.35, x, z, 16); sg[sg.length - 1].translate(0, h * k / 6 - 0.2, 0); for (let p = 0; p < 6; p++) { const pa = p * 1.05; Bx(0.08, 1.1, 0.08, x + Math.cos(pa) * r * 1.42, h * k / 6 + 0.55, z + Math.sin(pa) * r * 1.42); } } // catwalk rings + rail posts
-        for (let p = 0; p < 3; p++) { const pa = rr() * 6.28; C(0.22, 0.22, h * (0.6 + rr() * 0.35), x + Math.cos(pa) * (r + 0.4), z + Math.sin(pa) * (r + 0.4), 8); } // riser pipes
-        C(r * 0.5, r * 0.3, 3, x, z, 10); sg[sg.length - 1].translate(0, h, 0); }
-      else if (kind < 0.45) { const h = 35 + rr() * 30; C(0.9, 0.6, h, x, z, 10); }                              // flare / chimney stack
-      else if (kind < 0.7) { const r = 6 + rr() * 9, h = 6 + rr() * 8; C(r, r, h, x, z, 24); Bx(r * 0.2, 0.5, r * 2.1, x, h + 0.25, z, rr() * 3); } // storage tank
-      else if (kind < 0.85) { const w = 6 + rr() * 6, h = 14 + rr() * 16, ry = rr() * 3; for (const [ox, oz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) { const lx = Math.cos(ry) * ox * w / 2 - Math.sin(ry) * oz * w / 2, lz = Math.sin(ry) * ox * w / 2 + Math.cos(ry) * oz * w / 2; Bx(0.5, h, 0.5, x + lx, h / 2, z + lz, ry); } for (let y = 4; y < h; y += 4.5) Bx(w + 0.6, 0.4, w + 0.6, x, y, z, ry); } // lattice frame
-      else { const L = 20 + rr() * 30, ry = rr() * 3; Bx(L, 0.8, 1.6, x, 7 + rr() * 4, z, ry); Bx(0.6, 9, 0.6, x, 4.5, z, ry); } // pipe bridge
-    }
-    const fm = triplanarMaterial('rusty_metal_02', { metres: 2.2, cls: 'rust', tint: 0x4e4038 });
-    const far = new THREE.Mesh(mergeGeometries(sg.map((g) => g.index ? g.toNonIndexed() : g), false), fm); far.name = 'far_skyline'; far.castShadow = false; far.receiveShadow = false; root.add(far);
-  }
   // ---- flare stack: a tall burner that stays lit all match (fire.js lights it); a landmark at night ----
   {
     const fx = 22, fz = -44, H = 34, sg = [];

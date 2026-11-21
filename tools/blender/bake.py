@@ -20,7 +20,11 @@ info['hi_tris'] = len(hi.data.polygons)
 bpy.ops.object.duplicate(); lo = bpy.context.view_layer.objects.active; lo.name = 'lo'
 bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
 bpy.ops.mesh.remove_doubles(threshold=1e-6); bpy.ops.object.mode_set(mode='OBJECT')
-m = lo.modifiers.new('dec', 'DECIMATE'); m.ratio = min(1.0, target / len(lo.data.polygons)); bpy.ops.object.modifier_apply(modifier='dec')
+for i in range(5):  # collapse stalls on meshes whose triangles are not welded: weld coarser and go again
+    if len(lo.data.polygons) <= target * 1.25: break
+    if i == 1:  # still stuck: rebuild it as a clean voxel shell (fine for rock and other organic shapes), then collapse
+        d = max(lo.dimensions); r = lo.modifiers.new('vx', 'REMESH'); r.mode = 'VOXEL'; r.voxel_size = d / 260; bpy.ops.object.modifier_apply(modifier='vx'); log('voxel remesh', len(lo.data.polygons))
+    m = lo.modifiers.new('dec', 'DECIMATE'); m.ratio = min(1.0, target / len(lo.data.polygons)); bpy.ops.object.modifier_apply(modifier='dec')
 # small edges: weighted normals keep large flat panels flat after decimation
 lo.data.polygons.foreach_set('use_smooth', [True] * len(lo.data.polygons))
 try:

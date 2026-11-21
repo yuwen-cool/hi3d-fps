@@ -261,5 +261,17 @@
  ],
  "vo_overload": [
   "vo_overload.mp3"
+ ],
+ "shipLoop": [
+  "shipLoop_0.mp3"
+ ],
+ "shipPass": [
+  "shipPass_0.mp3"
+ ],
+ "vo_shipIn": [
+  "vo_shipIn.mp3"
+ ],
+ "vo_board": [
+  "vo_board.mp3"
  ]
 }

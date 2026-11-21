@@ -35,6 +35,16 @@ export const MODELS = {
   tank_wreck: { len: 9.0, cls: 'rust' },
   valve_station: { len: 2.5, cls: 'metal' },
   valve_wheel: { len: 0.72, cls: 'paint' },
+  dropship: { len: 19, cls: 'paint' },
+  column_cluster: { len: 34, cls: 'rust', up: true },
+  cracker: { len: 30, cls: 'rust', up: true },
+  horton_sphere: { len: 17, cls: 'paint', up: true },
+  mesa: { len: 140, cls: 'concrete', matte: true },
+  tanker_truck: { len: 13, cls: 'rust' },
+  tank_far: { len: 9.0, cls: 'rust', up: true },
+  tower_far: { len: 16.0, cls: 'rust', up: true },
+  pumpjack_far: { len: 7.5, cls: 'rust' },
+  container_far: { len: 6.1, cls: 'paint' },
 };
 
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -63,6 +73,7 @@ async function loadRaw(name) {
       for (const t of [m.map, m.normalMap, m.roughnessMap, m.aoMap, m.emissiveMap]) if (t) t.anisotropy = maxAniso;
       if (m.aoMap) m.aoMapIntensity = 1;
       if (m.emissiveMap) m.emissiveIntensity = 1;
+      if (def.matte) { m.roughnessMap = null; m.roughness = 0.95; m.metalnessMap = null; m.metalness = 0; } // rock: the generated ORM reads as polished
       patchMaterial(m, def.cls || 'default');
     });
     holder.userData.size = b2.getSize(new THREE.Vector3());

@@ -155,5 +155,41 @@
   "quality": "high_quality",
   "max_points": 90,
   "prompt": "Game asset concept: one large cast-iron industrial valve handwheel, round rim with six straight spokes and a thick central hub, chipped red paint over bare metal, flat and symmetric. Isolated single part, three-quarter top view."
+ },
+ {
+  "name": "dropship",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: a heavy military VTOL transport dropship, boxy armoured fuselage, two large ducted-fan engine nacelles on short stub wings, cockpit with dark tinted windows at the front, rear cargo ramp lowered open, desert tan paint with worn chipped edges, black and yellow hazard stripes on the ramp, landing skids. Three-quarter view from slightly above."
+ },
+ {
+  "name": "column_cluster",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: a cluster of three tall oil-refinery distillation columns of different heights standing together on one concrete base, circular catwalk platforms with railings at several levels, caged ladders, many vertical pipes and valves running up the sides, weathered grey steel with rust streaks. Full height visible, front three-quarter view."
+ },
+ {
+  "name": "horton_sphere",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: a large spherical LPG storage tank (Horton sphere) standing on eight steel legs with cross bracing, a staircase spiralling up to a small platform on top, faded white paint streaked with rust and dust. Three-quarter view."
+ },
+ {
+  "name": "cracker",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: a refinery fluid catalytic cracking unit: a tall open steel frame structure several storeys high holding two large reactor vessels, cyclone separators, big curved transfer pipes, ladders and grated platforms, rusty weathered steel. Whole structure visible, three-quarter view."
+ },
+ {
+  "name": "mesa",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: a desert sandstone mesa rock formation, flat top with steep layered cliff sides showing horizontal strata, eroded boulder slopes at the base, warm ochre and dusty red tones. Wide shape, three-quarter view."
+ },
+ {
+  "name": "tanker_truck",
+  "quality": "high_quality",
+  "max_points": 90,
+  "prompt": "Game asset concept: an abandoned rusted fuel tanker truck, old semi-truck cab with broken windows and a long cylindrical tank trailer, flat tyres, sand drifted against the wheels, faded paint. Three-quarter side view."
  }
 ]

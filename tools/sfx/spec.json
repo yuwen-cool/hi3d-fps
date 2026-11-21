@@ -309,6 +309,19 @@
    "n": 1,
    "sec": 1.3,
    "prompt": "Sci-fi military objective complete sound, rising three-note digital tone with a soft deep impact"
+  },
+  {
+   "key": "shipLoop",
+   "n": 1,
+   "sec": 6,
+   "loop": true,
+   "prompt": "Heavy military VTOL transport aircraft hovering overhead, deep turbine whine layered with thumping ducted fan rotor wash and roaring jet exhaust, steady continuous, no fade"
+  },
+  {
+   "key": "shipPass",
+   "n": 1,
+   "sec": 5,
+   "prompt": "Heavy military VTOL dropship flying fast low overhead and away, roaring turbines doppler shift, rotor wash gust, fading into the distance"
   }
  ],
  "music": [

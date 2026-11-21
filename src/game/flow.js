@@ -11,6 +11,9 @@ const SPAWNS = [[-9, -26], [2, -29], [11, -27], [-16, -21], [-3, -18], [8, -12],
 const WAVES = [{ n: 4, ch: 1 }, { n: 4, ch: 1 }, { n: 5, ch: 2 }, { n: 2, ch: 1 }];
 const BOSS_PATH = [V(-33, 0, -16), V(-31, 0, -4), V(-34, 0, -24), V(-31, 0, -10)];
 const STORM_CLOCK = 180;
+// the dropship settles over the pad nose-west (wings across the wall line), belly ~3.4 m up; the boarding shot is taken from inside the yard
+const SHIP = { hover: V(-19, 3.4, 4), yaw: Math.PI / 2, cam0: V(-6, 1.8, -6), cam1: V(-8, 2.4, -3) };
+const ease = (t) => t * t * (3 - 2 * t);
 const RADIO = {
   deploy: 'Boots on the ground. Storm front is three minutes out.',
   valve: 'Valve A is across the yard. Open it — we need pressure on the flare line.',
@@ -24,8 +27,10 @@ const RADIO = {
   legdown: 'Leg is gone! The armour blew — the cores are open, hit them!',
   overload: 'It is overloading — it is stuck on the flare line. Light it. Now!',
   core: 'One core down! It is venting — hit the other one.',
-  dead: 'It is down. Get to extraction, west gate. Go.',
+  dead: "It's down. Dropship is on the way — get to the pad.",
   won: 'Got you. Bringing you home.',
+  shipIn: "Dropship is on approach. Hold at the pad, it's coming in hot.",
+  board: 'Ramp is down! Get aboard, now!',
   lateValve: 'Forget the valve — the storm is on you.',
   horizon: 'Eyes west. Something is walking out there.',
 };
@@ -57,7 +62,7 @@ export function createFlow(G) {
     if (S.state !== 'title') return;
     S.state = 'deploy'; G.camLocked = false; G.cinematic = true;
     const ps = G.player.s, L = G.level.layout; ps.pos.copy(L.spawn); ps.pos.y = 13; ps.vel.set(0, -5, 0); ps.yaw = L.spawnYaw; ps.pitch = -0.32;
-    G.R.fx.fade = 1; G.audio?.play?.('deploy', { gain: 0.9 });
+    G.R.fx.fade = 1; G.audio?.play?.('deploy', { gain: 0.9 }); G.ship?.deploy();
     hud()?.hint?.([], 0);
   }
   G.events.on('player:land', (e) => {
@@ -259,12 +264,28 @@ export function createFlow(G) {
         obj({ marks: [{ p: B.pos, label: '!', kind: 'boss', name: 'COLOSSUS' }, ...wp.map((p) => ({ p, label: '◎', kind: 'weak', name: S.bossPhase === 'cores' ? 'CORE' : 'KNEE' }))] });
       }
       if (S.bossPhase === 'trap' && !G.boss?.S.dead) holdTick(igniter(), dt, { label: 'HOLD — IGNITE THE FLARE LINE', hold: 1.0, col: [1, 0.08, 0.02], done: ignite });
-      if (S.bossDead && clear && S.state === 'play' && (S.fell?.done || !G.level.fallTower)) {
-        S.state = 'extract'; say('dead'); hud()?.banner?.('COLOSSUS DESTROYED', { kind: 'good', sub: 'REACH EXTRACTION — WEST GATE', dur: 3.5 });
-        obj({ line: 'REACH EXTRACTION', count: null, marks: [{ p: S.extract, label: 'X', kind: 'ext', name: 'EXTRACTION' }] }); G.events.emit('flow:extract');
-      }
+      if (S.bossDead && clear && S.state === 'play' && (S.fell?.done || !G.level.fallTower)) toExtract();
     }
-    if (S.state === 'extract' && G.player.s.pos.distanceTo(S.extract) < 3) { S.state = 'won'; say('won'); G.obj = null; G.events.emit('flow:won'); }
+    if (S.state === 'extract' && S.shipReady && G.player.s.pos.distanceTo(S.extract) < 3.2) { S.state = 'won'; G.obj = null; G.ship ? board() : G.events.emit('flow:won'); }
+  }
+  function toExtract() {
+    S.state = 'extract'; S.shipReady = !G.ship; say('dead'); hud()?.banner?.('COLOSSUS DESTROYED', { kind: 'good', sub: 'REACH THE PAD — DROPSHIP INBOUND', dur: 3.5 });
+    obj({ line: G.ship ? 'DROPSHIP INBOUND — HOLD AT THE PAD' : 'REACH EXTRACTION', count: null, marks: [{ p: S.extract, label: 'X', kind: 'ext', name: 'EXTRACTION' }] }); G.events.emit('flow:extract');
+    if (G.ship) { G.ship.inbound(S.extract, SHIP); later(4, () => say('shipIn')); }
+  }
+  G.events.on('ship:ready', () => {
+    if (S.state !== 'extract') return; S.shipReady = true; say('board');
+    obj({ line: 'BOARD THE DROPSHIP', marks: [{ p: S.extract, label: 'X', kind: 'ext', name: 'DROPSHIP' }] }); hud()?.banner?.('DROPSHIP ON THE PAD', { kind: 'good', sub: 'GET ABOARD', dur: 2.5 });
+  });
+  // boarding: from inside the yard, watch the ship come off the pad and turn west over the burning wreck
+  function board() {
+    say('won'); const sh = G.ship.S, C0 = SHIP.cam0, C1 = SHIP.cam1, look = V();
+    G.cine.play({
+      dur: 600, // holds on the empty sky behind the results screen
+      start() { G.ship.liftoff(() => G.events.emit('flow:won')); },
+      cam(t) { look.lerp(sh.pos.clone().add(V(0, 1.5, 0)), t < 0.05 ? 1 : 0.06); return { pos: C0.clone().lerp(C1, ease(Math.min(1, t / 9))), look, fov: 58 - 14 * ease(Math.min(1, t / 7)) }; },
+      end() {},
+    });
   }
   // the reveal: a low angle from inside the yard, lightning behind the machine, name card, weak points called out
   function revealBoss(done) {
@@ -293,5 +314,5 @@ export function createFlow(G) {
     obj({ act: 3, title: 'ACT 3 // NIGHT', line: 'STAND BY', count: null, unit: null, marks: [] }); say('passing');
     hud()?.banner?.('ACT 3 // NIGHT', { sub: 'THE STORM PASSES', dur: 3 });
   }
-  return { update, S, start, deploy, setAct, fellTower };
+  return { update, S, start, deploy, setAct, fellTower, toExtract };
 }

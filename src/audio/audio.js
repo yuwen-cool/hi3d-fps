@@ -119,6 +119,17 @@ export function createAudio(G) {
     else g.connect(b);
     src.start(); return src;
   }
+  // a positioned loop that follows something around (the dropship): set() each frame, stop() to fade out
+  function loop(k, { ref = 12, roll = 0.5 } = {}) {
+    const buf = (S[k] || SMP[k])?.[0]; if (!buf || ctx.state !== 'running') return null;
+    const src = ctx.createBufferSource(); src.buffer = buf; src.loop = true; trimLoop(src);
+    const g = ctx.createGain(); g.gain.value = 0; const p = ctx.createPanner(); p.panningModel = 'equalpower'; p.distanceModel = 'inverse'; p.refDistance = ref; p.rolloffFactor = roll; p.maxDistance = 600;
+    src.connect(g); g.connect(p); p.connect(world); src.start();
+    return {
+      set(pos, gain = 1, rate = 1) { const t = ctx.currentTime; p.positionX.setTargetAtTime(pos.x, t, 0.05); p.positionY.setTargetAtTime(pos.y, t, 0.05); p.positionZ.setTargetAtTime(pos.z, t, 0.05); g.gain.setTargetAtTime(gain, t, 0.15); src.playbackRate.setTargetAtTime(rate, t, 0.3); },
+      stop(fade = 1.5) { const t = ctx.currentTime; g.gain.setTargetAtTime(0, t, fade / 3); src.stop(t + fade * 2); },
+    };
+  }
   // ambience: wind bed
   let windSrc = null;
   function startAmb() { if (windSrc || ctx.state !== 'running') return; windSrc = ctx.createBufferSource(); windSrc.buffer = SMP.wind?.[0] || wind(); windSrc.loop = true; trimLoop(windSrc); const g = ctx.createGain(); g.gain.value = SMP.wind ? 0.24 : 0.5; /* the recorded bed is much denser than the synth one */ windSrc.connect(g); g.connect(amb); windSrc.start(); startMusic(); }
@@ -226,5 +237,5 @@ export function createAudio(G) {
     if (onRadio) { voSrc = src; const n = ctx.createBufferSource(); n.buffer = S.wind?.[0] || SMP.wind?.[0] || b; const ng = ctx.createGain(); ng.gain.value = 0.04; const nh = ctx.createBiquadFilter(); nh.type = 'highpass'; nh.frequency.value = 2500; n.connect(nh); nh.connect(ng); ng.connect(dry); n.start(); n.stop(ctx.currentTime + b.duration + 0.1); }
     musDuckV = Math.min(musDuckV, onRadio ? 0.55 : 0.45); return b.duration;
   }
-  return { update, ctx, play, vo, voLen: (k) => SMP['vo_' + k]?.[0]?.duration || 0, samples: () => Object.keys(SMP), setVolume(v) { master.gain.value = 0.9 * v; } };
+  return { update, ctx, play, loop, vo, voLen: (k) => SMP['vo_' + k]?.[0]?.duration || 0, samples: () => Object.keys(SMP), setVolume(v) { master.gain.value = 0.9 * v; } };
 }

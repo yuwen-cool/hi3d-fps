@@ -4,6 +4,7 @@ import { instance, setRendererCaps } from './assets.js';
 import { makeGround, PADS } from './ground.js';
 import { triplanarMaterial } from '../mats/triplanar.js';
 import { dress } from './scatter.js';
+import { buildOutskirts } from './outskirts.js';
 import { INTERIOR } from '../mats/patch.js';
 
 // Abandoned desert refinery. Player starts at +Z looking -Z into the low sun (backlit, like
@@ -192,6 +193,7 @@ export async function buildLevel(G) {
   }
   G.level = { root, cover: [], layout: LAYOUT, explosives, fallTower, crates, valves };
   await dress(G, root);
+  await buildOutskirts(G, root);
   R.fitShadow(new THREE.Box3(new THREE.Vector3(-62, -1, -84), new THREE.Vector3(42, 30, 22)));
   R.setInteriors([{ c: new THREE.Vector3((C.minX + C.maxX) / 2, C.h / 2, (C.minZ + C.maxZ) / 2), h: new THREE.Vector3((C.maxX - C.minX) / 2, C.h / 2, (C.maxZ - C.minZ) / 2) }]);
   root.traverse((o) => { if (o.isMesh && !o.isSkinnedMesh) { o.matrixAutoUpdate = false; o.updateMatrix(); } });
