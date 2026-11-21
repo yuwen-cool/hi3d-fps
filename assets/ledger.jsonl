@@ -45,3 +45,11 @@
 {"name": "spool", "step": "model", "task": "2d65b8811f1f4efd85916884b16a3b95", "points": 45}
 {"name": "arm_l", "step": "image", "task": "53e508df9069461b82a4061a158a72ba", "points": 6}
 {"name": "arm_l", "step": "model", "task": "10a231e317ad4c1cafbd8a9d1b4fb906", "points": 45}
+{"name": "colossus_leg_upper", "step": "image", "task": "774b108aab804d9f876e13b9764acf06", "points": 6}
+{"name": "tank_wreck", "step": "image", "task": "66fddbfd1a9f479d998851874984d875", "points": 6}
+{"name": "colossus_leg_lower", "step": "image", "task": "11e2759e84794355ab518ab39e9d821a", "points": 6}
+{"name": "colossus_hull", "step": "image", "task": "076b800ae31648178ea4d5a603acf947", "points": 6}
+{"name": "colossus_leg_lower", "step": "model", "task": "e94d627f7a1644e495e8b06e013fd20c", "points": 45}
+{"name": "colossus_leg_upper", "step": "model", "task": "0a7c04a233f345a78d2768eaf4680434", "points": 45}
+{"name": "tank_wreck", "step": "model", "task": "50ed6d8001524441b0690e3cfd1b3fc4", "points": 45}
+{"name": "colossus_hull", "step": "model", "task": "2d0721b2dd2c472e9874909610f1af9f", "points": 45}
