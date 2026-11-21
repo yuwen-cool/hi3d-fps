@@ -56,9 +56,10 @@ export async function createEnemies(G) {
     if (came[T] < 0 && S !== T) return null;
     const pts = []; for (let k = T; k !== S && k >= 0; k = came[k]) pts.push(new THREE.Vector3(B.minX + (k % NX + 0.5) * CS, 0, B.minZ + (Math.floor(k / NX) + 0.5) * CS));
     pts.reverse();
-    // string-pull with box LOS at knee height
+    // string-pull, but only across segments a body can actually pass (clearance sampled along the line)
+    const clear = (p0, p1) => { const L = Math.hypot(p1.x - p0.x, p1.z - p0.z), n = Math.ceil(L / 0.35); for (let k = 1; k < n; k++) { const t = k / n; if (P.blocked(p0.x + (p1.x - p0.x) * t, p0.z + (p1.z - p0.z) * t, 0.4)) return false; } return true; };
     const out = []; let a = from.clone();
-    for (let i = 0; i < pts.length; i++) { const nxt = pts[i + 1]; if (!nxt || !P.los(a.clone().setY(0.5), nxt.clone().setY(0.5))) { out.push(pts[i]); a = pts[i]; } }
+    for (let i = 0; i < pts.length; i++) { const nxt = pts[i + 1]; if (!nxt || !clear(a, nxt)) { out.push(pts[i]); a = pts[i]; } }
     return out;
   }
 

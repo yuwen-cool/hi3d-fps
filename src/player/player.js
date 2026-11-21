@@ -33,7 +33,7 @@ export function createPlayer(G) {
   const R = G.R, P = G.phys, cam = R.camera;
   const s = {
     pos: G.level.layout.spawn.clone(), vel: new THREE.Vector3(), yaw: G.level.layout.spawnYaw, pitch: 0.02,
-    grounded: true, airT: 0, coyote: 0, jumpBuf: 0, crouch: 0, eye: MOVE.eye, hp: 100, maxHp: 100, shield: 60, maxShield: 60, hurtT: 9, dead: false,
+    grounded: true, airT: 0, coyote: 0, jumpBuf: 0, crouch: 0, eye: MOVE.eye, hp: 100, maxHp: 100, shield: 75, maxShield: 75, hurtT: 9, dead: false,
     dashT: 0, dashCd: 0, dashCdMax: 2.2, dashV: new THREE.Vector3(), slideT: 0, slideV: 0, slideDir: new THREE.Vector3(), lungeT: 0, lungeV: new THREE.Vector3(), speedFx: 0, fovKick: 0,
     sprinting: false, speed: 0, stepPhase: 0, bobAmt: 0, dip: 0, dipV: 0, trauma: 0, recoilP: 0, recoilY: 0, recoilOffP: 0, recoilOffY: 0, rollZ: 0,
     fovBase: 74, fov: 74, ads: 0, lastFireT: -9, t: 0, strafeV: 0, fwdV: 0, landedV: 0,
@@ -55,6 +55,7 @@ export function createPlayer(G) {
     G.events.emit('player:hit', { dmg: n, from });
     if (s.hp <= 0) { s.hp = 0; s.dead = true; G.events.emit('player:dead'); }
   }
+  G.events.on('enemy:killed', (e) => { if (!s.dead) s.shield = Math.min(s.maxShield, s.shield + (e.melee ? 50 : 25)); }); // kills feed the shield
   function heal(n) { const h = s.hp; s.hp = Math.min(s.maxHp, s.hp + n); return s.hp > h; }
   function update(dt) {
     const I = G.input; s.t += dt;
@@ -118,7 +119,7 @@ export function createPlayer(G) {
     const B = G.level.layout.bounds; s.pos.x = THREE.MathUtils.clamp(s.pos.x, B.minX, B.maxX); s.pos.z = THREE.MathUtils.clamp(s.pos.z, B.minZ, B.maxZ);
     // health regen
     s.hurtT += dt;
-    if (!s.dead && s.hurtT > 3.2 && s.shield < s.maxShield) { s.shield = Math.min(s.maxShield, s.shield + 32 * dt); if (s.shield >= s.maxShield) G.events.emit('player:shieldUp'); }
+    if (!s.dead && s.hurtT > 2.8 && s.shield < s.maxShield) { s.shield = Math.min(s.maxShield, s.shield + 32 * dt); if (s.shield >= s.maxShield) G.events.emit('player:shieldUp'); }
     if (!s.dead && s.hurtT > 5 && s.hp % 10 > 0.01) s.hp = Math.min(Math.ceil(s.hp / 10) * 10, s.hp + 6 * dt); // only the damaged cell refills
     s.speedFx = Math.max(s.sprinting ? 0.12 : 0, s.speedFx - dt * 2.4); s.fovKick *= Math.exp(-dt * 5);
     G.R.fx.low += ((s.dead ? 1 : THREE.MathUtils.smoothstep(s.hp / s.maxHp, 0.55, 0.12) * 0 + (1 - THREE.MathUtils.smoothstep(s.hp / s.maxHp, 0.12, 0.55))) - G.R.fx.low) * Math.min(1, dt * 4);

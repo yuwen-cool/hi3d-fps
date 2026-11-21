@@ -102,7 +102,9 @@ export async function createWeapon(G) {
   const gR = gp('gr', [-0.25, 0.55, -0.6, 1.6, 0.03, -0.07, 0.06]), gL = gp('gl', [0.2, 0.3, -0.93, -0.5, 0.05, -0.02, -0.3]);
   if (gloves.glove_r) orientGlove(gloves.glove_r, new THREE.Vector3(gR[0], gR[1], gR[2]), gR[3], new THREE.Vector3(gR[4], gR[5], gR[6]));
   const lHome = new THREE.Vector3(gL[4], gL[5], muzzleLocal.z * 0.55 + gL[6]);
+  const lQ = new THREE.Quaternion(), _rq = new THREE.Quaternion(), _rq2 = new THREE.Quaternion(), AX = new THREE.Vector3(1, 0, 0), AY = new THREE.Vector3(0, 1, 0);
   if (gloves.glove_l) orientGlove(gloves.glove_l, new THREE.Vector3(gL[0], gL[1], gL[2]), gL[3], lHome, +(T.lpiv || 0.4));
+  if (gloves.glove_l) lQ.copy(gloves.glove_l.quaternion);
   // magazine (rifle2 has an empty magwell)
   let mag = null;
   if (gunName === 'rifle2') { try { mag = await instance('mag'); gun.add(mag); mag.position.set(0, -0.2, -0.13); mag.rotation.set(-0.12, Math.PI / 2, 0); } catch { /* */ } }
@@ -300,8 +302,10 @@ export async function createWeapon(G) {
         mag.position.set(magHome.p.x - out * 0.05, magHome.p.y - out * 0.28, magHome.p.z + out * 0.06); mag.rotation.set(magHome.r.x - out * 0.6, magHome.r.y, magHome.r.z);
         mag.visible = !(t > 0.72 && t < 0.86);
       }
-      if (gloves.glove_l) { const k = THREE.MathUtils.clamp((t - 0.1) / 0.26, 0, 1) * (1 - THREE.MathUtils.clamp((t - 1.55) / 0.3, 0, 1)); const mp = mag ? mag.position : magHome?.p || new THREE.Vector3(0, -0.2, -0.13); gloves.glove_l.position.lerpVectors(lHome, new THREE.Vector3(mp.x - 0.04, mp.y - 0.06, mp.z + 0.02), k); }
-      if (t >= D) { S.reloading = false; if (mag) { mag.position.copy(magHome.p); mag.rotation.copy(magHome.r); mag.visible = true; } if (gloves.glove_l) gloves.glove_l.position.copy(lHome); }
+      if (gloves.glove_l) { const k = THREE.MathUtils.clamp((t - 0.1) / 0.26, 0, 1) * (1 - THREE.MathUtils.clamp((t - 1.55) / 0.3, 0, 1)); const mp = mag ? mag.position : magHome?.p || new THREE.Vector3(0, -0.2, -0.13); gloves.glove_l.position.lerpVectors(lHome, new THREE.Vector3(mp.x - 0.05, mp.y - 0.08, mp.z + 0.02), k);
+        // swing the forearm down and out while the hand works the magwell, so the sleeve never fills the screen
+        gloves.glove_l.quaternion.copy(lQ).premultiply(_rq.setFromAxisAngle(AX, 1.15 * k)).premultiply(_rq2.setFromAxisAngle(AY, -0.35 * k)); }
+      if (t >= D) { S.reloading = false; if (mag) { mag.position.copy(magHome.p); mag.rotation.copy(magHome.r); mag.visible = true; } if (gloves.glove_l) { gloves.glove_l.position.copy(lHome); gloves.glove_l.quaternion.copy(lQ); } }
     }
     // springs
     for (const k of ['kZ', 'kP', 'kY', 'kR', 'swY', 'swP', 'jY', 'jP', 'bump']) stepSpring(S[k], dt);

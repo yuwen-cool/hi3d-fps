@@ -83,12 +83,11 @@ export function createUI(G, boot) {
 
   // ---------- title ----------
   const title = scr('title', `
-    <div class="wm"><div class="ov"><i class="hz"></i>HI3D // BROWSER FPS</div>
+    <div class="wm"><div class="ov">HI3D // BROWSER FPS</div>
       <h1>${[...'SANDLINE'].map((c, i) => `<span style="animation-delay:${0.25 + i * 0.05}s">${c}</span>`).join('')}</h1>
-      <div class="pr"><b>SECTOR 7</b><span>HOLD THE REFINERY. THE STORM IS BRINGING SOMETHING BIG.</span></div>
+      <div class="pr"><b>SECTOR 7 // KHARA BASIN</b>Hold the refinery. The storm is bringing something big.</div>
       <div class="mh"></div></div>
-    <div class="st"><div>SECTOR 7 // KHARA BASIN</div><div>STORM FRONT 4.2 KM</div><div>DUSK 18:42</div><div class="hz"></div></div>
-    <div class="keys">${[['WASD', 'MOVE'], ['LMB', 'FIRE'], ['SHIFT', 'DASH'], ['Q', 'SCAN'], ['F', 'MELEE'], ['E', 'INTERACT']].map(([k, t]) => `<span><span class="kc">${k}</span>${t}</span>`).join('')}</div>
+    <div class="keys">${[['WASD', 'MOVE'], ['LMB', 'FIRE'], ['R', 'RELOAD'], ['SHIFT', 'DASH'], ['Q', 'SCAN'], ['F', 'MELEE'], ['G', 'GRENADE'], ['E', 'INTERACT']].map(([k, t]) => `<span><span class="kc">${k}</span>${t}</span>`).join('')}</div>
     <div class="cr"><span class="mono">EVERY MODEL IN THIS GAME WAS GENERATED WITH</span><b>HI3D</b></div>`);
   let titleMenu = null;
   function openTitleMenu() {

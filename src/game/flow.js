@@ -68,7 +68,7 @@ export function createFlow(G) {
     // patrol on the valve and two in the yard
     const vA = valveA()?.pos || V(-7, 0, -25);
     for (const [p, y] of [[V(vA.x - 2.5, 0, vA.z + 3.2), 2.6], [V(vA.x + 3.2, 0, vA.z + 1.5), -2.2], [V(-5, 0, -12), 0.3], [V(6, 0, -10), -0.4]]) if (!G.phys.blocked(p.x, p.z, 0.45)) E()?.spawn(p, { yaw: y });
-    obj({ act: 1, title: 'ACT 1 // DUSK', line: valveA() ? 'OPEN VALVE A' : 'CLEAR THE YARD', count: valveA() ? [0, 1] : null, marks: valveA() ? [{ p: vA, label: 'A' }] : [], sub: null });
+    obj({ act: 1, title: 'ACT 1 // DUSK', line: valveA() ? 'OPEN VALVE A' : 'CLEAR THE YARD', count: valveA() ? [0, 1] : null, marks: valveA() ? [{ p: vA, label: 'A', name: 'VALVE A' }] : [], sub: null });
     hud()?.banner?.('ACT 1 // DUSK', { sub: 'OPEN VALVE A — HOLD THE YARD', dur: 3.5 });
     later(0.7, () => { say('deploy'); say('valve'); });
     later(2.5, () => hud()?.hint?.([['WASD', 'MOVE'], ['SHIFT', 'DASH'], ['C', 'SLIDE'], ['F', 'MELEE']], 6));
@@ -93,17 +93,19 @@ export function createFlow(G) {
     const ps = G.player.s; const d = Math.hypot(ps.pos.x - v.pos.x, ps.pos.z - v.pos.z);
     _f.set(v.top.x - ps.pos.x, 0, v.top.z - ps.pos.z).normalize(); const look = -Math.sin(ps.yaw) * _f.x - Math.cos(ps.yaw) * _f.z;
     const near = d < 2.6 && look > 0.2 && !ps.dead;
+    if (!v.glow) { v.glow = []; v.wheel?.traverse((m) => { if (m.isMesh && m.material.emissive) v.glow.push(m.material); }); }
+    const gk = d < 22 ? 0.55 + 0.45 * Math.sin(S.t * 5) : 0; for (const m of v.glow) { m.emissive.setRGB(1, 0.3, 0.04); m.emissiveIntensity = gk * 2.2; }
     const U = G.interact || (G.interact = { label: 'HOLD — OPEN VALVE A', prog: 0 }); U.near = near;
     const hold = near && (G.input.down('use') || G.auto?.use);
     U.prog = THREE.MathUtils.clamp(U.prog + (hold ? dt / 1.6 : -dt * 1.5), 0, 1);
     if (hold && v.wheel) { v.wheel.rotation.y -= dt * 4.2; if ((S.valveSnd = (S.valveSnd || 0) - dt) <= 0) { S.valveSnd = 1.1; G.audio?.play?.('valve', { pos: v.top, ref: 4, gain: 0.9 }); } }
     if (!S.valveSaid && d < 16) { S.valveSaid = true; if (E()?.list.some((e) => e.alive && e.root.position.distanceTo(v.pos) < 9)) say('contact'); }
     if (U.prog >= 1) {
-      v.open = true; G.interact = null; v.lamp.material.color.setRGB(0.6, 5, 1.2);
+      v.open = true; G.interact = null; v.lamp.material.color.setRGB(0.6, 5, 1.2); for (const m of v.glow || []) m.emissiveIntensity = 0;
       G.audio?.play?.('pressure', { pos: v.top, ref: 10, gain: 1.1 }); G.audio?.play?.('objective', { gain: 0.8 }); G.player.addShake(0.25);
       for (let i = 0; i < 24; i++) G.fxs?.emit(true, { pos: v.top.clone().add(V(0, -0.5, 0)), vel: V((Math.random() - 0.5) * 3, 1.5 + Math.random() * 2, (Math.random() - 0.5) * 3), life: 1.6, size: 0.15, size1: 1.2, col: G.fxs.litColor([0.85, 0.85, 0.85]), alpha: 0.35, soft: true, drag: 1.5, rise: 0.8 });
       hud()?.banner?.('PRESSURE LINE A ONLINE', { kind: 'good', dur: 2.8 }); say('opened');
-      obj({ count: [1, 1] }); S.step = 'hold'; S.waveT = 2.5; G.events.emit('valve:open', { id: v.id });
+      obj({ count: [1, 1], marks: [] }); S.step = 'hold'; S.waveT = 2.5; G.events.emit('valve:open', { id: v.id });
     }
   }
 
@@ -122,7 +124,7 @@ export function createFlow(G) {
   function toStorm(late) {
     setAct(2); S.stormClock = 0; S.wave = Math.max(S.wave, 0); S.waveT = 6;
     if (late && valveA() && !valveA().open) { say('lateValve'); valveA().open = true; G.interact = null; }
-    obj({ act: 2, title: 'ACT 2 // SANDSTORM', line: 'SURVIVE THE STORM', count: [0, 2], marks: [], sub: null });
+    obj({ act: 2, title: 'ACT 2 // SANDSTORM', line: 'SURVIVE THE STORM', count: [0, 2], unit: 'WAVES', marks: [], sub: null });
     hud()?.banner?.('SANDSTORM', { kind: 'crit', sub: 'VISIBILITY LOST — USE YOUR SCAN', dur: 3.5 }); G.audio?.play?.('alarm', { gain: 0.7 });
     say('storm'); later(3, () => { if (!S.scanned) hud()?.hint?.([['Q', 'SCAN PULSE']], 7); });
   }
@@ -141,12 +143,12 @@ export function createFlow(G) {
     const ev = env(), alive = E()?.alive ?? 0, clear = alive === 0 && !S.pending;
     // ---- act I ----
     if (S.act === 1) {
-      S.stormClock = Math.max(0, S.stormClock - dt);
+      S.stormClock = Math.max(0, S.stormClock - dt * (S.stormFF && S.stormClock > 8 ? 32 : 1)); // the front speeds up visibly once the yard is held
       if (ev) ev.front = 150 + 110 * (S.stormClock / STORM_CLOCK);
       if (S.step === 'valve') valveTick(dt);
       else if (S.step === 'hold') {
-        if (S.wave < 0 && clear) { S.waveT -= dt; if (S.waveT <= 0) { S.wave = 0; spawnWave(WAVES[0].n, WAVES[0].ch); say('inbound'); hud()?.banner?.('HOSTILES INBOUND', { kind: 'crit', dur: 2.4 }); obj({ line: 'HOLD THE YARD', count: [0, WAVES[0].n], marks: [] }); } }
-        else if (S.wave === 0) { obj({ count: [Math.min(S.waveN, S.kills - S.waveK), S.waveN] }); if (clear) { S.step = 'storm'; S.stormClock = Math.min(S.stormClock, 8); hud()?.banner?.('SANDSTORM INBOUND', { kind: 'crit', dur: 3 }); obj({ line: 'GET TO COVER', count: null }); } }
+        if (S.wave < 0 && clear) { S.waveT -= dt; if (S.waveT <= 0) { S.wave = 0; spawnWave(WAVES[0].n, WAVES[0].ch); say('inbound'); hud()?.banner?.('HOSTILES INBOUND', { kind: 'crit', dur: 2.4 }); obj({ line: 'HOLD THE YARD', count: [0, WAVES[0].n], unit: 'DOWN', marks: [] }); } }
+        else if (S.wave === 0) { obj({ count: [Math.min(S.waveN, S.kills - S.waveK), S.waveN] }); if (clear) { S.step = 'storm'; S.stormFF = true; hud()?.banner?.('SANDSTORM INBOUND', { kind: 'crit', sub: 'THE FRONT IS ACCELERATING', dur: 3 }); G.audio?.play?.('alarm', { gain: 0.6 }); obj({ line: 'BRACE FOR THE STORM', count: null, unit: null }); } }
       }
       if (S.stormClock <= 0) toStorm(S.step === 'valve');
     // ---- act II: front sweeps over (~24 s); waves 2 and 3 inside the storm; lightning takes the tank ----
@@ -168,19 +170,19 @@ export function createFlow(G) {
       if (S.actT > 6 && !S.bossIn) {
         S.bossIn = true; G.boss?.spawn(V(-75, 0, -14), Math.PI / 2, BOSS_PATH); spawnWave(WAVES[3].n, WAVES[3].ch);
         hud()?.banner?.('WARNING // MASSIVE CONTACT', { kind: 'crit', sub: 'COLOSSUS — CLASS-IV SIEGE WALKER', dur: 4 }); G.audio?.play?.('alarm', { gain: 0.9 });
-        say('boss'); obj({ line: 'DESTROY THE COOLANT CORES', count: [0, 2] });
+        say('boss'); obj({ line: 'DESTROY THE COOLANT CORES', count: [0, 2], unit: 'CORES' });
       }
-      const B = G.boss?.S; if (B?.active && !B.dead) obj({ marks: [{ p: B.pos, label: '!', kind: 'boss' }] });
+      const B = G.boss?.S; if (B?.active && !B.dead) obj({ marks: [{ p: B.pos, label: '!', kind: 'boss', name: 'COLOSSUS' }] });
       if (S.bossDead && clear && S.state === 'play' && (S.fell?.done || !G.level.fallTower)) {
         S.state = 'extract'; say('dead'); hud()?.banner?.('COLOSSUS DESTROYED', { kind: 'good', sub: 'REACH EXTRACTION — WEST GATE', dur: 3.5 });
-        obj({ line: 'REACH EXTRACTION', count: null, marks: [{ p: S.extract, label: 'X', kind: 'ext' }] }); G.events.emit('flow:extract');
+        obj({ line: 'REACH EXTRACTION', count: null, marks: [{ p: S.extract, label: 'X', kind: 'ext', name: 'EXTRACTION' }] }); G.events.emit('flow:extract');
       }
     }
     if (S.state === 'extract' && G.player.s.pos.distanceTo(S.extract) < 3) { S.state = 'won'; say('won'); G.obj = null; G.events.emit('flow:won'); }
   }
   function toNight() {
     if (S.act !== 2) return; S.wave = 2; setAct(3); S.waveT = 7;
-    obj({ act: 3, title: 'ACT 3 // NIGHT', line: 'STAND BY', count: null, marks: [] }); say('passing');
+    obj({ act: 3, title: 'ACT 3 // NIGHT', line: 'STAND BY', count: null, unit: null, marks: [] }); say('passing');
     hud()?.banner?.('ACT 3 // NIGHT', { sub: 'THE STORM PASSES', dur: 3 });
   }
   return { update, S, start, deploy, setAct, fellTower };

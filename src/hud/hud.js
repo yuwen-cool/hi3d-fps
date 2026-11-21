@@ -18,44 +18,35 @@ export function createHUD(G) {
   const THREE = G.THREE;
   if (G.params.nohud) { el.style.display = 'none'; return { update() {}, say() {}, banner() {}, glitch() {}, hint() {}, boot() {}, alert() {} }; }
   const segs = (n, cls = '') => Array.from({ length: n }, () => `<i class="${cls}"><b></b></i>`).join('');
+  const ring = '<svg class="rg" viewBox="0 0 36 36"><circle cx="18" cy="18" r="16" fill="none" stroke="rgba(239,229,207,.18)" stroke-width="2.5"/><circle class="c" cx="18" cy="18" r="16" fill="none" stroke="#ff6a14" stroke-width="2.5" stroke-dasharray="100.5" stroke-dashoffset="0"/></svg>';
   el.innerHTML = `
-  <div class="crop pw" style="--d:.0s"><i class="a"></i><i class="b"></i><i class="c"></i><i class="d"></i></div>
   <svg class="crack" viewBox="0 0 1600 900" preserveAspectRatio="none"></svg>
   <div class="speed"></div>
-  <div class="obj pw" style="--d:.5s">
-    <div class="hd"><b class="ttl">ACT 1 // DUSK</b><i class="hz"></i></div>
-    <div class="ln plate"><i class="dm"></i><span class="tx">STAND BY</span><span class="bx"></span></div>
-    <div class="sub plate"><span class="sx"></span><div class="pb"><i></i></div></div>
-    <div class="ft plate"><span class="ho">HOSTILES<em>0</em></span><span class="mono">PT-NO. SND-ACT1-0047<br>REV. A // YD-HLD</span></div>
-  </div>
-  <div class="cmp pw" style="--d:.35s"><div class="win"><div class="strip"></div></div><div class="base"></div><div class="hd">N 000</div><div class="mks"></div></div>
-  <div class="tr"><div class="storm pw" style="--d:.65s"><div class="t">STORM FRONT</div><div class="v">--:--</div><div class="z hz"></div></div><div class="radar pw" style="--d:.75s"><canvas></canvas></div></div>
+  <div class="obj sh0 pw" style="--d:.5s"><div class="act"><b class="an">ACT 1</b><span class="at">DUSK</span></div><div class="ln"><i class="dm"></i><span class="tx">STAND BY</span><span class="ct"></span></div><div class="sub"><span class="sx"></span><div class="pb"><i></i></div></div><div class="ho">HOSTILES<em>0</em></div></div>
+  <div class="cmp pw" style="--d:.35s"><div class="win"><div class="strip"></div></div><div class="base"></div><div class="hd">000</div><div class="mks"></div></div>
+  <div class="wmks"></div>
+  <div class="tr"><div class="storm sh0 pw" style="--d:.65s"><div class="t">STORM FRONT IN</div><div class="v">--:--</div><div class="z"></div></div><div class="radar pw" style="--d:.75s"><canvas></canvas></div></div>
   <div class="feed"></div>
   <div class="boss"><div class="t">COLOSSUS<span>CLASS-IV SIEGE WALKER</span></div><div class="bar">${'<i></i>'.repeat(24)}</div></div>
   <div class="alert"><span>▲</span><span class="at">SHIELD DOWN</span><span>▲</span></div>
-  <div class="vit pw" style="--d:.9s">
-    <div class="row sh"><div class="k">SHIELD</div><div class="seg">${segs(4)}</div></div>
-    <div class="row hp"><div class="k">HEALTH</div><div class="seg">${segs(10)}</div><div class="n">100</div></div>
-    <div class="ab">
-      <div class="a dash"><div class="ic">${ICON.dash}<span class="kk">SHIFT</span></div><div class="nm">DASH</div><div class="rg"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(239,229,207,.2)" stroke-width="4"/><circle class="c" cx="18" cy="18" r="15" fill="none" stroke="#ff6a14" stroke-width="4" stroke-dasharray="94.25" stroke-dashoffset="0"/></svg><span></span></div></div>
-      <i class="sep"></i>
-      <div class="a scan"><div class="ic">${ICON.scan}<span class="kk">Q</span></div><div class="nm">SCAN</div><div class="rg"><svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" fill="none" stroke="rgba(239,229,207,.2)" stroke-width="4"/><circle class="c" cx="18" cy="18" r="15" fill="none" stroke="#ff6a14" stroke-width="4" stroke-dasharray="94.25" stroke-dashoffset="0"/></svg><span></span></div></div>
-    </div>
-    <div class="mono"><span>PT-NO. SND-ABIL-0219 // REV. B</span><span>+</span></div>
+  <div class="vit sh0 pw" style="--d:.9s">
+    <div class="bars"><div class="lb"><span>SHIELD / HEALTH</span><b><s class="sn">75</s><span class="n">100</span></b></div><div class="seg sh">${segs(4)}</div><div class="seg hp">${segs(10)}</div></div>
+    <div class="ab"><div class="a dash">${ring}<span class="ic">${ICON.dash}</span><span class="cd"></span><span class="kk">SHIFT DASH</span></div><div class="a scan">${ring}<span class="ic">${ICON.scan}</span><span class="cd"></span><span class="kk">Q SCAN</span></div></div>
   </div>
-  <div class="amm pw" style="--d:1.0s">
-    <div class="rl">RELOADING</div>
-    <div class="top"><div class="c"><b>30</b><span>/ 150</span></div><div class="g"><div class="p"><i></i><i></i><i></i></div><div class="nm">GL [G]</div></div></div>
+  <div class="amm sh0 pw" style="--d:1.0s">
+    <div class="rl">RELOADING</div><div class="gain"></div>
+    <div class="top"><b>30</b><span>/ 150</span></div>
     <div class="tk">${'<i></i>'.repeat(30)}</div>
-    <div class="bot"><div class="wn">KR-9 CARBINE</div><div class="mono">PT-NO. KR9-0031<br>REV. C // 5.56</div><div class="hz"></div></div>
+    <div class="bot"><span class="gl">GRENADE [G] <i></i><i></i><i></i></span><span class="wn">KR-9 CARBINE</span></div>
   </div>
   <div class="xh"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div>
   <div class="hm"><i style="transform:rotate(45deg) translateX(.9rem)"></i><i style="transform:rotate(135deg) translateX(.9rem)"></i><i style="transform:rotate(225deg) translateX(.9rem)"></i><i style="transform:rotate(315deg) translateX(.9rem)"></i></div>
   <div class="pts"></div>
   <div class="dmg"><i></i><i></i><i></i></div>
   <div class="tags">${'<div class="tag"><div class="br"></div><div class="lb"><span class="nm"></span><div class="hb"><i></i></div></div></div>'.repeat(6)}</div>
+  <div class="rlp sh0"><span class="kc">R</span>RELOAD</div>
   <div class="use"><span class="kc">E</span><div class="w"><b>HOLD — OPEN VALVE</b><div class="pb"><i></i></div></div></div>
-  <div class="hint"></div>
+  <div class="hint sh0"></div>
   <div class="ban"><i class="hz"></i><b></b><i class="hz"></i><s></s></div>
   <div class="rad"><div class="bars">${'<i></i>'.repeat(5)}</div><div class="box"><b>CONTROL:</b><span></span></div><div class="bars">${'<i></i>'.repeat(5)}</div></div>`;
   const q = (s) => el.querySelector(s), qa = (s) => [...el.querySelectorAll(s)];
@@ -74,7 +65,7 @@ export function createHUD(G) {
   }
   const strip = q('.cmp .strip'), cmpHd = q('.cmp .hd'), cmpMks = q('.cmp .mks');
   const markPool = [], enPool = [];
-  const mkEl = () => { const m = document.createElement('div'); m.className = 'mk'; m.innerHTML = '<i class="d"></i><span class="l"></span><div class="r"><span></span></div>'; cmpMks.appendChild(m); return m; };
+  const mkEl = () => { const m = document.createElement('div'); m.className = 'mk'; m.innerHTML = '<i class="d"></i><span class="l"></span><div class="r"></div>'; cmpMks.appendChild(m); return m; };
   const enEl = () => { const m = document.createElement('i'); m.className = 'en'; cmpMks.appendChild(m); return m; };
 
   // ---------- radar ----------
@@ -107,11 +98,14 @@ export function createHUD(G) {
 
   // ---------- refs ----------
   const xh = q('.xh'), arms = { t: q('.xh .t'), b: q('.xh .b'), l: q('.xh .l'), r: q('.xh .r') }, hm = q('.hm'), pts = q('.pts'), dmgI = qa('.dmg i');
-  const objTtl = q('.obj .ttl'), objLn = q('.obj .ln'), objTx = q('.obj .ln .tx'), objBx = q('.obj .ln .bx'), objHo = q('.obj .ft .ho em'), objSub = q('.obj .sub'), objSubTx = q('.obj .sub .sx'), objSubPb = q('.obj .sub .pb i');
+  const objAn = q('.obj .an'), objAt = q('.obj .at'), objLn = q('.obj .ln'), objTx = q('.obj .ln .tx'), objCt = q('.obj .ln .ct'), objHo = q('.obj .ho em'), objSub = q('.obj .sub'), objSubTx = q('.obj .sub .sx'), objSubPb = q('.obj .sub .pb i');
   const stormEl = q('.storm'), stormV = q('.storm .v'), feed = q('.feed');
-  const shRow = q('.vit .sh'), hpRow = q('.vit .hp'), shSeg = qa('.vit .sh .seg i b'), hpSeg = qa('.vit .hp .seg i b'), hpN = q('.vit .hp .n');
-  const abDash = q('.a.dash'), abScan = q('.a.scan');
-  const ammC = q('.amm .top .c'), ammB = q('.amm .top .c b'), ammS = q('.amm .top .c span'), glP = qa('.amm .g .p i'), tk = q('.amm .tk'), tks = qa('.amm .tk i'), rl = q('.amm .rl');
+  const shN = q('.vit .sn'), vit = q('.vit'), amm = q('.amm'), shRow = q('.vit .sh'), shSeg = qa('.vit .sh i b'), hpSeg = qa('.vit .hp i b'), hpN = q('.vit .n');
+  const abDash = q('.a.dash'), abScan = q('.a.scan'), rlp = q('.rlp'), gain = q('.amm .gain');
+  const ammC = q('.amm .top'), ammB = q('.amm .top b'), ammS = q('.amm .top span'), glP = qa('.amm .gl i'), tk = q('.amm .tk'), tks = qa('.amm .tk i'), rl = q('.amm .rl');
+  const wmks = q('.wmks'), wPool = [];
+  const wEl = () => { const m = document.createElement('div'); m.className = 'wmk'; m.innerHTML = '<i class="d"></i><span class="l"></span><div class="r sh0"><span class="nm"></span><em></em></div>'; wmks.appendChild(m); return m; };
+  let combatT = 0;
   const tags = qa('.tag'), useEl = q('.use'), useB = q('.use b'), usePb = q('.use .pb i'), hintEl = q('.hint'), ban = q('.ban'), rad = q('.rad'), radTx = q('.rad .box span'), radBars = qa('.rad .bars i');
   const bossEl = q('.boss'), bossSeg = qa('.boss .bar i'), alertEl = q('.alert'), alertTx = q('.alert .at'), crack = q('.crack'), speed = q('.speed');
   const set = (o, k, v) => { if (o['_' + k] !== v) { o['_' + k] = v; o[k] = v; } };
@@ -126,8 +120,8 @@ export function createHUD(G) {
     const crit = e.weak || e.melee; const n = 100 + (e.weak ? 50 : 0) + (e.melee ? 50 : 0);
     streak = streakT > 0 ? streak + 1 : 1; streakT = 3.5; score += n; G.score = score;
     pts.textContent = `+${n}`; pts.classList.remove('go'); void pts.offsetWidth; pts.classList.add('go');
-    const label = `${NAMES[e.e?.kind] || 'HOSTILE'} DOWN${e.melee ? ' — EXECUTION' : e.weak ? ' — CRITICAL' : ''}${streak >= 2 ? ` ×${streak}` : ''}`;
-    addFeed(label, `+${n}`, crit);
+    addFeed(`${NAMES[e.e?.kind] || 'HOSTILE'} DOWN${e.melee ? ' — TAKEDOWN' : e.weak ? ' — HEADSHOT' : ''}`, `+${n}`, crit);
+    if (streak >= 2) { const b = 50 * (streak - 1); score += b; G.score = score; addFeed(['', '', 'DOUBLE KILL', 'TRIPLE KILL'][streak] || `${streak}× MULTI-KILL`, `+${b}`, true); }
     G.audio?.play?.('killConfirm', { gain: 0.55 });
   });
   function addFeed(text, val, crit) {
@@ -143,6 +137,8 @@ export function createHUD(G) {
     requestAnimationFrame(() => { i.style.transition = 'opacity 1s'; i.style.opacity = 0; });
   });
   G.events.on('player:shieldBreak', () => { shRow.classList.remove('brk'); void shRow.offsetWidth; shRow.classList.add('brk'); alertMsg('SHIELD DOWN'); glitch(); visorCrack(); });
+  G.events.on('ammo:gain', (e) => { if (!e.n) return; gain.textContent = `+${e.n} SALVAGED`; gain.classList.remove('go'); void gain.offsetWidth; gain.classList.add('go'); });
+  for (const n of ['weapon:fire', 'player:hit', 'enemy:hit']) G.events.on(n, () => { combatT = 5; });
   G.events.on('player:dash', () => { abDash.classList.remove('pop'); void abDash.offsetWidth; abDash.classList.add('pop'); });
   G.events.on('scan:fire', () => { abScan.classList.remove('pop'); void abScan.offsetWidth; abScan.classList.add('pop'); });
   G.events.on('thunder', (e) => { if (e.delay < 0.35) setTimeout(glitch, e.delay * 1000); });
@@ -193,14 +189,14 @@ export function createHUD(G) {
     const heading = ((-(p.yaw + (p.recoilOffY || 0)) * 180 / Math.PI) % 360 + 360) % 360; lastHeading = heading;
     strip.style.transform = `translateX(${(23 - (heading + 180) * K).toFixed(2)}rem)`;
     const card = CARD[Math.round(heading / 45) * 45 % 360];
-    setTx(cmpHd, `${Math.abs(((heading + 22.5) % 45) - 22.5) < 10 && card ? card + ' ' : ''}${pad3(heading)}`);
+    setTx(cmpHd, pad3(heading));
     const marks = G.obj?.marks || [];
     marks.forEach((m, i) => {
       const e = markPool[i] || (markPool[i] = mkEl());
       let rel = ((bearing(p.pos, m.p) - heading + 540) % 360) - 180; const edge = Math.abs(rel) > 70; rel = Math.max(-70, Math.min(70, rel));
       e.style.transform = `translateX(${(23 + rel * K).toFixed(2)}rem)`; e.style.opacity = 1;
       const cls = 'mk' + (m.kind ? ' ' + m.kind : '') + (edge ? ' edge' : ''); if (e._c !== cls) { e._c = cls; e.className = cls; }
-      setTx(e.children[1], m.label || ''); setTx(e.children[2].firstChild, `${Math.round(Math.hypot(m.p.x - p.pos.x, m.p.z - p.pos.z))}M`);
+      setTx(e.children[1], m.label || ''); setTx(e.children[2], `${Math.round(Math.hypot(m.p.x - p.pos.x, m.p.z - p.pos.z))}M`);
     });
     for (let i = marks.length; i < markPool.length; i++) markPool[i].style.opacity = 0;
     let en = 0;
@@ -210,17 +206,32 @@ export function createHUD(G) {
       const m = enPool[en] || (enPool[en] = enEl()); en++; m.style.opacity = 1; m.style.transform = `translateX(${(23 + rel * K).toFixed(2)}rem)`; m.style.borderTopColor = e.scanT > 0 ? '#62f1ff' : '';
     }
     for (let i = en; i < enPool.length; i++) enPool[i].style.opacity = 0;
+    // world-space objective markers (screen-edge clamped when off screen)
+    let wi = 0;
+    for (const m of marks) {
+      const d = Math.hypot(m.p.x - p.pos.x, m.p.z - p.pos.z); if (d < 3.5 && m.kind !== 'boss') continue;
+      const e = wPool[wi] || (wPool[wi] = wEl()); wi++;
+      _v.copy(m.p); _v.y = (m.kind === 'boss' ? 9 : (m.p.y || 0) + 2.6); _v.project(cam);
+      const behind = _v.z > 1; let x = _v.x * (behind ? -1 : 1), y = _v.y * (behind ? -1 : 1);
+      const off = behind || Math.abs(x) > 0.9 || Math.abs(y) > 0.8; if (off) { const k = Math.max(Math.abs(x) / 0.9, Math.abs(y) / 0.8, 1e-3); x /= k; y /= k; if (behind && Math.abs(y) < 0.6) { x = Math.sign(x || 1) * 0.9; } }
+      e.style.transform = `translate(${((x * 0.5 + 0.5) * innerWidth).toFixed(0)}px,${((-y * 0.5 + 0.5) * innerHeight).toFixed(0)}px)`; e.style.opacity = 1;
+      const ctr = !off && Math.hypot(x * innerWidth / innerHeight, y) < 0.22; // near the crosshair: diamond only, label off, so it never fights the enemy tags
+      e.style.opacity = ctr ? 0.55 : 1;
+      const cls = 'wmk' + (m.kind ? ' ' + m.kind : '') + (m.kind === 'boss' || d > 12 ? ' pulse' : '') + (ctr ? ' ctr' : ''); if (e._c !== cls) { e._c = cls; e.className = cls; }
+      setTx(e.children[1], m.label || ''); setTx(e.querySelector('.nm'), m.name || ''); setTx(e.querySelector('em'), `${Math.round(d)}M`);
+    }
+    for (let i = wi; i < wPool.length; i++) wPool[i].style.opacity = 0;
     // objective plate
     const O = G.obj;
     if (O) {
-      setTx(objTtl, O.title || ''); setTx(objHo, String(G.enemies?.alive ?? 0));
-      if (objTx._t !== O.line) { objLn.classList.remove('flash'); void objLn.offsetWidth; objLn.classList.add('flash'); setTimeout(() => objLn.classList.remove('flash'), 600); }
-      setTx(objTx, O.line || '');
-      const cnt = O.count ? `${O.count[0]}/${O.count[1]}` : ''; if (objBx._t !== cnt) { objBx._t = cnt; objBx.innerHTML = O.count ? Array.from({ length: O.count[1] }, (_, i) => `<s class="${i < O.count[0] ? 'f' : ''}"></s>`).join('') : ''; }
+      const [an, at] = (O.title || '').split(' // '); setTx(objAn, an || ''); setTx(objAt, at || ''); setTx(objHo, String(G.enemies?.alive ?? 0));
+      if (objTx._t !== O.line) { objLn.classList.remove('flash'); void objLn.offsetWidth; objLn.classList.add('flash'); }
+      setTx(objTx, O.line || ''); setTx(objCt, O.count ? `${O.count[0]}/${O.count[1]}${O.unit ? ' ' + O.unit : ''}` : '');
       objSub.style.display = O.sub ? 'block' : 'none'; if (O.sub) { setTx(objSubTx, O.sub); objSubPb.style.width = `${Math.round((O.prog || 0) * 100)}%`; }
     }
     // storm clock
     const F = G.flow?.S; const sc = F?.stormClock;
+    q('.storm .z').style.transform = `scaleX(${sc != null && sc > 0 ? Math.min(1, sc / 180).toFixed(3) : F?.act === 2 ? 1 : 0})`;
     if (sc != null && sc > 0) { const s = Math.ceil(sc); setTx(stormV, `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`); stormEl.classList.toggle('crit', sc < 15); stormV.classList.remove('tx'); }
     else { setTx(stormV, F?.act === 2 ? 'IN STORM' : F?.act >= 3 ? 'PASSED' : '--:--'); stormEl.classList.toggle('crit', F?.act === 2); stormV.classList.add('tx'); }
     rT -= dt; sweep += dt * 2.6; if (rT <= 0) { rT = 1 / 20; radar(heading); }
@@ -228,12 +239,14 @@ export function createHUD(G) {
     const sh = p.shield ?? 0, shM = p.maxShield || 1;
     shSeg.forEach((b, i) => { const f = Math.max(0, Math.min(1, sh / shM * 4 - i)); set(b.style, 'width', `${(f * 100).toFixed(0)}%`); });
     hpSeg.forEach((b, i) => { const f = Math.max(0, Math.min(1, p.hp / p.maxHp * 10 - i)); set(b.style, 'width', `${(f * 100).toFixed(0)}%`); });
-    setTx(hpN, String(Math.ceil(p.hp))); hpRow.classList.toggle('low', p.hp < 35);
-    const ring = (a, k, label) => { const c = a.querySelector('.c'); set(c.style, 'strokeDashoffset', (94.25 * (1 - k)).toFixed(1)); a.classList.toggle('rdy', k >= 1); setTx(a.querySelector('.rg span'), k >= 1 ? '' : label); };
+    setTx(hpN, String(Math.ceil(p.hp))); setTx(shN, String(Math.ceil(sh))); vit.classList.toggle('low', p.hp < 35);
+    combatT -= dt; const idle = combatT <= 0 && p.hp >= p.maxHp && sh >= shM; vit.classList.toggle('idle', idle); amm.classList.toggle('idle', combatT <= 0);
+    const ring = (a, k, label) => { const c = a.querySelector('.c'); set(c.style, 'strokeDashoffset', (100.5 * (1 - k)).toFixed(1)); a.classList.toggle('rdy', k >= 1); setTx(a.querySelector('.cd'), k >= 1 ? '' : label); };
     ring(abDash, p.dashCd ? 1 - Math.max(0, p.dashCd) / p.dashCdMax : 1, `${Math.max(0, p.dashCd || 0).toFixed(1)}`);
     const SC = G.scan?.S; ring(abScan, SC ? 1 - Math.max(0, SC.cd) / SC.cdMax : 1, `${Math.ceil(Math.max(0, SC?.cd || 0))}`);
     // ammo
-    setTx(ammB, String(W.S.ammo)); setTx(ammS, `/ ${W.S.reserve}`); ammC.classList.toggle('low', W.S.ammo <= Math.ceil(W.W.mag * 0.2) && !W.S.reloading);
+    setTx(ammB, String(W.S.ammo)); setTx(ammS, `/ ${W.S.reserve}`); const lowA = W.S.ammo <= Math.ceil(W.W.mag * 0.2) && !W.S.reloading; ammC.classList.toggle('low', lowA);
+    rlp.classList.toggle('on', lowA && W.S.reserve > 0 && playing && !p.dead);
     glP.forEach((g, i) => g.classList.toggle('f', i < W.S.gl));
     const reloading = W.S.reloading; tk.classList.toggle('rl', reloading); rl.classList.toggle('on', reloading);
     const fillN = reloading ? Math.floor(Math.min(1, W.S.reloadT / Math.max(0.01, W.S.reloadDur)) * W.W.mag) : W.S.ammo;
