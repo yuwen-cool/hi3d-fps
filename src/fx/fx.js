@@ -143,11 +143,13 @@ export function createFX(G) {
     if (enemy) { const cam = R.camera.position, dc = to.distanceTo(cam); if (dc < 3) to = to.clone().addScaledVector(from.clone().sub(to).normalize(), 3 - dc); }
     const d = to.clone().sub(from); const len = d.length(); d.normalize();
     if (len < 2) return;
-    const col = enemy ? [7, 12, 26] : [16, 9.5, 5];
-    emit(add, { pos: from.clone().addScaledVector(d, Math.min(2.5, len * 0.3)), vel: d.clone().multiplyScalar(180), life: Math.max(0.05, Math.min(0.3, (len - 2) / 180)), size: enemy ? 0.03 : 0.03, stretch: 2.0, col, alpha: 1 });
+    const od = !enemy && G.od?.active; // overdrive: the rifle throws plasma — fat cyan bolts and a lingering beam
+    const col = enemy ? [7, 12, 26] : od ? [5, 16, 22] : [16, 9.5, 5];
+    emit(add, { pos: from.clone().addScaledVector(d, Math.min(2.5, len * 0.3)), vel: d.clone().multiplyScalar(od ? 140 : 180), life: Math.max(0.05, Math.min(0.3, (len - 2) / 180)), size: od ? 0.09 : 0.03, stretch: od ? 3.2 : 2.0, col, alpha: 1 });
     // filament starts a few metres out so it never smears across the lens
     const f0 = Math.min(4, len * 0.35), mid = from.clone().addScaledVector(d, f0 + (len - f0) * 0.5);
-    emit(add, { pos: mid, vel: d.clone().multiplyScalar(10.01), life: enemy ? 0.22 : 0.12, size: enemy ? 0.006 : 0.004, stretch: (len - f0) * 0.5, col: enemy ? [1.2, 2.2, 5] : [2, 1.2, 0.6], drag: 0 });
+    emit(add, { pos: mid, vel: d.clone().multiplyScalar(10.01), life: enemy ? 0.22 : od ? 0.3 : 0.12, size: enemy ? 0.006 : od ? 0.022 : 0.004, stretch: (len - f0) * 0.5, col: enemy ? [1.2, 2.2, 5] : od ? [1.5, 5, 7] : [2, 1.2, 0.6], drag: 0 });
+    if (od) { emit(add, { pos: to, life: 0.12, size: 0.6, size1: 0.1, col: [6, 18, 24] }); for (let i = 0; i < 4; i++) emit(add, { pos: to, vel: V((rnd() - 0.5) * 7, rnd() * 5, (rnd() - 0.5) * 7), life: 0.3, size: 0.015, stretch: 0.08, col: [6, 16, 22], grav: 9.8 }); }
   }
   function muzzleSmoke(p, heat) { emit(alpha, { pos: p, vel: V((rnd() - 0.5) * 0.3, 0.6, (rnd() - 0.5) * 0.3), life: 1.3, size: 0.1 + heat * 0.06, size1: 0.5, col: litColor([0.5, 0.48, 0.46]), alpha: 0.22, soft: true, drag: 1.2, rise: 0.3 }); }
   // explosion in layers: white flash -> fireball that rolls up and darkens -> ground shock ring of dust ->

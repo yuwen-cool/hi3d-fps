@@ -183,5 +183,74 @@
  ],
  "objective": [
   "objective_0.mp3"
+ ],
+ "vo_triple": [
+  "vo_triple.mp3"
+ ],
+ "vo_double": [
+  "vo_double.mp3"
+ ],
+ "vo_rampage": [
+  "vo_rampage.mp3"
+ ],
+ "vo_headshot": [
+  "vo_headshot.mp3"
+ ],
+ "vo_unstoppable": [
+  "vo_unstoppable.mp3"
+ ],
+ "vo_takedown": [
+  "vo_takedown.mp3"
+ ],
+ "vo_overdrive": [
+  "vo_overdrive.mp3"
+ ],
+ "vo_cleared": [
+  "vo_cleared.mp3"
+ ],
+ "vo_colossusdown": [
+  "vo_colossusdown.mp3"
+ ],
+ "vo_contact": [
+  "vo_contact.mp3"
+ ],
+ "vo_deploy": [
+  "vo_deploy.mp3"
+ ],
+ "vo_valve": [
+  "vo_valve.mp3"
+ ],
+ "vo_opened": [
+  "vo_opened.mp3"
+ ],
+ "vo_inbound": [
+  "vo_inbound.mp3"
+ ],
+ "vo_storm": [
+  "vo_storm.mp3"
+ ],
+ "vo_passing": [
+  "vo_passing.mp3"
+ ],
+ "vo_wave": [
+  "vo_wave.mp3"
+ ],
+ "vo_boss": [
+  "vo_boss.mp3"
+ ],
+ "vo_core": [
+  "vo_core.mp3"
+ ],
+ "vo_won": [
+  "vo_won.mp3"
+ ],
+ "vo_lateValve": [
+  "vo_lateValve.mp3"
+ ],
+ "vo_dead": [
+  "vo_dead.mp3"
+ ],
+ "vo_horizon": [
+  "vo_horizon.mp3"
  ]
 }

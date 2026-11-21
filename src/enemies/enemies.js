@@ -258,7 +258,7 @@ export async function createEnemies(G) {
   }
   // ---------- update ----------
   function update(dt) {
-    wreck.update(dt);
+    wreck.update(dt); dt *= G.enemyTime ?? 1; // overdrive slows the robots, not the player
     const pp = G.player.s.pos, pdead = G.player.s.dead;
     for (const e of list) {
       // PropertyMixer only writes a bone when its sampled value changes, so constant tracks would let

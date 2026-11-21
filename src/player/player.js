@@ -7,7 +7,7 @@ export const MOVE = { walk: 3.8, sprint: 6.4, crouch: 1.9, ads: 2.4, accel: 34, 
 export function createInput(canvas) {
   const keys = new Set(), pressed = new Set();
   const st = { dx: 0, dy: 0, fire: false, ads: false, locked: false, pressedFire: false };
-  const map = { KeyW: 'fwd', KeyS: 'back', KeyA: 'left', KeyD: 'right', ShiftLeft: 'sprint', ShiftRight: 'sprint', Space: 'jump', ControlLeft: 'crouch', KeyC: 'crouch', KeyR: 'reload', KeyF: 'melee', KeyV: 'melee', KeyG: 'gl', KeyQ: 'scan', KeyE: 'use' };
+  const map = { KeyX: 'ult', KeyW: 'fwd', KeyS: 'back', KeyA: 'left', KeyD: 'right', ShiftLeft: 'sprint', ShiftRight: 'sprint', Space: 'jump', ControlLeft: 'crouch', KeyC: 'crouch', KeyR: 'reload', KeyF: 'melee', KeyV: 'melee', KeyG: 'gl', KeyQ: 'scan', KeyE: 'use' };
   const clear = () => { keys.clear(); st.fire = st.ads = false; };
   addEventListener('keydown', (e) => { const a = map[e.code]; if (!a) return; if (!keys.has(a)) pressed.add(a); keys.add(a); e.preventDefault(); });
   addEventListener('keyup', (e) => { const a = map[e.code]; if (a) keys.delete(a); });
@@ -47,7 +47,7 @@ export function createPlayer(G) {
     s.recoilOffY = THREE.MathUtils.clamp(s.recoilOffY + yaw * 0.65, -0.2, 0.2);
   }
   function damage(n, from) {
-    if (s.dead || G.god) return;
+    if (s.dead || G.god || G.cinematic) return;
     s.hurtT = 0; addShake(0.22 + n / 70);
     if (s.shield > 0) { const a = Math.min(s.shield, n); s.shield -= a; n -= a; if (s.shield <= 0) G.events.emit('player:shieldBreak'); }
     s.hp -= n;
@@ -56,6 +56,9 @@ export function createPlayer(G) {
     if (s.hp <= 0) { s.hp = 0; s.dead = true; G.events.emit('player:dead'); }
   }
   G.events.on('enemy:killed', (e) => { if (!s.dead) s.shield = Math.min(s.maxShield, s.shield + (e.melee ? 50 : 25)); }); // kills feed the shield
+  // look assist: ease the view toward something big that is happening off screen (input still works)
+  let asg = null; const _as = new THREE.Vector3();
+  function assist(target, dur = 0.7, hold = 0.8) { asg = { p: target.clone(), t: dur + hold, d: dur }; } // turn, then hold the view on it
   function heal(n) { const h = s.hp; s.hp = Math.min(s.maxHp, s.hp + n); return s.hp > h; }
   function update(dt) {
     const I = G.input; s.t += dt;
@@ -64,6 +67,10 @@ export function createPlayer(G) {
       const k = MOVE.sens * (G.sens || 1) * (1 - 0.4 * s.ads);
       s.yaw -= I.st.dx * k; s.pitch -= I.st.dy * k;
       s.pitch = THREE.MathUtils.clamp(s.pitch, -1.5, 1.5);
+    }
+    if (asg && asg.t > 0 && !s.dead) {
+      asg.t -= G.realDt || dt; s.assisting = asg.t > 0; const d = _as.copy(asg.p).sub(cam.position); const yw = Math.atan2(-d.x, -d.z), pt = Math.atan2(d.y, Math.hypot(d.x, d.z));
+      const k = Math.min(1, (G.realDt || dt) * 7); s.yaw += Math.atan2(Math.sin(yw - s.yaw), Math.cos(yw - s.yaw)) * k; s.pitch += (THREE.MathUtils.clamp(pt, -0.6, 0.8) - s.pitch) * k;
     }
     // recoil recovery
     const sinceFire = s.t - s.lastFireT;
@@ -149,5 +156,5 @@ export function createPlayer(G) {
       if (Math.abs(cam.fov - s.fov) > 0.01) { cam.fov = s.fov; cam.updateProjectionMatrix(); }
     }
   }
-  return { s, update, addShake, recoil, damage, heal, get forward() { return _f; }, get right() { return _r; } };
+  return { s, update, addShake, recoil, damage, heal, assist, get forward() { return _f; }, get right() { return _r; } };
 }

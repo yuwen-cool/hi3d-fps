@@ -158,7 +158,7 @@ export function createAudio(G) {
   ev.on('explosion', (e) => { play('boom', { pos: e.pos, ref: 12, roll: 0.5, gain: 0.6 + 0.25 * e.size }); musDuckV = Math.min(musDuckV, 0.4); });
   ev.on('player:dead', () => { muffle = 1; });
   ev.on('thunder', (e) => setTimeout(() => play(e.delay < 0.25 ? 'thunderNear' : 'thunderFar', { bus: dry, gain: Math.max(0.35, 1.1 - e.delay * 0.5), jitter: 0.08 }), e.delay * 1000));
-  ev.on('boss:step', (e) => { play('bossStep', { pos: e.pos, ref: 25, roll: 0.4, gain: 1.2, jitter: 0.1 }); play('clank', { pos: e.pos, ref: 18, roll: 0.5, gain: 0.5, jitter: 0.12 }); });
+  ev.on('boss:step', (e) => { if (e.far) { play('bossStep', { pos: e.pos, ref: 60, roll: 0.3, gain: 1.4, rate: 0.75, jitter: 0.1 }); return; } play('bossStep', { pos: e.pos, ref: 25, roll: 0.4, gain: 1.2, jitter: 0.1 }); play('clank', { pos: e.pos, ref: 18, roll: 0.5, gain: 0.5, jitter: 0.12 }); });
   ev.on('boss:charge', () => { const B = G.boss?.S; play('charge', { pos: B?.pos, ref: 25, roll: 0.3, gain: 1 }); });
   ev.on('boss:beam', (e) => play('beam', { pos: e.pos, ref: 30, roll: 0.25, gain: 1.2 }));
   ev.on('boss:dying', (e) => play('groan', { pos: e.pos, ref: 30, roll: 0.3, gain: 1 }));
@@ -209,5 +209,22 @@ export function createAudio(G) {
       let fd = 1e9; for (const f of G.fire?.fires || []) fd = Math.min(fd, f.pos.distanceTo(p) / Math.max(0.5, f.size)); beds.crackle.gain.value += (Math.min(1, 3 / (1 + fd)) * 0.9 - beds.crackle.gain.value) * Math.min(1, dt * 3);
     }
   }
-  return { update, ctx, play, samples: () => Object.keys(SMP), setVolume(v) { master.gain.value = 0.9 * v; } };
+  // ---------- voice: CONTROL comes through a radio (band-limited, slightly driven, with hiss); the announcer is dry and big ----------
+  const radio = (() => {
+    const hp = ctx.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 380; hp.Q.value = 0.8;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 3300; lp.Q.value = 0.9;
+    const pk = ctx.createBiquadFilter(); pk.type = 'peaking'; pk.frequency.value = 1700; pk.gain.value = 5; pk.Q.value = 1.2;
+    const sh = ctx.createWaveShaper(); { const n = 1024, c = new Float32Array(n); for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(x * 2.2) / Math.tanh(2.2); } sh.curve = c; }
+    const g = ctx.createGain(); g.gain.value = 1.15; hp.connect(lp); lp.connect(pk); pk.connect(sh); sh.connect(g); g.connect(dry); return hp;
+  })();
+  const ann = ctx.createGain(); ann.gain.value = 1.25; ann.connect(dry);
+  let voSrc = null;
+  function vo(key, onRadio = false) {
+    const b = SMP['vo_' + key]?.[0]; if (!b || ctx.state !== 'running') return 0;
+    if (onRadio && voSrc) { try { voSrc.stop(); } catch { /* ended */ } }
+    const src = ctx.createBufferSource(); src.buffer = b; src.connect(onRadio ? radio : ann); src.start();
+    if (onRadio) { voSrc = src; const n = ctx.createBufferSource(); n.buffer = S.wind?.[0] || SMP.wind?.[0] || b; const ng = ctx.createGain(); ng.gain.value = 0.04; const nh = ctx.createBiquadFilter(); nh.type = 'highpass'; nh.frequency.value = 2500; n.connect(nh); nh.connect(ng); ng.connect(dry); n.start(); n.stop(ctx.currentTime + b.duration + 0.1); }
+    musDuckV = Math.min(musDuckV, onRadio ? 0.55 : 0.45); return b.duration;
+  }
+  return { update, ctx, play, vo, voLen: (k) => SMP['vo_' + k]?.[0]?.duration || 0, samples: () => Object.keys(SMP), setVolume(v) { master.gain.value = 0.9 * v; } };
 }

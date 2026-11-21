@@ -16,10 +16,11 @@ export function createEnv(G) {
     sun: sun.intensity, hemi: hemi.intensity, hemiSky: hemi.color.clone(), hemiGnd: hemi.groundColor.clone(),
     zen: sky.uZenith.value.clone(), hor: sky.uHorizon.value.clone(), away: sky.uAway.value.clone(), gnd: sky.uGround.value.clone(), disk: sky.uDisk.value,
     sigma: vol.uSigma.value, fog: vol.uFogCol.value.clone(), sunScale: vol.uSunScale.value, amb: vol.uAmbient.value, vhor: vol.uHorizon.value.clone(),
-    key: ex.uKey.value, maxE: ex.uMaxE.value,
+    key: ex.uKey.value, maxE: ex.uMaxE.value, sunCol: sun.color.clone(),
   };
+  const MOON = new THREE.Color(0.5, 0.64, 1.0);
   const STORM = { zen: new THREE.Color(0.10, 0.065, 0.04), hor: new THREE.Color(0.55, 0.28, 0.12), away: new THREE.Color(0.24, 0.15, 0.09), fog: new THREE.Color(0.62, 0.40, 0.22), hemiSky: new THREE.Color(0.45, 0.30, 0.18) };
-  const NIGHT = { zen: new THREE.Color(0.012, 0.017, 0.04), hor: new THREE.Color(0.16, 0.075, 0.045), away: new THREE.Color(0.025, 0.03, 0.05), fog: new THREE.Color(0.14, 0.09, 0.07), hemiSky: new THREE.Color(0.16, 0.19, 0.3) };
+  const NIGHT = { zen: new THREE.Color(0.02, 0.03, 0.07), hor: new THREE.Color(0.22, 0.1, 0.06), away: new THREE.Color(0.04, 0.05, 0.09), fog: new THREE.Color(0.17, 0.12, 0.1), hemiSky: new THREE.Color(0.22, 0.27, 0.42) };
   const skySun = sky.uSunCol.value.clone(); sky.uSunCol.value = skySun; const sunCol0 = skySun.clone();
   const S = { front: 260, storm: 0, night: 0, flash: 0, boltT: 4, inside: 0 };
 
@@ -53,8 +54,9 @@ export function createEnv(G) {
     S.inside = sstep(u - S.front, -12, 12) * S.storm;
     const n = S.night, k = S.inside;
     // sun: swallowed by the storm, then gone at night
-    sun.intensity = base.sun * (1 - 0.93 * k) * (1 - n);
-    hemi.intensity = base.hemi * (1 - 0.35 * k) * lerp(1, 0.75, n) + S.flash * 0.9;
+    sun.intensity = base.sun * (1 - 0.93 * k) * (1 - n) + base.sun * 0.2 * n * (1 - k);
+    sun.color.copy(base.sunCol).lerp(MOON, n);
+    hemi.intensity = base.hemi * (1 - 0.35 * k) * lerp(1, 1.25, n) + S.flash * 0.9;
     hemi.color.copy(base.hemiSky).lerp(STORM.hemiSky, k).lerp(NIGHT.hemiSky, n);
     // sky dome
     sky.uZenith.value.copy(base.zen).lerp(STORM.zen, k).lerp(NIGHT.zen, n).multiplyScalar(1 + S.flash * 3);
@@ -62,14 +64,14 @@ export function createEnv(G) {
     sky.uAway.value.copy(base.away).lerp(STORM.away, k).lerp(NIGHT.away, n).multiplyScalar(1 + S.flash * 3);
     sky.uDisk.value = base.disk * (1 - k) * (1 - n);
     skySun.copy(sunCol0).multiplyScalar((1 - 0.8 * k) * Math.pow(1 - n, 3));
-    R.scene.environmentIntensity = TUNE.envIntensity * (1 - 0.5 * k) * lerp(1, 0.1, n) + S.flash * 0.5;
+    R.scene.environmentIntensity = TUNE.envIntensity * (1 - 0.5 * k) * lerp(1, 0.22, n) + S.flash * 0.5;
     // volume: denser sand inside the storm, colour shifts brown, ambient scatter carries the storm's own glow
     vol.uStorm.value.set(dir.x, dir.y, S.front, 18 * S.storm);
     vol.uFogCol.value.copy(base.fog).lerp(STORM.fog, Math.max(k, 0.4 * S.storm)).lerp(NIGHT.fog, n);
-    vol.uSunScale.value = base.sunScale * (1 - 0.75 * k) * (1 - n);
+    vol.uSunScale.value = base.sunScale * (1 - 0.75 * k) * (1 - n) + base.sunScale * 0.25 * n;
     vol.uAmbient.value = base.amb * (1 + 3.5 * k) * lerp(1, 0.35, n) + S.flash * 0.25;
     vol.uHorizon.value.copy(base.vhor).lerp(STORM.hor, k).lerp(NIGHT.hor, n);
-    ex.uKey.value = base.key * lerp(1, 0.72, n) * (1 - 0.1 * k);
+    ex.uKey.value = base.key * lerp(1, 0.9, n) * (1 - 0.1 * k);
     ex.uMaxE.value = lerp(lerp(base.maxE, 2.0, k), 3.2, n);
     // far wall: stands on the front while it is far, hands over to the volume as it gets close
     const fd = S.front - u;

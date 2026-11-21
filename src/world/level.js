@@ -124,7 +124,7 @@ export async function buildLevel(G) {
     place('tank', 10, -40, 0.4, { s: 1.35, surface: 'metal' }), place('tank', 27, -26, 2.0, { s: 1.15 }),
     place('tower', -4, -46, 0.2, { s: 1.0 }).then((o) => { fallTower = o; return o; }), place('tower', 5, -52, 1.3, { s: 1.15 }), place('tower', -30, -40, 2.5, { s: 0.9 }),
     place('tank', -44, -32, 1.0, { s: 1.1 }),
-    place('tank', 10.2, 2.6, 2.6, { s: 0.9, big: true }), place('tower', -18.6, -2.5, 0.8, { s: 0.75 }),
+    place('tank', 10.2, 2.6, 2.6, { s: 0.9, big: true }), place('tower', -18.4, -28.6, 0.8, { s: 0.75 }),
     place('valves', -14, 1.5, 2.2), place('barrier', -10.5, -1.5, 1.2, { surface: 'concrete' }),
     ...optional('pumpjack', -42, 10, 0.9, { s: 1.0 }), ...optional('pumpjack', 24, -38, 2.4, { s: 1.1 }),
     ...optional('container', 11.6, -19.5, 1.45, {}), ...optional('container', -15.5, -13.2, 0.15, {}), ...optional('container', 26, -14, 0.3, { col: false }),

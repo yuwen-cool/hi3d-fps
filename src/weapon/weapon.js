@@ -168,7 +168,7 @@ export async function createWeapon(G) {
     // camera recoil
     const up = 0.0068 * (S.shots < 10 ? 1 : 0.38) * bt * (0.85 + Math.random() * 0.3);
     const yaw = S.shots <= 3 ? (Math.random() - 0.5) * 0.0022 : (Math.sin(S.shots * 0.57 + S.recoilPh) * 0.0042 + (Math.random() - 0.5) * 0.002) * bt;
-    p.recoil(up, yaw);
+    const odK = G.od?.active ? 0.35 : 1; p.recoil(up * odK, yaw * odK);
     p.addShake(0.12 * bt);
     // viewmodel kick
     S.kZ.v += 1.5 * THREE.MathUtils.lerp(1, 0.6, ads); S.kP.v += 1.5 * bt; S.kY.v += (Math.random() - 0.5) * 1.0 * bt; S.kR.v += (Math.random() - 0.5) * 1.8 * bt;
@@ -191,8 +191,9 @@ export async function createWeapon(G) {
     const hitE = G.enemies?.hitTest?.(_o, _d, maxD);
     const hitB = G.boss?.hitTest(_o, _d, hitE ? hitE.distance : maxD);
     const end = _o.clone().addScaledVector(_d, hitB ? hitB.distance : hitE ? hitE.distance : maxD);
-    if (hitB) G.boss.damage(hitB, W.dmg);
-    else if (hitE) { const dmg = W.dmg * (hitE.part === 'weak' ? 2.2 : 1); G.enemies.damage(hitE.enemy, dmg, hitE, _d); }
+    const odD = G.od?.active ? 2 : 1;
+    if (hitB) G.boss.damage(hitB, W.dmg * odD);
+    else if (hitE) { const dmg = W.dmg * odD * (hitE.part === 'weak' ? 2.2 : 1); G.enemies.damage(hitE.enemy, dmg, hitE, _d); }
     S.fired++; if (hitE || hitB) S.hits++;
     G.events.emit('weapon:fire', { muzzle: _m.clone(), dir: _d.clone(), end, hitW: hitE || hitB ? null : hitW, hitE: hitB ? null : hitE, hitB, ads });
     G.events.emit('noise', { pos: _o.clone(), r: 45 });
@@ -280,7 +281,7 @@ export async function createWeapon(G) {
     const trigger = live && (I.st.fire || G.auto?.fire) && !(S.meleeT >= 0 && S.meleeT < 0.36);
     if (trigger && !S.reloading && S.sprint < 0.3) {
       if (S.ammo <= 0) { if (I.st.pressedFire) { G.events.emit('weapon:dry'); S.bump.v -= 0.08; } if (!S.dryT) S.dryT = 0.32; }
-      else { let n = 0; while (S.cool <= 0 && S.ammo > 0 && n < 3) { fire(); S.cool += 60 / W.rpm; n++; } }
+      else { let n = 0; while (S.cool <= 0 && S.ammo > 0 && n < 3) { fire(); S.cool += 60 / (W.rpm * (G.od?.active ? 1.35 : 1)); if (G.od?.active && S.ammo < W.mag && S.ammo % 3 === 0) S.ammo++; n++; } }
     }
     if (S.cool < 0) S.cool = 0;
     if (S.dryT) { S.dryT -= dt; if (S.dryT <= 0) { S.dryT = 0; startReload(); } }

@@ -4,6 +4,7 @@
 // Reads game state; the flow publishes the current objective in G.obj = { act, title, line, count:[done,total], marks:[{p,label,kind}] }.
 
 const ICON = {
+  od: '<svg viewBox="0 0 24 24" fill="none" stroke="#efe5cf" stroke-width="2.2" stroke-linejoin="miter"><path d="M13 2L5 14h6l-1 8 8-12h-6z"/></svg>',
   dash: '<svg viewBox="0 0 24 24" fill="none" stroke="#efe5cf" stroke-width="2.6" stroke-linejoin="miter"><path d="M4 5l7 7-7 7M12 5l7 7-7 7"/></svg>',
   scan: '<svg viewBox="0 0 24 24" fill="none" stroke="#efe5cf" stroke-width="2.2"><circle cx="12" cy="12" r="2.2"/><path d="M6.3 6.3a8 8 0 000 11.4M17.7 6.3a8 8 0 010 11.4M3.5 3.5a12 12 0 000 17M20.5 3.5a12 12 0 010 17"/></svg>',
   melee: '<svg viewBox="0 0 24 24" fill="none" stroke="#efe5cf" stroke-width="2.4"><path d="M5 19l9-9M14 10l2-6 4 4-6 2M4 14l6 6"/></svg>',
@@ -31,7 +32,7 @@ export function createHUD(G) {
   <div class="alert"><span>▲</span><span class="at">SHIELD DOWN</span><span>▲</span></div>
   <div class="vit sh0 pw" style="--d:.9s">
     <div class="bars"><div class="lb"><span>SHIELD / HEALTH</span><b><s class="sn">75</s><span class="n">100</span></b></div><div class="seg sh">${segs(4)}</div><div class="seg hp">${segs(10)}</div></div>
-    <div class="ab"><div class="a dash">${ring}<span class="ic">${ICON.dash}</span><span class="cd"></span><span class="kk">SHIFT DASH</span></div><div class="a scan">${ring}<span class="ic">${ICON.scan}</span><span class="cd"></span><span class="kk">Q SCAN</span></div></div>
+    <div class="ab"><div class="a dash">${ring}<span class="ic">${ICON.dash}</span><span class="cd"></span><span class="kk">SHIFT DASH</span></div><div class="a scan">${ring}<span class="ic">${ICON.scan}</span><span class="cd"></span><span class="kk">Q SCAN</span></div><div class="a od">${ring}<span class="ic">${ICON.od}</span><span class="cd"></span><span class="kk">X OVERDRIVE</span></div></div>
   </div>
   <div class="amm sh0 pw" style="--d:1.0s">
     <div class="rl">RELOADING</div><div class="gain"></div>
@@ -42,6 +43,8 @@ export function createHUD(G) {
   <div class="xh"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><i class="d"></i></div>
   <div class="hm"><i style="transform:rotate(45deg) translateX(.9rem)"></i><i style="transform:rotate(135deg) translateX(.9rem)"></i><i style="transform:rotate(225deg) translateX(.9rem)"></i><i style="transform:rotate(315deg) translateX(.9rem)"></i></div>
   <div class="pts"></div>
+  <div class="kb"><svg viewBox="-50 -50 100 100"></svg><div class="lb"></div></div>
+  <div class="odf"></div><div class="odt">OVERDRIVE<i></i></div>
   <div class="dmg"><i></i><i></i><i></i></div>
   <div class="tags">${'<div class="tag"><div class="br"></div><div class="lb"><span class="nm"></span><div class="hb"><i></i></div></div></div>'.repeat(6)}</div>
   <div class="rlp sh0"><span class="kc">R</span>RELOAD</div>
@@ -101,6 +104,7 @@ export function createHUD(G) {
   const objAn = q('.obj .an'), objAt = q('.obj .at'), objLn = q('.obj .ln'), objTx = q('.obj .ln .tx'), objCt = q('.obj .ln .ct'), objHo = q('.obj .ho em'), objSub = q('.obj .sub'), objSubTx = q('.obj .sub .sx'), objSubPb = q('.obj .sub .pb i');
   const stormEl = q('.storm'), stormV = q('.storm .v'), feed = q('.feed');
   const shN = q('.vit .sn'), vit = q('.vit'), amm = q('.amm'), shRow = q('.vit .sh'), shSeg = qa('.vit .sh i b'), hpSeg = qa('.vit .hp i b'), hpN = q('.vit .n');
+  const abOd = q('.a.od'), kb = q('.kb'), kbSvg = q('.kb svg'), kbLb = q('.kb .lb'), odf = q('.odf'), odt = q('.odt'), odtBar = q('.odt i');
   const abDash = q('.a.dash'), abScan = q('.a.scan'), rlp = q('.rlp'), gain = q('.amm .gain');
   const ammC = q('.amm .top'), ammB = q('.amm .top b'), ammS = q('.amm .top span'), glP = qa('.amm .gl i'), tk = q('.amm .tk'), tks = qa('.amm .tk i'), rl = q('.amm .rl');
   const wmks = q('.wmks'), wPool = [];
@@ -121,9 +125,26 @@ export function createHUD(G) {
     streak = streakT > 0 ? streak + 1 : 1; streakT = 3.5; score += n; G.score = score;
     pts.textContent = `+${n}`; pts.classList.remove('go'); void pts.offsetWidth; pts.classList.add('go');
     addFeed(`${NAMES[e.e?.kind] || 'HOSTILE'} DOWN${e.melee ? ' — TAKEDOWN' : e.weak ? ' — HEADSHOT' : ''}`, `+${n}`, crit);
+    emblem(streak, e);
     if (streak >= 2) { const b = 50 * (streak - 1); score += b; G.score = score; addFeed(['', '', 'DOUBLE KILL', 'TRIPLE KILL'][streak] || `${streak}× MULTI-KILL`, `+${b}`, true); }
-    G.audio?.play?.('killConfirm', { gain: 0.55 });
   });
+  // kill emblem: a diamond that gains rings and heat with every kill in a streak; the announcer calls the big ones
+  let annT = 0;
+  const TIER = ['', '', 'DOUBLE KILL', 'TRIPLE KILL', 'RAMPAGE', 'UNSTOPPABLE'], ANN = ['', '', 'double', 'triple', 'rampage', 'unstoppable'];
+  function emblem(n, e) {
+    const t = Math.min(5, n); let g = '';
+    for (let i = 0; i < t; i++) { const r = 18 + i * 7; g += `<path class="rg" d="M0 ${-r}L${r} 0L0 ${r}L${-r} 0Z" style="opacity:${1 - i * 0.12}"/>`; }
+    g += `<path class="core" d="M0 -10L10 0L0 10L-10 0Z"/>`; if (e.weak) g += `<path class="rg" d="M-30 -30L-22 -30M30 -30L22 -30M-30 30L-22 30M30 30L22 30" style="stroke-width:3"/>`;
+    kbSvg.innerHTML = g; kbLb.textContent = TIER[t] || (e.melee ? 'TAKEDOWN' : e.weak ? 'HEADSHOT' : '');
+    kb.className = 'kb t' + t; void kb.offsetWidth; kb.classList.add('go');
+    G.audio?.play?.('killConfirm', { gain: 0.5 + 0.08 * t, rate: 1 + 0.09 * (t - 1) });
+    const now = G.time; if (now - annT < 1.2) return;
+    const line = ANN[t] || (e.melee ? 'takedown' : e.weak && Math.random() < 0.5 ? 'headshot' : ''); if (line) { annT = now; G.audio?.vo?.(line); }
+  }
+  G.events.on('flow:lastkill', () => { banner('WAVE CLEARED', { kind: 'good', dur: 2.2 }); setTimeout(() => G.audio?.vo?.('cleared'), 500); });
+  G.events.on('boss:dead', () => setTimeout(() => G.audio?.vo?.('colossusdown'), 900));
+  G.events.on('od:start', () => { odf.classList.add('on'); odt.classList.add('on'); glitch(); });
+  G.events.on('od:end', () => { odf.classList.remove('on'); odt.classList.remove('on'); });
   function addFeed(text, val, crit) {
     const d = document.createElement('div'); if (crit) d.className = 'crit'; d.innerHTML = `<span></span><em></em>`; d.firstChild.textContent = text; d.lastChild.textContent = val; feed.prepend(d);
     while (feed.children.length > 4) feed.lastChild.remove();
@@ -158,11 +179,11 @@ export function createHUD(G) {
 
   // ---------- radio: queued lines, typed out, squelch on open ----------
   const radQ = []; let radCur = null;
-  function say(text, dur) { radQ.push({ text, dur: dur || Math.max(2.6, text.length * 0.065) }); }
+  function say(text, key) { radQ.push({ text, key, dur: Math.max(2.6, text.length * 0.065) }); }
   function radioTick(dt) {
-    if (!radCur && radQ.length) { radCur = { ...radQ.shift(), t: 0 }; rad.classList.add('on'); G.audio?.play?.('radio', { gain: 0.5 }); }
+    if (!radCur && radQ.length) { radCur = { ...radQ.shift(), t: 0 }; rad.classList.add('on'); G.audio?.play?.('radio', { gain: 0.5 }); const L = radCur.key ? G.audio?.vo?.(radCur.key, true) : 0; if (L) radCur.dur = L + 0.6; radCur.rate = radCur.text.length / Math.max(0.8, (L || radCur.dur * 0.6)); }
     if (!radCur) { return; }
-    radCur.t += dt; const n = Math.min(radCur.text.length, Math.floor(radCur.t * 55)); setTx(radTx, radCur.text.slice(0, n));
+    radCur.t += dt; const n = Math.min(radCur.text.length, Math.floor(radCur.t * Math.max(30, radCur.rate || 55))); setTx(radTx, radCur.text.slice(0, n));
     const talking = n < radCur.text.length || radCur.t < radCur.dur * 0.8;
     radBars.forEach((b, i) => { b.style.height = talking ? `${25 + 75 * Math.abs(Math.sin(G.time * (9 + i * 3.1) + i))}%` : '30%'; });
     if (radCur.t > radCur.dur) { radCur = null; if (!radQ.length) rad.classList.remove('on'); }
@@ -244,6 +265,7 @@ export function createHUD(G) {
     const ring = (a, k, label) => { const c = a.querySelector('.c'); set(c.style, 'strokeDashoffset', (100.5 * (1 - k)).toFixed(1)); a.classList.toggle('rdy', k >= 1); setTx(a.querySelector('.cd'), k >= 1 ? '' : label); };
     ring(abDash, p.dashCd ? 1 - Math.max(0, p.dashCd) / p.dashCdMax : 1, `${Math.max(0, p.dashCd || 0).toFixed(1)}`);
     const SC = G.scan?.S; ring(abScan, SC ? 1 - Math.max(0, SC.cd) / SC.cdMax : 1, `${Math.ceil(Math.max(0, SC?.cd || 0))}`);
+    const OD = G.od?.S; if (OD) { ring(abOd, OD.active ? 1 - OD.t / OD.dur : OD.charge, OD.active ? '' : `${Math.floor(OD.charge * 100)}`); if (OD.active) odtBar.style.transform = `scaleX(${(1 - OD.t / OD.dur).toFixed(3)})`; }
     // ammo
     setTx(ammB, String(W.S.ammo)); setTx(ammS, `/ ${W.S.reserve}`); const lowA = W.S.ammo <= Math.ceil(W.W.mag * 0.2) && !W.S.reloading; ammC.classList.toggle('low', lowA);
     rlp.classList.toggle('on', lowA && W.S.reserve > 0 && playing && !p.dead);

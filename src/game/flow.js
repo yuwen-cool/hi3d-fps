@@ -25,12 +25,17 @@ const RADIO = {
   dead: 'It is down. Get to extraction, west gate. Go.',
   won: 'Got you. Bringing you home.',
   lateValve: 'Forget the valve — the storm is on you.',
+  horizon: 'Eyes west. Something is walking out there.',
 };
+const STORM_DIR = new THREE.Vector2(-0.627, -0.779); // where the storm (and the thing inside it) comes from
 
 export function createFlow(G) {
   const S = { queue: [], state: 'title', act: 0, wave: -1, waveT: 0, kills: 0, t: 0, actT: 0, extract: V(-17, 0, 4), startT: 0, step: 'intro', stormClock: null, cores: 0 };
   const E = () => G.enemies, env = () => G.env?.S, hud = () => G.hud;
-  const say = (k) => hud()?.say?.(RADIO[k] || k);
+  const say = (k) => hud()?.say?.(RADIO[k] || k, RADIO[k] ? k : null);
+  // is a world point on screen and not hidden behind geometry?
+  const _iv = new THREE.Vector3(), _ce = new THREE.Vector3();
+  function inView(p, m = 0.8) { const cam = G.R.camera; _iv.copy(p).project(cam); if (_iv.z > 1 || Math.abs(_iv.x) > m || Math.abs(_iv.y) > m) return false; return G.phys.los(cam.getWorldPosition(_ce), p); }
   const valveA = () => G.level.valves?.[0];
   G.obj = null;
   function obj(o) { G.obj = { ...G.obj, ...o }; }
@@ -71,18 +76,32 @@ export function createFlow(G) {
     obj({ act: 1, title: 'ACT 1 // DUSK', line: valveA() ? 'OPEN VALVE A' : 'CLEAR THE YARD', count: valveA() ? [0, 1] : null, marks: valveA() ? [{ p: vA, label: 'A', name: 'VALVE A' }] : [], sub: null });
     hud()?.banner?.('ACT 1 // DUSK', { sub: 'OPEN VALVE A — HOLD THE YARD', dur: 3.5 });
     later(0.7, () => { say('deploy'); say('valve'); });
+    // the colossus is already out there: a silhouette walking along the storm front, lit by the lightning
+    later(9, () => {
+      // out in the open desert to the west (low wall, nothing in the way), pacing north-south along the dunes
+      const a = V(-82, 0, -50), b = V(-82, 0, 30);
+      G.boss?.spawnDistant(a.clone().lerp(b, 0.4), 0, [b, a], 2.3); S.horizon = { t: 0, said: false, bolt: 2 };
+    });
     later(2.5, () => hud()?.hint?.([['WASD', 'MOVE'], ['SHIFT', 'DASH'], ['C', 'SLIDE'], ['F', 'MELEE']], 6));
     if (!valveA()) S.step = 'hold';
     G.events.emit('flow:start');
   }
   // ---------- kill feel + bookkeeping ----------
-  G.events.on('enemy:killed', () => {
+  G.events.on('enemy:killed', (e) => {
     S.kills++; G.hitstop(0.055); G.player.addShake(0.32);
-    if (S.state === 'play' && (E()?.alive ?? 1) === 0 && !S.pending) { G.slowmo(0.9, 0.28); G.events.emit('flow:lastkill'); }
+    if (S.state === 'play' && (E()?.alive ?? 1) === 0 && !S.pending) { G.slowmo(1.1, 0.22); finisher(e.pos.clone().setY(1.2)); G.events.emit('flow:lastkill'); }
   });
+  // the last robot of a wave overloads: a blue-white discharge, a ring of light along the ground, a punch on the lens
+  function finisher(p) {
+    G.R.fx.punch = 1; G.player.addShake(0.45); G.R.flash(p, 0x9fdcff, 60, 14, 0.12);
+    G.fxs?.electric(p); G.fxs?.electric(p.clone().add(V(0, 0.5, 0)));
+    for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; G.fxs?.emit(false, { pos: V(p.x, 0.3, p.z), vel: V(Math.cos(a), 0.02, Math.sin(a)).multiplyScalar(16), life: 0.5, size: 0.18, size1: 0.04, stretch: 0.35, col: [6, 14, 22], drag: 2 }); }
+    for (let i = 0; i < 26; i++) { const v = V(Math.random() - 0.5, Math.random() * 0.9, Math.random() - 0.5).normalize(); G.fxs?.emit(false, { pos: p, vel: v.multiplyScalar(6 + Math.random() * 10), life: 0.5 + Math.random() * 0.5, size: 0.02, stretch: 0.12, col: [8, 16, 24], grav: 6, drag: 1 }); }
+    G.audio?.play?.('shieldBreak', { gain: 0.9, rate: 0.75 }); G.audio?.play?.('boom', { gain: 0.5, rate: 1.3 });
+  }
   G.events.on('player:dead', () => { S.state = 'dead'; S.deadT = 0; G.obj = null; });
   G.events.on('boss:core', () => { S.cores++; obj({ count: [S.cores, 2] }); if (S.cores === 1) say('core'); });
-  G.events.on('boss:dead', () => { S.bossDead = true; later(1.8, fellTower); });
+  G.events.on('boss:dead', () => { S.bossDead = true; S.towerT = 0; });
   G.events.on('scan:fire', () => { S.scanned = true; });
   if (G.params.shot && !G.params.noenemies) setTimeout(start, 0);
 
@@ -112,6 +131,7 @@ export function createFlow(G) {
   // the distillation column behind the colossus topples toward the yard
   function fellTower() {
     const o = G.level.fallTower; if (!o || S.fell) return; S.fell = { o, t: 0, axis: V(1, 0, 0.25).normalize() };
+    G.player.assist?.(o.position.clone().add(V(0, 9, 6)), 0.3, 2.6); G.slowmo(2.2, 0.5); // keep the view on the column while it comes down
     G.events.emit('tower:fall', { pos: o.position.clone() });
   }
   function towerTick(dt) {
@@ -127,6 +147,7 @@ export function createFlow(G) {
     obj({ act: 2, title: 'ACT 2 // SANDSTORM', line: 'SURVIVE THE STORM', count: [0, 2], unit: 'WAVES', marks: [], sub: null });
     hud()?.banner?.('SANDSTORM', { kind: 'crit', sub: 'VISIBILITY LOST — USE YOUR SCAN', dur: 3.5 }); G.audio?.play?.('alarm', { gain: 0.7 });
     say('storm'); later(3, () => { if (!S.scanned) hud()?.hint?.([['Q', 'SCAN PULSE']], 7); });
+    later(14, () => G.boss?.hideDistant()); // swallowed by the storm
   }
 
   const lerp = THREE.MathUtils.lerp, sstep = THREE.MathUtils.smoothstep;
@@ -136,12 +157,23 @@ export function createFlow(G) {
     for (let i = S.queue.length - 1; i >= 0; i--) if (S.queue[i].t <= S.t) { const q = S.queue.splice(i, 1)[0]; q.fn(); }
     if (S.state === 'deploy' || (S.state === 'play' && G.R.fx.fade > 0)) { fadeIn += dt; G.R.fx.fade = Math.max(0, 1 - fadeIn / 0.9); }
     towerTick(dt);
+    // the column comes down once the player can see it (assist the view after a few seconds otherwise)
+    if (S.towerT != null && !S.fell && G.level.fallTower) {
+      S.towerT += dt; const top = G.level.fallTower.position.clone().setY(13);
+      if (S.towerT > 1.2 && inView(top, 0.85)) fellTower();
+      else if (S.towerT > 4.5) { G.player.assist?.(top, 0.8, 0.3); if (S.towerT > 5.3) fellTower(); }
+    }
     // supply crates: ammo, grenades and health
     for (const c of G.level.crates || []) if (c.distanceTo(G.player.s.pos) < 2.2 && !(c.cdT > S.t)) { const a = G.weapon?.resupply(), h = G.player.heal?.(50); if (a || h) { c.cdT = S.t + 1.5; hud()?.addFeed?.('SUPPLY CRATE', h ? '+AMMO +HP' : '+AMMO'); } }
     if (S.state === 'dead') { S.deadT += dt; return; }
     if (S.state !== 'play' && S.state !== 'extract') return;
     const ev = env(), alive = E()?.alive ?? 0, clear = alive === 0 && !S.pending;
     // ---- act I ----
+    if (S.horizon && G.boss?.S.distant) {
+      const H = S.horizon; H.t += dt; H.bolt -= dt; const hp = G.boss.worldPos();
+      if (!H.said && (inView(hp.clone().setY(hp.y), 0.9) || H.t > 30)) { H.said = true; say('horizon'); H.bolt = 0.4; G.events.emit('boss:sighted'); }
+      if (H.bolt <= 0 && H.said) { H.bolt = 6 + G.rng() * 4; G.env?.strike(hp.clone().add(V(-28, 30, (G.rng() - 0.5) * 30))); }
+    }
     if (S.act === 1) {
       S.stormClock = Math.max(0, S.stormClock - dt * (S.stormFF && S.stormClock > 8 ? 32 : 1)); // the front speeds up visibly once the yard is held
       if (ev) ev.front = 150 + 110 * (S.stormClock / STORM_CLOCK);
@@ -154,7 +186,12 @@ export function createFlow(G) {
     // ---- act II: front sweeps over (~24 s); waves 2 and 3 inside the storm; lightning takes the tank ----
     } else if (S.act === 2) {
       if (ev) ev.front = lerp(150, -140, sstep(S.actT, 0, 24));
-      if (S.actT > 9 && !S.tankHit) { S.tankHit = true; const tk = G.level.explosives.find((o) => o.userData.explosive?.big); if (tk) { G.env?.strike(tk.position.clone().setY(30)); later(0.12, () => G.explosives?.hurt(tk, 9999)); } }
+      // lightning takes the storage tank — when the player is looking at it (or soon after, regardless)
+      const tk = !S.tankHit && G.level.explosives.find((o) => o.userData.explosive?.big && !o.userData.explosive.dead);
+      if (tk && S.actT > 6 && (inView(tk.position.clone().setY(9), 0.8) || S.actT > 45)) {
+        const seen = S.actT <= 45; S.tankHit = true; G.env?.strike(tk.position.clone().setY(30));
+        later(0.12, () => { G.explosives?.hurt(tk, 9999); if (seen) { G.slowmo(1.3, 0.3); G.player.addShake(0.6); G.player.assist?.(tk.position.clone().setY(5), 0.4, 1.6); } });
+      }
       if (S.wave >= 1) obj({ count: [S.wave - 1 + (clear ? 1 : 0), 2] });
       if (clear) {
         S.waveT -= dt;
@@ -168,9 +205,12 @@ export function createFlow(G) {
     } else if (S.act === 3) {
       if (ev) { ev.night = sstep(S.actT, 0, 10); ev.storm = lerp(1, 0.3, sstep(S.actT, 0, 10)); ev.front = Math.min(ev.front, -140); }
       if (S.actT > 6 && !S.bossIn) {
-        S.bossIn = true; G.boss?.spawn(V(-75, 0, -14), Math.PI / 2, BOSS_PATH); spawnWave(WAVES[3].n, WAVES[3].ch);
-        hud()?.banner?.('WARNING // MASSIVE CONTACT', { kind: 'crit', sub: 'COLOSSUS — CLASS-IV SIEGE WALKER', dur: 4 }); G.audio?.play?.('alarm', { gain: 0.9 });
-        say('boss'); obj({ line: 'DESTROY THE COOLANT CORES', count: [0, 2], unit: 'CORES' });
+        S.bossIn = true; G.boss?.hideDistant(); G.boss?.spawn(V(-50, 0, -13), Math.PI / 2, BOSS_PATH); G.audio?.play?.('alarm', { gain: 0.9 });
+        revealBoss(() => {
+          spawnWave(WAVES[3].n, WAVES[3].ch); hud()?.boot?.();
+          hud()?.banner?.('WARNING // MASSIVE CONTACT', { kind: 'crit', sub: 'COLOSSUS — CLASS-IV SIEGE WALKER', dur: 3.5 });
+          say('boss'); obj({ line: 'DESTROY THE COOLANT CORES', count: [0, 2], unit: 'CORES' });
+        });
       }
       const B = G.boss?.S; if (B?.active && !B.dead) obj({ marks: [{ p: B.pos, label: '!', kind: 'boss', name: 'COLOSSUS' }] });
       if (S.bossDead && clear && S.state === 'play' && (S.fell?.done || !G.level.fallTower)) {
@@ -179,6 +219,27 @@ export function createFlow(G) {
       }
     }
     if (S.state === 'extract' && G.player.s.pos.distanceTo(S.extract) < 3) { S.state = 'won'; say('won'); G.obj = null; G.events.emit('flow:won'); }
+  }
+  // the reveal: a low angle from inside the yard, lightning behind the machine, name card, weak points called out
+  function revealBoss(done) {
+    const B = G.boss; if (!B || !G.cine) { done(); return; }
+    // out on the sand west of the yard, low, the machine walking past toward the refinery
+    const A0 = V(-27.5, 1.1, 5.5), A1 = V(-29.5, 1.5, 2.5), look = V(0, 0, 0), lk = V(-46, 8, -13);
+    const key = new THREE.PointLight(0xffb27a, 0, 45, 1.6), rim = new THREE.PointLight(0x9fc8ff, 0, 60, 1.4); G.R.scene.add(key, rim);
+    G.cine.play({
+      dur: 5.2,
+      cam: (t) => { const k = Math.min(1, t / 5.2), e = k * k * (3 - 2 * k); look.copy(B.hull.position).add(V(0, 0.6, 0)); lk.lerp(look, Math.min(1, (G.realDt || 0.016) * 4));
+        key.position.copy(B.hull.position).add(V(10, 2, 14)); rim.position.copy(B.hull.position).add(V(-14, 10, -10)); key.intensity = 260 * Math.min(1, t * 2); rim.intensity = 420 * Math.min(1, t * 2);
+        return { pos: A0.clone().lerp(A1, e), look: lk, fov: 44 - 8 * e, roll: Math.sin(t * 1.7) * 0.006 }; },
+      start: () => { later(0.35, () => G.env?.strike(B.hull.position.clone().add(V(-26, 42, 3)))); later(1.6, () => G.env?.strike(B.hull.position.clone().add(V(-18, 38, -12)))); G.player.addShake(0.4); },
+      card: { cls: 'CLASS-IV SIEGE WALKER', name: 'COLOSSUS', threat: 'THREAT LEVEL: <b>EXTREME</b>', at: 1.1 },
+      callouts: [
+        { label: 'COOLANT CORE', at: () => B.cores[0].light.position, t: 2.0, dx: -110, dy: -60 },
+        { label: 'COOLANT CORE', at: () => B.cores[1].light.position, t: 2.3, dx: 110, dy: -70 },
+        { label: 'BEAM EMITTER', at: () => B.muzzle(), t: 2.7, dx: 120, dy: 40 },
+      ],
+      end: () => { G.R.scene.remove(key, rim); const ps = G.player.s, d = B.hull.position.clone().sub(G.R.camera.position); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch = THREE.MathUtils.clamp(Math.atan2(d.y - 2, Math.hypot(d.x, d.z)), -0.3, 0.5); done(); },
+    });
   }
   function toNight() {
     if (S.act !== 2) return; S.wave = 2; setAct(3); S.waveT = 7;

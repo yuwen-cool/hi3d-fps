@@ -60,11 +60,25 @@ export async function createColossus(G) {
   const beam = new THREE.Group(); beam.add(mkBeam(0.13, beamMat), mkBeam(0.75, glowMat)); beam.visible = false; scene.add(beam);
   const muzzleLight = new THREE.PointLight(0xff8a30, 0, 16, 2); scene.add(muzzleLight); R.volLights.push(muzzleLight);
 
-  const S = { active: false, dead: false, pos: V(0, 0, 0), yaw: 0, vel: V(0, 0, 0), phase: 'idle', t: 0, path: [], wp: 0, gait: 0, bob: 0, lean: 0, limp: 0, beamFrom: V(0, 0, 0), beamTo: V(0, 0, 0), sweepA: V(0, 0, 0), sweepB: V(0, 0, 0), deathT: 0, hp: 1 };
+  const S = { distant: false, scale: 1, active: false, dead: false, pos: V(0, 0, 0), yaw: 0, vel: V(0, 0, 0), phase: 'idle', t: 0, path: [], wp: 0, gait: 0, bob: 0, lean: 0, limp: 0, beamFrom: V(0, 0, 0), beamTo: V(0, 0, 0), sweepA: V(0, 0, 0), sweepB: V(0, 0, 0), deathT: 0, hp: 1 };
   const fwd = () => V(Math.sin(S.yaw), 0, Math.cos(S.yaw)), right = () => V(Math.cos(S.yaw), 0, -Math.sin(S.yaw));
   const toWorld = (local, out = V(0, 0, 0)) => out.copy(local).applyAxisAngle(V(0, 1, 0), S.yaw).add(hullH.position);
 
+  // far away on the horizon, before the fight: same machine, scaled up so it reads as a silhouette against the storm;
+  // it only walks (no beam, no damage, not a target). Positions live in scaled space: world = root.scale * local.
+  // in the distance the machine reads as a dark silhouette with two burning cores, not a hazy grey shape
+  const mats = []; root.traverse((m) => { if (m.isMesh && m.material.color && !cores.some((c) => c.mesh === m)) mats.push({ m: m.material, c: m.material.color.clone() }); });
+  const silhouette = (on) => { for (const x of mats) x.m.color.copy(x.c).multiplyScalar(on ? 0.22 : 1); for (const c of cores) c.mesh.scale.setScalar(on ? 1.6 : 1); };
+  function spawnDistant(pos, yaw, path, scale = 1.7) {
+    silhouette(true);
+    S.distant = true; S.active = false; S.dead = false; S.scale = scale; root.scale.setScalar(scale);
+    S.pos.copy(pos).divideScalar(scale); S.yaw = yaw; S.path = path.map((p) => p.clone().divideScalar(scale)); S.wp = 0; S.phase = 'walk'; S.t = 0; root.visible = true;
+    for (const L of legs) { home(L, L.foot); L.from.copy(L.foot); L.to.copy(L.foot); L.t = 1; }
+  }
+  function hideDistant() { if (!S.distant) return; silhouette(false); S.distant = false; root.visible = false; root.scale.setScalar(1); S.scale = 1; }
+  const worldPos = () => hullH.position.clone().multiplyScalar(S.scale);
   function spawn(pos, yaw, path) {
+    silhouette(false); S.distant = false; S.scale = 1; root.scale.setScalar(1);
     S.active = true; S.dead = false; S.pos.copy(pos); S.yaw = yaw; S.path = path.map((p) => p.clone()); S.wp = 0; S.phase = 'walk'; S.t = 0; root.visible = true;
     for (const c of cores) { c.hp = CFG.coreHp; c.alive = true; c.mesh.visible = true; }
     for (const L of legs) { home(L, L.foot); L.from.copy(L.foot); L.to.copy(L.foot); L.t = 1; }
@@ -110,6 +124,7 @@ export async function createColossus(G) {
     }
   }
   function land(L) {
+    if (S.distant) { G.events.emit('boss:step', { pos: L.foot.clone().multiplyScalar(S.scale), far: true }); return; }
     const p = L.foot; G.events.emit('boss:step', { pos: p.clone() });
     for (let i = 0; i < 14; i++) { const a = rnd() * 6.28; G.fxs?.emit(true, { pos: V(p.x + Math.cos(a) * 0.6, 0.2, p.z + Math.sin(a) * 0.6), vel: V(Math.cos(a), 0.15, Math.sin(a)).multiplyScalar(3 + rnd() * 3), life: 1.3 + rnd(), size: 0.4, size1: 1.8, col: G.fxs.litColor([0.55, 0.42, 0.3]), alpha: 0.45, soft: true, drag: 2.2 }); }
     G.fxs?.decal(V(p.x, 0.01, p.z), V(0, 1, 0), 1.6);
@@ -167,7 +182,8 @@ export async function createColossus(G) {
   G.events.on('blast', (e) => { if (!S.active || S.dead) return; for (const c of cores) if (c.alive && toWorld(c.local).distanceTo(e.pos) < 3) damage({ core: c, point: e.pos }, e.dmg * 0.8); });
 
   function update(dt) {
-    if (!S.active) return;
+    if (!S.active && !S.distant) return;
+    dt *= G.enemyTime ?? 1;
     if (S.phase === 'dying') return dying(dt);
     // locomotion: follow waypoints, keep facing the player while firing
     const pp = G.player.s.pos; const toP = pp.clone().sub(S.pos).setY(0);
@@ -175,9 +191,9 @@ export async function createColossus(G) {
     if (S.phase === 'walk') {
       if (goal) { const d = goal.clone().sub(S.pos).setY(0); if (d.length() < 1.5) S.wp = (S.wp + 1) % S.path.length; else S.vel.copy(d.normalize()).multiplyScalar(CFG.speed * (1 - 0.4 * S.limp)); }
       S.cool = (S.cool ?? 3) - dt;
-      if (S.cool <= 0 && toP.length() < 45) { S.phase = 'charge'; S.t = 0; G.events.emit('boss:charge', {}); }
+      if (!S.distant && !G.cinematic && S.cool <= 0 && toP.length() < 45) { S.phase = 'charge'; S.t = 0; G.events.emit('boss:charge', {}); }
     }
-    const wantYaw = S.phase === 'walk' && S.vel.lengthSq() > 0.01 ? Math.atan2(S.vel.x, S.vel.z) : Math.atan2(toP.x, toP.z);
+    const wantYaw = S.phase === 'walk' && (S.vel.lengthSq() > 0.01 || S.distant) ? (S.vel.lengthSq() > 0.01 ? Math.atan2(S.vel.x, S.vel.z) : S.yaw) : Math.atan2(toP.x, toP.z);
     let dy = wantYaw - S.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy)); S.turning = Math.abs(dy) > 0.05;
     S.yaw += THREE.MathUtils.clamp(dy, -CFG.turn * dt, CFG.turn * dt);
     S.pos.addScaledVector(S.vel, dt);
@@ -189,7 +205,7 @@ export async function createColossus(G) {
     hullH.rotation.set(-lz * 0.03, S.yaw, lx * 0.03 + S.limp * 0.12, 'YXZ');
     for (const L of legs) solveLeg(L);
     for (const c of cores) { if (!c.alive) continue; toWorld(c.local, c.light.position); c.flash = Math.max(0, (c.flash || 0) - dt); c.light.intensity = 10 + 6 * Math.sin(G.time * 5) + (c.flash > 0 ? 40 : 0); }
-    if (S.phase !== 'walk') beamTick(dt);
+    if (S.phase !== 'walk' && !S.distant) beamTick(dt);
     // damaged: smoke and sparks from dead cores
     for (const c of cores) if (!c.alive && rnd() < dt * 8) G.fxs?.emit(true, { pos: toWorld(c.local), vel: V(0.3, 1.6, 0.2), life: 3, size: 0.4, size1: 2.4, col: G.fxs.litColor([0.06, 0.055, 0.05]), alpha: 0.6, soft: true, rise: 0.6, drag: 0.6 });
   }
@@ -201,5 +217,5 @@ export async function createColossus(G) {
     if (rnd() < dt * 5 && S.deathT < 2.8) G.fxs?.explosion(toWorld(V((rnd() - 0.5) * 4, 0.5 + rnd(), (rnd() - 0.5) * 5)), 0.9 + rnd() * 0.6);
     if (S.deathT > 2.8 && !S.final) { S.final = true; G.explosives?.blast(hullH.position.clone(), 3.4, 14, 400); for (let i = 0; i < 6; i++) G.fire?.add(toWorld(V((rnd() - 0.5) * 6, -hullH.position.y + 0.1, (rnd() - 0.5) * 7)), { size: 1 + rnd() * 1.5, life: 200 }); G.events.emit('boss:dead', { pos: hullH.position.clone() }); }
   }
-  return { spawn, update, hitTest, damage, S, root, cores };
+  return { spawn, spawnDistant, hideDistant, worldPos, muzzle, update, hitTest, damage, S, root, cores, hull: hullH };
 }

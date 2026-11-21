@@ -258,4 +258,45 @@ export const CSS = `
 #ui .end .stats div span{display:block;font-family:var(--B);font-weight:600;font-size:.85rem;letter-spacing:.25em;color:var(--bone2)}
 #ui .end .stats div b{font-family:var(--N);font-size:2.8rem;line-height:3rem;color:var(--o)}
 #ui .end .menu{width:20rem}
+
+/* ---------- cutscene: letterbox, boss card, callouts ---------- */
+#ui .cine{position:absolute;inset:0;pointer-events:none;display:none}
+#ui .cine.on{display:block}
+#ui .cine .bar{position:absolute;left:0;right:0;height:11vh;background:#050403;animation:lbIn .5s var(--ease) both}
+#ui .cine .bar.t{top:0}#ui .cine .bar.b{bottom:0}
+@keyframes lbIn{from{height:0}}
+#ui .cine .card{position:absolute;left:6vw;bottom:15vh;opacity:0;transform:translateX(-2rem);transition:opacity .25s,transform .6s var(--ease)}
+#ui .cine .card.in{opacity:1;transform:none}
+#ui .cine .card .cl{display:inline-block;background:var(--o);color:#0d0b09;font-family:var(--H);font-weight:900;font-size:1.3rem;letter-spacing:.12em;padding:.05rem .6rem}
+#ui .cine .card .nm{font-family:var(--H);font-weight:900;font-size:9.5rem;line-height:8.2rem;color:var(--bone);letter-spacing:.02em;text-shadow:0 .4rem 2rem rgba(0,0,0,.6)}
+#ui .cine .card.in .nm{animation:nmIn .9s var(--ease) both}
+@keyframes nmIn{0%{clip-path:inset(0 100% 0 0);filter:brightness(3)}60%{clip-path:inset(0 0 0 0)}100%{filter:none}}
+#ui .cine .card .th{font-family:var(--H);font-weight:800;font-size:1.5rem;letter-spacing:.18em;color:var(--bone2)}#ui .cine .card .th b{color:var(--red)}
+#ui .cine .call{position:absolute;left:0;top:0;width:0;height:0;opacity:0;transition:opacity .2s}
+#ui .cine .call.on{opacity:1}
+#ui .cine .call i{position:absolute;left:-.45rem;top:-.45rem;width:.9rem;height:.9rem;border:2px solid var(--o);border-radius:50%;box-shadow:0 0 .8rem var(--o);animation:wpul 1.2s ease-out infinite}
+#ui .cine .call b{position:absolute;left:0;top:0;height:2px;background:var(--o);transform-origin:0 50%}
+#ui .cine .call span{position:absolute;white-space:nowrap;background:rgba(10,8,6,.85);border:1px solid var(--o);font-family:var(--H);font-weight:800;font-size:1.1rem;letter-spacing:.1em;padding:.1rem .55rem}
+#ui .cine .skip{position:absolute;right:2.4rem;bottom:calc(11vh + 1rem);font-family:var(--H);font-weight:800;font-size:.95rem;letter-spacing:.1em;color:var(--bone2)}
+
+/* ---------- kill emblem (centre), wave clear, overdrive ---------- */
+#hud .kb{position:absolute;left:50%;top:63%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;opacity:0}
+#hud .kb.go{animation:kbIn 1.6s var(--ease) both}
+@keyframes kbIn{0%{opacity:0;transform:translateX(-50%) scale(1.9)}10%{opacity:1;transform:translateX(-50%) scale(.92)}16%{transform:translateX(-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translateX(-50%) translateY(-.6rem)}}
+#hud .kb svg{width:4.4rem;height:4.4rem;overflow:visible}
+#hud .kb svg .rg{fill:none;stroke-width:2.5}#hud .kb svg .core{stroke:none}
+#hud .kb .lb{margin-top:.2rem;font-family:var(--H);font-weight:900;font-size:1.5rem;letter-spacing:.14em;text-shadow:0 0 .8rem rgba(0,0,0,.8)}
+#hud .kb.t1{--kc:#efe5cf}#hud .kb.t2{--kc:#ff8f45}#hud .kb.t3{--kc:#ff6a14}#hud .kb.t4{--kc:#ff3b2b}#hud .kb.t5{--kc:#ffd23f}
+#hud .kb svg .rg{stroke:var(--kc)}#hud .kb svg .core{fill:var(--kc)}#hud .kb .lb{color:var(--kc)}
+#hud .kb.go svg{filter:drop-shadow(0 0 .6rem var(--kc))}
+#hud .vit .ab .a.od .ic svg *{stroke:var(--cy)}
+#hud .vit .ab .a.od.rdy{animation:odR 1s ease-in-out infinite}
+@keyframes odR{50%{filter:drop-shadow(0 0 .7rem var(--cy)) brightness(1.4)}}
+#hud .vit .ab .a.od .c{stroke:var(--cy)}
+#hud .odf{position:absolute;inset:0;opacity:0;pointer-events:none;box-shadow:inset 0 0 6rem rgba(98,241,255,.45),inset 0 0 1.2rem rgba(98,241,255,.8);transition:opacity .3s}
+#hud .odf.on{opacity:1;animation:odF .7s ease-in-out infinite}
+@keyframes odF{50%{box-shadow:inset 0 0 8rem rgba(98,241,255,.6),inset 0 0 1.6rem rgba(98,241,255,1)}}
+#hud .odt{position:absolute;left:50%;top:6.6rem;transform:translateX(-50%);width:22rem;opacity:0;text-align:center;font-family:var(--H);font-weight:900;font-size:1.25rem;letter-spacing:.3em;color:var(--cy);text-shadow:0 0 .8rem rgba(98,241,255,.8)}
+#hud .odt.on{opacity:1}
+#hud .odt i{display:block;height:.3rem;margin-top:.25rem;background:var(--cy);box-shadow:0 0 .8rem var(--cy);transform-origin:center}
 `;

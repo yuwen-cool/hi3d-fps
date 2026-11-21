@@ -135,7 +135,7 @@ export function createRenderer(G, canvas) {
     grade: pass(S.GRADE, {
       tHdr: { value: null }, tBloom: { value: null }, tStreak: { value: null }, tExp: { value: null },
       uBloom: { value: TUNE.bloom }, uStreak: { value: TUNE.streak }, uManualExp: { value: TUNE.manualExp }, uAgx: { value: TUNE.agx }, uVignette: { value: TUNE.vignette }, uSat: { value: TUNE.sat },
-      uLookPow: { value: TUNE.lookPow }, uLookSat: { value: TUNE.lookSat }, uCA: { value: TUNE.ca }, uDamage: { value: 0 }, uLow: { value: 0 }, uAds: { value: 0 }, uFade: { value: 0 }, uFlash: { value: 0 }, uTime: { value: 0 }, uSpeed: { value: 0 },
+      uLookPow: { value: TUNE.lookPow }, uLookSat: { value: TUNE.lookSat }, uCA: { value: TUNE.ca }, uDamage: { value: 0 }, uLow: { value: 0 }, uAds: { value: 0 }, uFade: { value: 0 }, uFlash: { value: 0 }, uTime: { value: 0 }, uSpeed: { value: 0 }, uOver: { value: 0 }, uPunch: { value: 0 },
       uSplitLo: { value: new THREE.Vector3(...TUNE.splitLo) }, uSplitHi: { value: new THREE.Vector3(...TUNE.splitHi) }, uLift: { value: new THREE.Vector3(...TUNE.lift) },
     }),
     final: pass(S.FINAL, { tLdr: { value: null }, uSharpen: { value: TUNE.sharpen }, uGrain: { value: TUNE.grain }, uTime: { value: 0 } }),
@@ -204,7 +204,7 @@ export function createRenderer(G, canvas) {
 
   let frameNo = 0; let time = 0;
   const projV = new THREE.Vector4();
-  const fx = { damage: 0, low: 0, ads: 0, fade: 0, flash: 0, speed: 0 };
+  const fx = { damage: 0, low: 0, ads: 0, fade: 0, flash: 0, speed: 0, over: 0, punch: 0 };
 
   function frame(dt) {
     time += dt; frameNo++;
@@ -307,7 +307,7 @@ export function createRenderer(G, canvas) {
     const g = M.grade.uniforms;
     g.tHdr.value = T.comp.texture; g.tBloom.value = T.up[0].texture; g.tStreak.value = T.streakB.texture; g.tExp.value = T.expA.texture;
     g.uBloom.value = post.bloom ? TUNE.bloom : 0; g.uTime.value = time; g.uManualExp.value = TUNE.manualExp * (params.exposure ? +params.exposure : 1);
-    g.uDamage.value = fx.damage; g.uLow.value = fx.low; g.uAds.value = fx.ads; g.uFade.value = fx.fade; g.uFlash.value = fx.flash; g.uSpeed.value = fx.speed;
+    g.uDamage.value = fx.damage; g.uLow.value = fx.low; g.uAds.value = fx.ads; g.uFade.value = fx.fade; g.uFlash.value = fx.flash; g.uSpeed.value = fx.speed; g.uOver.value = fx.over; g.uPunch.value = fx.punch; fx.punch = Math.max(0, fx.punch - dt * 2.2);
     run(M.grade, T.ldr);
     M.final.uniforms.tLdr.value = T.ldr.texture; M.final.uniforms.uTime.value = time;
     renderer.setViewport(0, 0, W, H);

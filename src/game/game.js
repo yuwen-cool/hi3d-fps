@@ -23,6 +23,8 @@ export async function buildGame(G, setLoad) {
   try { const { createAudio } = await import('../audio/audio.js'); G.audio = createAudio(G); mods.push(['audio', G.audio]); } catch (e) { console.warn('audio', e); }
   try { const { createHUD } = await import('../hud/hud.js'); G.hud = createHUD(G); mods.push(['hud', G.hud]); } catch (e) { console.warn('hud', e); }
   try { const { createEnv } = await import('../world/env.js'); G.env = createEnv(G); mods.push(['env', G.env]); } catch (e) { console.warn('env', e); }
+  try { const { createCine } = await import('./cine.js'); G.cine = createCine(G); mods.push(['cine', G.cine]); } catch (e) { console.warn('cine', e); }
+  try { const { createOverdrive } = await import('./overdrive.js'); G.od = createOverdrive(G); mods.push(['od', G.od]); } catch (e) { console.warn('overdrive', e); }
   try { const { createFlow } = await import('./flow.js'); G.flow = createFlow(G); mods.push(['flow', G.flow]); } catch (e) { console.warn('flow', e); }
   G.modules.player = G.player;
   for (const [n, m] of mods) G.modules[n] = m;

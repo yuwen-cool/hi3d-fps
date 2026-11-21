@@ -1,18 +1,19 @@
 // Browser-side test player shared by tools/botrun.cjs and tools/first60.mjs: plays through the HUD objective
 // (nav to the marked valve, hold E), aims and shoots, scans in the storm, melees up close. No free kills.
 window.__installBot = () => {
-    const G = __G, T = G.THREE; G.god = !location.search.includes('god=0') && location.search.includes('god=1'); G.log = []; G.kills = []; G.used = { scan: 0, melee: 0, dash: 0 };
+    const G = __G, T = G.THREE; G.god = !location.search.includes('god=0') && location.search.includes('god=1'); G.log = []; G.kills = []; G.used = { scan: 0, melee: 0, dash: 0, od: 0 };
     G.events.on('enemy:killed', (e) => G.kills.push(+G.time.toFixed(0)));
     G.events.on('flow:act', (e) => G.log.push(['act' + e.act, +G.time.toFixed(0)]));
     for (const n of ['valve:open', 'tank:boom', 'boss:spawn', 'boss:core', 'boss:dead', 'tower:down', 'flow:extract', 'flow:won', 'player:dead']) G.events.on(n, () => G.log.push([n, +G.time.toFixed(0)]));
-    G.events.on('scan:fire', () => G.used.scan++); G.events.on('player:melee', () => G.used.melee++); G.events.on('player:dash', () => G.used.dash++);
+    G.events.on('scan:fire', () => G.used.scan++); G.events.on('player:melee', () => G.used.melee++); G.events.on('player:dash', () => G.used.dash++); G.events.on('od:start', () => G.used.od++);
     let t = 0, burst = 0, nav = { pts: [], t: 0, goal: null };
     const go = (ps, target, dt) => { // follow the nav grid toward a world point
       nav.t -= dt; if (nav.t <= 0 || !nav.goal || nav.goal.distanceTo(target) > 0.5) { nav.pts = G.enemies.path(ps.pos, target) || []; nav.t = 1; nav.goal = target.clone(); }
       const nx = nav.pts.find((q) => q.distanceTo(ps.pos) > 0.7) || target; const d = nx.clone().sub(ps.pos); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch *= 0.9; G.auto = { fwd: 1, str: 0 };
     };
     G.modules.bot = { update(dt) {
-      t += dt; const ps = G.player.s; if (ps.dead || !['play', 'extract'].includes(G.flow.S.state)) return; const eye = G.R.camera.getWorldPosition(new T.Vector3());
+      t += dt; const ps = G.player.s; if (ps.dead || !['play', 'extract'].includes(G.flow.S.state)) return;
+      if (ps.assisting) { G.auto = {}; return; } /* the game is showing us something: watch it */ const eye = G.R.camera.getWorldPosition(new T.Vector3());
       let tgt = null, bd = 1e9, te = null;
       for (const e of G.enemies.list) { if (!e.alive) continue; const h = e.bones.spine_03.getWorldPosition(new T.Vector3()); const d = h.distanceTo(eye); if (d < bd && G.phys.los(eye, h)) { bd = d; tgt = h; te = e; } }
       const B = G.boss.S;
@@ -34,6 +35,7 @@ window.__installBot = () => {
         ps.yaw += Math.atan2(Math.sin(yaw - ps.yaw), Math.cos(yaw - ps.yaw)) * Math.min(1, dt * 8); ps.pitch += (pit - ps.pitch) * Math.min(1, dt * 8);
         burst += dt; G.auto.fire = (burst % 0.9) < 0.45; G.auto.fwd = 0;
         if (te && bd < 2.4 && G.weapon.S.meleeCd <= 0) G.auto.melee = true;
+        if (G.od?.S.charge >= 1 && !G.od.S.active) G.auto.ult = true;
       }
       if (G.weapon.S.ammo === 0 && !G.weapon.S.reloading) G.weapon.startReload();
     } };
