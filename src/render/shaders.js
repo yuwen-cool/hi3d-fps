@@ -370,7 +370,7 @@ vec3 agx(vec3 c){
 vec3 toSRGB(vec3 c){ return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
 void main(){
   vec2 cc = vUv - 0.5; float r2 = dot(cc * vec2(1.6, 1.0), cc * vec2(1.6, 1.0)) / 0.89;
-  vec2 off = cc * r2 * (uCA + uDamage * 0.006 + uPunch * 0.025 + uOver * 0.004);
+  vec2 off = cc * r2 * (uCA + uDamage * 0.006 + uPunch * 0.025 + uOver * 0.0015);
   vec3 col = vec3(texture(tHdr, vUv - off).r, texture(tHdr, vUv).g, texture(tHdr, vUv + off).b);
   if (uSpeed > 0.02) { // dash / slide: radial smear toward the edges
     float k = uSpeed * smoothstep(0.08, 0.9, r2) * 0.05; vec3 acc = col; 
@@ -412,7 +412,7 @@ void main(){
   if (uOver > 0.001) { // overdrive: the world drains to cold blue, heat (fire, tracers, outlines) stays hot
     float lo = luma(m), heat = smoothstep(0.04, 0.28, m.r - m.b);
     vec3 cold = vec3(lo) * vec3(0.5, 0.86, 1.15) * 1.08;
-    m = mix(m, mix(cold, m * 1.2, heat), uOver * 0.85);
+    m = mix(m, mix(cold, m * 1.2, heat), uOver * (0.22 + 0.63 * edge)); // the centre keeps its colour (where you aim), the periphery drains cold
     m += vec3(0.1, 0.55, 0.75) * edge * edge * 0.22 * uOver;
   }
   m += vec3(1.0, 0.85, 0.7) * uPunch * 0.12 * (1.0 - edge);

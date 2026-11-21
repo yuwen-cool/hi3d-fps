@@ -185,7 +185,10 @@ export function createFlow(G) {
   }
   G.events.on('player:dead', () => { S.state = 'dead'; S.deadT = 0; G.obj = null; });
   G.events.on('boss:core', () => { S.cores++; obj({ count: [S.cores, 2] }); if (S.cores === 1) say('core'); });
-  G.events.on('boss:leg', () => { obj({ count: [1, 1] }); hud()?.banner?.('LEG DESTROYED', { kind: 'good', sub: 'ARMOUR BREACHED — CORES EXPOSED', dur: 3 }); later(1.4, () => { say('legdown'); obj({ line: 'DESTROY THE COOLANT CORES', count: [0, 2], unit: 'CORES' }); S.bossPhase = 'cores'; }); });
+  G.events.on('boss:leg', () => { obj({ count: [1, 1] });
+    // the machine buckles: a short side-on shot as it goes down on the knee and the armour blows off the cores
+    const hp = G.boss.hull.position.clone(), cut = insert(hp, [0, 1, 2, 3, 4, 5, 6, 7].map((i) => V(Math.cos(i * 0.785) * 24, 3.5, Math.sin(i * 0.785) * 24)), { dur: 3.2, look: () => G.boss.hull.position.clone().add(V(0, -1.5, 0)) });
+    later(cut ? 3.2 : 0, () => hud()?.banner?.('LEG DESTROYED', { kind: 'good', sub: 'ARMOUR BREACHED — CORES EXPOSED', dur: 3 })); later(cut ? 3.4 : 1.4, () => { say('legdown'); obj({ line: 'DESTROY THE COOLANT CORES', count: [0, 2], unit: 'CORES' }); S.bossPhase = 'cores'; }); });
   G.events.on('boss:overload', () => { S.bossPhase = 'trap'; say('overload'); hud()?.banner?.('IT IS OVERLOADING', { kind: 'crit', sub: 'IGNITE THE FLARE LINE', dur: 3.2 }); G.audio?.play?.('alarm', { gain: 0.8 });
     const ig = igniter(); if (ig) { ig.lamp.material.color.setRGB(9, 1.2, 0.2); obj({ line: 'IGNITE THE FLARE LINE', count: null, unit: null, marks: [{ p: ig.pos, label: 'F', name: 'IGNITER' }] }); } });
   G.events.on('boss:dead', () => { S.bossDead = true; });

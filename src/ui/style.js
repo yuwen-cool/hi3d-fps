@@ -27,7 +27,7 @@ export const CSS = `
 #hud.live .pw{animation:pw .55s var(--d,0s) both}
 @keyframes pw{0%{opacity:0;clip-path:inset(0 100% 0 0)}35%{opacity:1;clip-path:inset(0 35% 0 0)}42%{opacity:.15}48%{opacity:1}60%{opacity:.5}66%{opacity:1;clip-path:inset(0 0 0 0)}100%{opacity:1;clip-path:inset(0 0 0 0)}}
 #hud.glitch{animation:gl .32s steps(2) both}
-@keyframes gl{0%{transform:translate(0)}20%{transform:translate(-.5rem,.1rem);clip-path:polygon(0 0,100% 0,100% 18%,0 18%,0 24%,100% 24%,100% 61%,0 61%,0 70%,100% 70%,100% 100%,0 100%);filter:drop-shadow(.25rem 0 0 rgba(255,40,20,.8)) drop-shadow(-.25rem 0 0 rgba(90,240,255,.6))}40%{transform:translate(.6rem,-.1rem)}60%{transform:translate(-.2rem,0);clip-path:polygon(0 0,100% 0,100% 40%,0 40%,0 47%,100% 47%,100% 100%,0 100%)}100%{transform:translate(0);clip-path:none;filter:none}}
+@keyframes gl{0%{transform:translate(0)}20%{transform:translate(-.5rem,.1rem);clip-path:polygon(0 0,100% 0,100% 18%,0 18%,0 24%,100% 24%,100% 61%,0 61%,0 70%,100% 70%,100% 100%,0 100%)}40%{transform:translate(.6rem,-.1rem)}60%{transform:translate(-.2rem,0);clip-path:polygon(0 0,100% 0,100% 40%,0 40%,0 47%,100% 47%,100% 100%,0 100%)}100%{transform:translate(0);clip-path:none;filter:none}}
 
 /* ---------- HUD v2: edge-hugging, transparent, orange only as accent; solid fills only for alerts ---------- */
 #hud .sh0{text-shadow:0 1px 2px rgba(0,0,0,.85),0 0 .6rem rgba(0,0,0,.45)}

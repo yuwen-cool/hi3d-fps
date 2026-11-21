@@ -55,6 +55,8 @@ window.__installBot = () => {
         const stand = ig.pos.clone().add(new T.Vector3(2.0, 0, 0)); go(ps, stand, dt); if (stand.distanceTo(ps.pos) < 1.2) { const d = ig.top.clone().sub(eye); ps.yaw = Math.atan2(-d.x, -d.z); }
         return;
       }
+      // the machine is up but no weak point in sight: work round to ~16 m from it along a real path (not a straight line into cover)
+      if (!tgt && B.active && !B.dead && !B.distant) { const h = G.boss.hull.position, dir = ps.pos.clone().sub(h).setY(0).normalize(); go(ps, h.clone().setY(0).addScaledVector(dir, 16), dt); return; }
       G.auto = { fwd: Math.sin(t * 0.7) > 0.3 ? 1 : 0, str: Math.sin(t * 1.3) > 0 ? 1 : -1 };
       if (F.act === 2 && (G.scan.S.cd <= 0) && !tgt) G.auto.scan = true;
       if (tgt) {

@@ -174,7 +174,7 @@ export async function createWeapon(G) {
   root.traverse((o) => { o.layers.set(1); if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; o.frustumCulled = false; } });
 
   const S = {
-    cool: 0, shots: 0, lastShot: -9, bloom: 0, spread: 0, heat: 0, ads: 0, adsLin: 0, sprint: 0, charge: 0, fullT: 0, swapT: -1, swapTo: null, lanceOn: !!(T.lance || T.shot),
+    cool: 0, shots: 0, lastShot: -9, bloom: 0, spread: 0, heat: 0, ads: 0, adsLin: 0, sprint: 0, charge: 0, fullT: 0, swapT: -1, swapTo: null, inspectT: null, lanceOn: !!(T.lance || T.shot),
     fired: 0, hits: 0, meleeT: -1, meleeCd: 0, meleeHit: false, meleeTgt: null, reloading: false, reloadT: 0, reloadDur: 0, reloadEmpty: false, flashT: 0, flashDur: 0, t: 0, phase: 0, bobAmt: 0, recoilPh: Math.random() * 6, idleT: 0,
     kZ: spring(520, 30), kP: spring(380, 26), kY: spring(300, 22), kR: spring(300, 20), swY: spring(110, 15), swP: spring(140, 13), jY: spring(140, 13), jP: spring(140, 13), bump: spring(600, 30),
   };
@@ -338,7 +338,7 @@ export async function createWeapon(G) {
     S.swapT = 0; S.swapTo = k; S.reloading = false; S.charge = 0; S.fullT = 0; if (cur.magM) { cur.magM.position.copy(cur.magHome.p); cur.magM.rotation.copy(cur.magHome.r); cur.magM.visible = true; }
     G.events.emit('weapon:swap', { to: k.key }); return true;
   }
-  function unlockLance() { if (!lance || S.lanceOn) return false; S.lanceOn = true; G.events.emit('weapon:unlock', { key: 'lance', label: lance.label }); return true; }
+  function unlockLance() { if (!lance || S.lanceOn) return false; S.lanceOn = true; G.events.emit('weapon:unlock', { key: 'lance', label: lance.label }); if (swapTo(lance)) S.inspectT = 0; return true; } // into your hands, with a look at it
 
   const _w0 = new THREE.Vector3();
   function update(dt) {
@@ -444,7 +444,11 @@ export async function createWeapon(G) {
     const rx = lerp(POSE.hipR.x, 0, S.ads) + POSE.sprintR.x * S.sprint + POSE.reloadR.x * rw + Math.sin(2 * ph + 0.5) * 0.008 * bob + Math.sin(1.7 * t + 0.8) * 0.0035 * br + S.kP.x * 0.045 + S.jP.x + S.swP.x * 0.6 + S.bump.x * 0.08 - 0.9 * swapK;
     const ry = lerp(POSE.hipR.y, 0, S.ads) + POSE.sprintR.y * S.sprint * (1 - S.ads) + POSE.reloadR.y * rw + Math.sin(ph) * 0.01 * bob + Math.sin(0.6 * t) * 0.002 * br + S.kY.x * 0.03 + S.swY.x;
     const rz = lerp(POSE.hipR.z, 0, S.ads) + POSE.sprintR.z * S.sprint + POSE.reloadR.z * rw + Math.sin(ph) * 0.014 * bob + Math.sin(0.5 * t) * 0.004 * br + S.kR.x * 0.03 + S.swY.x * 0.7 + 0.3 * swapK;
-    pose.rotation.set(rx - 0.25 * mk, ry + 0.35 * mk, rz + 0.75 * mk);
+    // first pick-up: once it is up, turn it toward you (coils lit), then settle into the hold. Fire or aim cancels it.
+    let ik = 0; if (S.inspectT != null && S.swapT < 0) { S.inspectT += dt; const u = S.inspectT / 1.8; ik = u >= 1 || S.ads > 0.05 || S.cool > 0 ? 0 : Math.sin(Math.PI * Math.min(1, u)) ** 1.5; if (u >= 1 || S.ads > 0.05) S.inspectT = null;
+      if (cur.mats && ik > 0) for (const m of cur.mats) m.emissiveIntensity = Math.max(m.emissiveIntensity, 3.5 * ik); }
+    pose.position.x -= 0.07 * ik; pose.position.y += 0.035 * ik; pose.position.z += 0.05 * ik;
+    pose.rotation.set(rx - 0.25 * mk + 0.12 * ik, ry + 0.35 * mk + 0.75 * ik, rz + 0.75 * mk + 0.55 * ik);
     // flash
     if (S.flashT > 0) { S.flashT -= dt; const k = Math.sqrt(Math.max(0, S.flashT / S.flashDur)); cur.fm.uniforms.uI.value = cur.fj.uniforms.uI.value = 9.5 * k; cur.flash.visible = S.flashT > 0; }
     else cur.flash.visible = false;

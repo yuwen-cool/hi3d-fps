@@ -60,7 +60,7 @@ function pool(n, additive) {
 
 export function createFX(G) {
   const R = G.R, scene = R.scene, sunCol = G.sun.col, rnd = Math.random;
-  const add = pool(3000, true), alpha = pool(1400, false);
+  const add = pool(3200, true), alpha = pool(2200, false); // room for a tank chain (each storage tank puts up a smoke column)
   scene.add(add.mesh, alpha.mesh);
   const tmp = new THREE.Vector3();
   // lighting for alpha particles: warm sun-side, cool shadow side, cheap but consistent
@@ -171,6 +171,16 @@ export function createFX(G) {
     decal(V(p.x, 0.01, p.z), V(0, 1, 0), 2.6 * size);
     G.events.emit('explosion', { pos: p.clone(), size });
   }
+  // a storage tank going up: a fireball that climbs well above the roofs and rolls over into a black column that
+  // stands for half a minute, a ring of dust racing out along the ground. Meant to be seen from across the map.
+  function mushroom(p, h = 14, r = 4) {
+    R.flash(p.clone().setY(h * 0.4), 0xffb060, 900, 60 + r * 4, 0.9);
+    for (let i = 0; i < 48; i++) { const k = i / 48;
+      emit(add, { pos: p.clone().add(V((rnd() - 0.5) * r, h * 0.12 + rnd() * h * 0.3, (rnd() - 0.5) * r)), vel: V((rnd() - 0.5) * 3, 5 + rnd() * 11 * (1 - k * 0.5), (rnd() - 0.5) * 3), life: 1.1 + rnd() * 1.4, size: r * 0.45, size1: r * (1.0 + rnd() * 0.9), col: rnd() < 0.3 ? [26, 13, 4] : [14, 4.5, 1], drag: 1.2, rise: 1.6, soft: true, spin: 0.6 }); }
+    for (let i = 0; i < 32; i++) emit(alpha, { pos: p.clone().add(V((rnd() - 0.5) * r * 0.8, h * 0.25 + rnd() * h * 0.6, (rnd() - 0.5) * r * 0.8)), vel: V(0.5 + (rnd() - 0.5) * 0.6, 1.2 + rnd() * 2.6, 0.25 + (rnd() - 0.5) * 0.6), life: 14 + rnd() * 10, size: r * 0.9, size1: r * (2.6 + rnd() * 1.6), col: litColor([0.05, 0.045, 0.04]), alpha: 0.8, drag: 0.35, rise: 0.25, soft: true, spin: 0.15, fadeIn: 0.05 });
+    for (let i = 0; i < 48; i++) { const a = i / 48 * 6.283 + rnd() * 0.08; emit(alpha, { pos: V(p.x + Math.cos(a) * r, 0.3, p.z + Math.sin(a) * r), vel: V(Math.cos(a), 0.05, Math.sin(a)).multiplyScalar(14 + rnd() * 6), life: 1.6 + rnd(), size: 1, size1: 4.5, col: litColor([0.5, 0.4, 0.3]), alpha: 0.55, drag: 2.2, soft: true }); }
+    for (let i = 0; i < 60; i++) emit(add, { pos: p.clone().setY(h * 0.3), vel: cone(V(0, 1, 0), 2.6).multiplyScalar(10 + rnd() * 26), life: 1 + rnd() * 2, size: 0.05, stretch: 0.4, col: [20, 8, 2], grav: 9.8, drag: 0.4 });
+  }
   function electric(p) { // robot death: blue-white arcs + sparks
     for (let i = 0; i < 16; i++) emit(add, { pos: p, vel: cone(V(0, 1, 0), 2.5).multiplyScalar(4 + rnd() * 10), life: 0.2 + rnd() * 0.5, size: 0.012, stretch: 0.08, col: [8, 12, 20], grav: 9.8, drag: 1 });
     emit(add, { pos: p, life: 0.18, size: 0.9, size1: 0.2, col: [5, 8, 14] });
@@ -269,5 +279,5 @@ export function createFX(G) {
     shells.count = n; shells.instanceMatrix.needsUpdate = true;
     for (let i = sh.length - 1; i >= 0; i--) if (sh[i].rest > 4.7) sh.splice(i, 1);
   }
-  return { update, impact, enemyHit, tracer, explosion, electric, emit: (alphaPool, o) => emit(alphaPool ? alpha : add, o), chunk, decal, litColor };
+  return { update, impact, enemyHit, tracer, explosion, mushroom, electric, emit: (alphaPool, o) => emit(alphaPool ? alpha : add, o), chunk, decal, litColor };
 }
