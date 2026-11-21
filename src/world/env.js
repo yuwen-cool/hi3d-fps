@@ -36,25 +36,29 @@ export function createEnv(G) {
       void main(){
         vec2 p = vec2(vUv.x * 9.0, vUv.y * 2.4);
         float boil = fbm(p + vec2(uT * 0.02, -uT * 0.06)) * 0.65 + fbm(p * 2.6 - vec2(uT * 0.05, uT * 0.11)) * 0.35;
-        float top = 0.5 + 0.32 * fbm(vec2(vUv.x * 5.0 + uT * 0.01, uT * 0.02));
+        float top = 0.42 + 0.3 * fbm(vec2(vUv.x * 4.0 + uT * 0.01, uT * 0.02));      // crest 90-160 m up: a skyline, not the whole sky
         float a = 1.0 - smoothstep(top - 0.18, top + 0.02, vUv.y + (boil - 0.5) * 0.22);
         float rim = smoothstep(top - 0.25, top, vUv.y + (boil - 0.5) * 0.2);     // thin, sunlit crest
-        float b2 = smoothstep(0.3, 0.75, boil); vec3 c = mix(vec3(0.16, 0.08, 0.035), vec3(0.75, 0.42, 0.19), b2) * (0.55 + 0.7 * vUv.y);
-        c += uSun * rim * (0.6 + 2.2 * b2) * 1.1;
+        float b2 = smoothstep(0.3, 0.75, boil); vec3 c = mix(vec3(0.07, 0.035, 0.016), vec3(0.42, 0.22, 0.1), b2) * (0.45 + 0.9 * vUv.y);
+        c += uSun * rim * (0.8 + 2.8 * b2) * 1.4;                                       // the crest catches the sun, the face is in its own shadow
         c += vec3(0.7, 0.8, 1.0) * uFlash * (0.5 + boil);
         gl_FragColor = vec4(c, a * uA * (0.82 + 0.18 * boil));
       }` });
-  const wall = new THREE.Mesh(new THREE.PlaneGeometry(1400, 150, 1, 1), wallMat); wall.frustumCulled = false; wall.renderOrder = -5; R.scene.add(wall);
+  const wall = new THREE.Mesh(new THREE.PlaneGeometry(1800, 220, 1, 1), wallMat); wall.frustumCulled = false; wall.renderOrder = -5; R.scene.add(wall);
 
   const _c = new THREE.Vector3(), _w = new THREE.Vector3(dir.x, 0, dir.y), _wind = new THREE.Vector3(-dir.x, 0, -dir.y);
+  const clears = [null, null, null, null];
+  G.events.on('explosion', (e) => { if (!e.pos) return; const r = 5 + 4 * (e.size || 1); let i = clears.findIndex((c) => !c); if (i < 0) i = clears.reduce((a, c, j) => (c.t > clears[a].t ? j : a), 0); clears[i] = { p: e.pos.clone().setY(Math.max(1.5, e.pos.y)), r, t: 0 }; });
   function update(dt) {
     const cam = R.camera.position, t = G.time;
     // inside-ness at the camera (front coordinate along the storm direction)
     const u = cam.x * dir.x + cam.z * dir.y;
     S.inside = sstep(u - S.front, -12, 12) * S.storm;
     const n = S.night, k = S.inside;
+    // the wall stands between the yard and the low sun: as it closes in, its shadow takes the light before the sand arrives
+    const fd0 = S.front - u, shade = S.storm > 0 ? sstep(fd0, 170, 55) * (1 - n) : 0; S.shade = shade;
     // sun: swallowed by the storm, then gone at night
-    sun.intensity = base.sun * (1 - 0.93 * k) * (1 - n) + base.sun * 0.2 * n * (1 - k);
+    sun.intensity = base.sun * (1 - 0.93 * k) * (1 - n) * (1 - 0.82 * shade) + base.sun * 0.2 * n * (1 - k);
     sun.color.copy(base.sunCol).lerp(MOON, n);
     hemi.intensity = base.hemi * (1 - 0.35 * k) * lerp(1, 1.25, n) + S.flash * 0.9;
     hemi.color.copy(base.hemiSky).lerp(STORM.hemiSky, k).lerp(NIGHT.hemiSky, n);
@@ -62,13 +66,18 @@ export function createEnv(G) {
     sky.uZenith.value.copy(base.zen).lerp(STORM.zen, k).lerp(NIGHT.zen, n).multiplyScalar(1 + S.flash * 3);
     sky.uHorizon.value.copy(base.hor).lerp(STORM.hor, k).lerp(NIGHT.hor, n).multiplyScalar(1 + S.flash * 2);
     sky.uAway.value.copy(base.away).lerp(STORM.away, k).lerp(NIGHT.away, n).multiplyScalar(1 + S.flash * 3);
-    sky.uDisk.value = base.disk * (1 - k) * (1 - n);
+    sky.uDisk.value = base.disk * (1 - k) * (1 - n) * (1 - shade);
     skySun.copy(sunCol0).multiplyScalar((1 - 0.8 * k) * Math.pow(1 - n, 3));
     R.scene.environmentIntensity = TUNE.envIntensity * (1 - 0.5 * k) * lerp(1, 0.22, n) + S.flash * 0.5;
     // volume: denser sand inside the storm, colour shifts brown, ambient scatter carries the storm's own glow
-    vol.uStorm.value.set(dir.x, dir.y, S.front, 18 * S.storm);
+    vol.uStorm.value.set(dir.x, dir.y, S.front, 24 * S.storm);
+    R.fx.storm = k;
+    // blasts clear the air: a sphere of clean air that the wind fills back in
+    for (let i = 0; i < 4; i++) { const c = clears[i], U = vol.uClear.value[i];
+      if (!c) { U.w = 0; continue; } c.t += dt; c.p.addScaledVector(_wind, dt * 1.2);
+      const r = c.r * Math.min(1, c.t / 0.22) * (c.t < 1.6 ? 1 : Math.max(0, 1 - (c.t - 1.6) / 4.5)); U.set(c.p.x, c.p.y, c.p.z, r); if (r <= 0 && c.t > 1.6) clears[i] = null; }
     vol.uFogCol.value.copy(base.fog).lerp(STORM.fog, Math.max(k, 0.4 * S.storm)).lerp(NIGHT.fog, n);
-    vol.uSunScale.value = base.sunScale * (1 - 0.75 * k) * (1 - n) + base.sunScale * 0.25 * n;
+    vol.uSunScale.value = base.sunScale * (1 - 0.75 * k) * (1 - n) * (1 - 0.7 * shade) + base.sunScale * 0.25 * n;
     vol.uAmbient.value = base.amb * (1 + 3.5 * k) * lerp(1, 0.35, n) + S.flash * 0.25;
     vol.uHorizon.value.copy(base.vhor).lerp(STORM.hor, k).lerp(NIGHT.hor, n);
     ex.uKey.value = base.key * lerp(1, 0.9, n) * (1 - 0.1 * k);
@@ -77,7 +86,7 @@ export function createEnv(G) {
     const fd = S.front - u;
     wallMat.uniforms.uA.value = S.storm > 0 ? sstep(fd, 12, 55) * (1 - n) : 0;
     wallMat.uniforms.uT.value = t; wallMat.uniforms.uFlash.value = S.flash;
-    _c.set(dir.x * S.front, 70, dir.y * S.front); wall.position.copy(_c); wall.lookAt(0, 70, 0);
+    _c.set(dir.x * S.front, 105, dir.y * S.front); wall.position.copy(_c); wall.lookAt(0, 105, 0);
     wall.visible = wallMat.uniforms.uA.value > 0.002;
     // wind-blown sand around the camera
     if (k > 0.02 && G.fxs) {

@@ -352,7 +352,7 @@ export async function createEnemies(G) {
       const hs = e.hitSpr; for (let k = 0; k < 3; k++) { const h = dt / 3; hs.pv += (-hs.p * 300 - hs.pv * 20) * h; hs.p += hs.pv * h; hs.rv += (-hs.r * 300 - hs.rv * 20) * h; hs.r += hs.rv * h; }
       if (e.state === 'engage') { const pitch = Math.atan2(playerEye().y - 1.5, Math.max(1, dist)); e.bones.spine_02.rotateX(-pitch * 0.5); e.bones.spine_03.rotateX(-pitch * 0.5); }
       e.bones.spine_02.rotateX(hs.p * 0.6); e.bones.spine_03.rotateZ(hs.r * 0.5); e.bones.neck_01.rotateX(hs.p * 0.4);
-      for (const m of e.mats) m.emissiveIntensity = 4.5 + e.glow * 14;
+      for (const m of e.mats) m.emissiveIntensity = (4.5 + e.glow * 14) * (1 + 2.5 * (G.env?.S.inside || 0)); // visors burn through the sand
       placeGun(e, aiming || e.state === 'engage');
     }
   }

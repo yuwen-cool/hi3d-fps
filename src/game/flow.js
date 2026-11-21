@@ -165,12 +165,28 @@ export function createFlow(G) {
     if (k >= 1) { f.done = true; const hit = f.o.position.clone().add(V(0, 0, 14)); G.explosives?.blast(hit, 1.6, 6, 0); G.player.addShake(0.9); for (let i = 0; i < 40; i++) { const a = Math.random() * 6.28; G.fxs?.emit(true, { pos: V(hit.x + Math.cos(a) * 4, 0.4, hit.z + Math.sin(a) * 10), vel: V(Math.cos(a), 0.2, Math.sin(a)).multiplyScalar(6 + Math.random() * 6), life: 3 + Math.random() * 2, size: 1, size1: 5, col: G.fxs.litColor([0.45, 0.35, 0.25]), alpha: 0.55, soft: true, drag: 1.5 }); } G.events.emit('tower:down', {}); }
   }
 
+  // the wall arrives: a high shot over the yard toward the storm, the front rolling over the far stacks, lightning in its face
+  function stormShot(done) {
+    if (!G.cine) { done(); return; }
+    const d = V(STORM_DIR.x, 0, STORM_DIR.y), A0 = V(5, 10.5, 9), A1 = V(4, 9.2, 6.5);
+    G.cine.play({
+      dur: 4.6,
+      cam: (t) => { const k = Math.min(1, t / 4.6), e = k * k * (3 - 2 * k), fr = env()?.front ?? 120;
+        return { pos: A0.clone().lerp(A1, e), look: d.clone().multiplyScalar(Math.max(60, fr)).setY(48 + 8 * e), fov: 72 - 10 * e, roll: Math.sin(t * 2.1) * 0.004 }; },
+      start: () => { S.stormCine = true; for (const [t, k] of [[0.5, 0.7], [1.6, 0.5], [2.6, 0.85], [3.6, 0.6]]) later(t, () => { const fr = env()?.front ?? 120; G.env?.strike(d.clone().multiplyScalar(fr * k).add(V((G.rng() - 0.5) * 60, 45, (G.rng() - 0.5) * 30))); }); G.player.addShake(0.3); },
+      card: { cls: 'ACT 2', name: 'SANDSTORM', threat: 'VISIBILITY: <b>ZERO</b>', at: 1.2 },
+      end: () => { S.stormCine = false; done(); },
+    });
+  }
   function toStorm(late) {
     setAct(2); S.stormClock = 0; S.wave = Math.max(S.wave, 0); S.waveT = 6;
     if (late && valveA() && !valveA().open) { say('lateValve'); valveA().open = true; G.interact = null; }
     obj({ act: 2, title: 'ACT 2 // SANDSTORM', line: 'SURVIVE THE STORM', count: [0, 2], unit: 'WAVES', marks: [], sub: null });
-    hud()?.banner?.('SANDSTORM', { kind: 'crit', sub: 'VISIBILITY LOST — USE YOUR SCAN', dur: 3.5 }); G.audio?.play?.('alarm', { gain: 0.7 });
-    say('storm'); later(3, () => { if (!S.scanned) hud()?.hint?.([['Q', 'SCAN PULSE']], 7); });
+    G.audio?.play?.('alarm', { gain: 0.7 });
+    stormShot(() => {
+      hud()?.banner?.('SANDSTORM', { kind: 'crit', sub: 'VISIBILITY LOST — USE YOUR SCAN', dur: 3.5 }); hud()?.boot?.();
+      say('storm'); later(3, () => { if (!S.scanned) hud()?.hint?.([['Q', 'SCAN PULSE']], 7); });
+    });
     later(14, () => G.boss?.hideDistant()); // swallowed by the storm
   }
 
@@ -209,7 +225,7 @@ export function createFlow(G) {
       if (S.stormClock <= 0) toStorm(S.step === 'valve');
     // ---- act II: front sweeps over (~24 s); waves 2 and 3 inside the storm; lightning takes the tank ----
     } else if (S.act === 2) {
-      if (ev) ev.front = lerp(150, -140, sstep(S.actT, 0, 24));
+      if (ev) ev.front = S.actT < 4.6 ? lerp(150, 85, S.actT / 4.6) : lerp(85, -140, sstep(S.actT, 4.6, 20)); // rolls in fast under the opening shot, then over the yard
       // lightning takes the storage tank — when the player is looking at it (or soon after, regardless)
       const tk = !S.tankHit && G.level.explosives.find((o) => o.userData.explosive?.big && !o.userData.explosive.dead);
       if (tk && S.actT > 6 && (inView(tk.position.clone().setY(9), 0.8) || S.actT > 45)) {

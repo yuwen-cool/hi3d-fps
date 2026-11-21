@@ -98,6 +98,7 @@ uniform vec4 uInterior[4]; uniform vec4 uInteriorSize[4]; uniform int uInteriorC
 uniform vec4 uPL[6]; uniform vec3 uPLc[6]; uniform int uPLn;
 // sandstorm: xz = direction toward the storm, z = front position along it, w = density boost inside
 uniform vec4 uStorm; uniform vec2 uWind;
+uniform vec4 uClear[4]; // blasts punch clear spheres out of the storm: centre.xyz, radius
 out vec4 o;
 float h31(vec3 p){ p = fract(p * 0.1031); p += dot(p, p.zyx + 31.32); return fract((p.x + p.y) * p.z); }
 float vn3(vec3 p){ vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -110,7 +111,9 @@ float storm(vec3 p){
   if (inside <= 0.001) return 1.0;
   vec3 q = p * 0.07 + vec3(uWind.x, -0.2, uWind.y) * uTime * 0.35;
   float n = vn3(q) * 0.6 + vn3(q * 2.3) * 0.4;
-  return 1.0 + uStorm.w * inside * (0.35 + 1.3 * n) * (0.55 + 0.45 * exp(-max(p.y, 0.0) / 40.0));
+  float clear = 1.0;
+  for (int i = 0; i < 4; i++) { float r = uClear[i].w; if (r <= 0.0) continue; float d = length(p - uClear[i].xyz); clear *= smoothstep(r * 0.6, r * 1.05, d + (n - 0.5) * r * 0.35); }
+  return 1.0 + uStorm.w * inside * clear * (0.35 + 1.3 * n) * (0.55 + 0.45 * exp(-max(p.y, 0.0) / 40.0));
 }
 float hg(float mu, float g){ float g2 = g * g; return (1.0 - g2) / (12.566 * pow(max(1.0 + g2 - 2.0 * g * mu, 1e-4), 1.5)); }
 float shape(float h){ return uBase + (1.0 - uBase) * exp(-max(h, 0.0) / uHeightFall); }
@@ -337,7 +340,7 @@ void main(){
 // grade -> LDR sRGB
 export const GRADE = COMMON + /* glsl */`
 uniform sampler2D tHdr, tBloom, tStreak, tExp;
-uniform float uBloom, uStreak, uManualExp, uAgx, uVignette, uSat, uLookPow, uLookSat, uCA, uDamage, uLow, uAds, uFade, uFlash, uTime, uSpeed, uOver, uPunch;
+uniform float uBloom, uStreak, uManualExp, uAgx, uVignette, uSat, uLookPow, uLookSat, uCA, uDamage, uLow, uAds, uFade, uFlash, uTime, uSpeed, uOver, uPunch, uStormLook;
 uniform vec3 uSplitLo, uSplitHi, uLift;
 out vec4 o;
 vec3 aces(vec3 x){ // Hill fit
@@ -384,6 +387,19 @@ void main(){
   float edge = smoothstep(0.18, 1.0, r2);
   float dw = clamp(uDamage * edge * 0.85 + uLow * edge * edge * 0.25 * (0.75 + 0.25 * sin(5.0 * uTime)), 0.0, 1.0);
   m = mix(m, vec3(0.55, 0.02, 0.01) * (0.35 + l), dw);
+  if (uStormLook > 0.001) { // inside the storm: a burnt-ochre duotone; only light sources (hot or cold) keep their colour
+    float lo = luma(m);
+    float hot = max(smoothstep(0.62, 0.95, lo), smoothstep(0.015, 0.1, m.b - m.r) * smoothstep(0.12, 0.35, lo));
+    vec3 duo = mix(vec3(0.035, 0.018, 0.008), vec3(1.0, 0.64, 0.34), smoothstep(0.0, 0.8, lo));
+    duo = mix(duo, duo * duo * (3.0 - 2.0 * duo), 0.5);
+    m = mix(m, mix(duo, m * 1.15, hot), uStormLook * 0.85);
+    // sand on the visor: short bright dashes streaming with the wind, thicker toward the edges
+    vec2 su = vUv * vec2(uRes.x / uRes.y, 1.0); float st = 0.0;
+    for (int i = 0; i < 3; i++) { float fi = float(i); vec2 q = su * vec2(2.5 + fi * 2.0, 55.0 + fi * 25.0) + vec2(uTime * (6.0 + fi * 3.5), fi * 7.0);
+      float h = hash12(floor(q)); float fr = fract(q.x); st += step(0.992 - fi * 0.003, h) * smoothstep(0.0, 0.08, fr) * smoothstep(0.55, 0.15, fr) * (0.6 + 0.4 * h); }
+    m += vec3(1.0, 0.78, 0.52) * st * 0.12 * uStormLook * (0.15 + 0.85 * edge);
+    m = mix(m, m * vec3(0.92, 0.78, 0.62), edge * uStormLook * 0.35); // dust packed in the visor rim
+  }
   if (uOver > 0.001) { // overdrive: the world drains to cold blue, heat (fire, tracers, outlines) stays hot
     float lo = luma(m), heat = smoothstep(0.04, 0.28, m.r - m.b);
     vec3 cold = vec3(lo) * vec3(0.5, 0.86, 1.15) * 1.08;
