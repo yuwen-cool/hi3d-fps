@@ -13,7 +13,7 @@ export async function createDrones(G) {
   const src = await instance('drone');
   src.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = false; } });
   const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); const g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
-    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,0.4)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
+    g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.1, 'rgba(255,255,255,0.55)'); g.addColorStop(0.38, 'rgba(255,255,255,0.06)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); })();
   const list = [];
   const B = G.level.layout.bounds;
 
@@ -119,7 +119,7 @@ export async function createDrones(G) {
       d.root.rotation.x = THREE.MathUtils.lerp(d.root.rotation.x, THREE.MathUtils.clamp(lv.z * 0.06, -0.5, 0.5) - (d.mode === 'dive' ? 0.6 : 0), Math.min(1, dt * 5));
       d.root.rotation.z = THREE.MathUtils.lerp(d.root.rotation.z, THREE.MathUtils.clamp(-lv.x * 0.06, -0.5, 0.5), Math.min(1, dt * 5));
       const inside = G.env?.S.inside || 0;
-      d.eye.material.color.setRGB(6 * eyeK, (0.5 - 0.4 * eyeCol) * eyeK, 0.25 * eyeK); d.eye.scale.setScalar((0.45 + 0.5 * inside) * (0.8 + 0.2 * eyeK));
+      d.eye.material.color.setRGB(6 * eyeK, (0.5 - 0.4 * eyeCol) * eyeK, 0.25 * eyeK); d.eye.scale.setScalar((0.34 + 0.22 * inside) * (0.8 + 0.2 * eyeK));
       d.loop?.set(pos, 1, (d.mode === 'dive' ? 1.35 : 1) + d.vel.length() * 0.01);
     }
   }

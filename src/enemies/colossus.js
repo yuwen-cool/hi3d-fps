@@ -278,9 +278,21 @@ export async function createColossus(G) {
   G.events.on('blast', (e) => { if (!S.active || S.dead || !e.dmg) return; for (const c of cores) if (c.alive && c.exposed && toWorld(c.local).distanceTo(e.pos) < 3) damage({ core: c, point: e.pos }, e.dmg * 0.8);
     if (!S.legBroken) for (const L of legs) if (L.k.alive && L.k.w.distanceTo(e.pos) < 3) damage({ knee: L, point: e.pos }, e.dmg * 0.8); });
 
+  // the legs are solid: the player is shoved out of a lower leg (knee to foot) instead of the camera ending up inside it
+  const _pa = V(0, 0, 0), _pb = V(0, 0, 0);
+  function pushPlayer() {
+    const pp = G.player.s.pos, R0 = 1.15 * K;
+    for (const L of legs) { if (L.broken && L.fall) continue; _pa.copy(L.knee); _pb.copy(L.foot);
+      const dx = _pb.x - _pa.x, dz = _pb.z - _pa.z, dy = _pb.y - _pa.y, len2 = dx * dx + dy * dy + dz * dz || 1;
+      const t = THREE.MathUtils.clamp(((pp.x - _pa.x) * dx + (pp.y + 1 - _pa.y) * dy + (pp.z - _pa.z) * dz) / len2, 0, 1);
+      const cx = _pa.x + dx * t, cy = _pa.y + dy * t, cz = _pa.z + dz * t; if (cy > pp.y + 2.2) continue;
+      const ox = pp.x - cx, oz = pp.z - cz, d = Math.hypot(ox, oz); if (d >= R0) continue;
+      const k = (R0 - d) / Math.max(d, 1e-3); pp.x += (d > 1e-3 ? ox : 1) * k; pp.z += (d > 1e-3 ? oz : 0) * k; }
+  }
   function update(dt) {
     lights(G.time);
     if (!S.active && !S.distant) return;
+    if (S.active && !S.dead) pushPlayer();
     dt *= G.enemyTime ?? 1;
     if (S.phase === 'dying') return dying(dt);
     // locomotion: follow waypoints, keep facing the player while firing

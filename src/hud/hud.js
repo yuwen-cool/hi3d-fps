@@ -148,7 +148,7 @@ export function createHUD(G) {
     const now = G.time; if (now - annT < 1.2) return;
     const line = ANN[t] || (e.melee ? 'takedown' : e.weak && Math.random() < 0.5 ? 'headshot' : ''); if (line) { annT = now; G.audio?.vo?.(line); }
   }
-  G.events.on('flow:lastkill', () => { banner('WAVE CLEARED', { kind: 'good', dur: 2.2 }); setTimeout(() => G.audio?.vo?.('cleared'), 500); });
+  G.events.on('flow:lastkill', () => { if (G.boss?.S.active && !G.boss.S.dead) return; banner('WAVE CLEARED', { kind: 'good', dur: 2.2 }); setTimeout(() => G.audio?.vo?.('cleared'), 500); });
   G.events.on('boss:dead', () => setTimeout(() => G.audio?.vo?.('colossusdown'), 900));
   G.events.on('trap:ignite', () => setTimeout(() => G.audio?.vo?.('ignited'), 300));
   G.events.on('od:start', () => { setTimeout(() => { if (G.od?.S?.active !== false) odf.classList.add('on'); }, 330); odt.classList.add('on'); glitch(); hint([], 0); hintEl.classList.remove('on'); }); // the READY prompt goes the moment it is used

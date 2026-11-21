@@ -146,7 +146,8 @@ void main(){
     float t = maxD * f * (0.35 + 0.65 * f);
     float dt = t - prevT; prevT = t;
     vec3 p = uCamPos + wdir * t;
-    float s = uSigma * shape(p.y) * (1.0 + uInteriorDust * interior(p)) * storm(p);
+    float stm = storm(p); stm = 1.0 + (stm - 1.0) * mix(0.3, 1.0, smoothstep(2.5, 15.0, t)); // the sand thins right around you: near things keep their blacks, the far ones go
+    float s = uSigma * shape(p.y) * (1.0 + uInteriorDust * interior(p)) * stm;
     vec4 sc = uShadowMat * vec4(p, 1.0);
     float sh = 1.0;
     if (sc.x > 0.0 && sc.x < 1.0 && sc.y > 0.0 && sc.y < 1.0 && sc.z < 1.0) {
@@ -398,8 +399,8 @@ void main(){
   if (uStormLook > 0.001) { // inside the storm: a burnt-ochre duotone; only light sources (hot or cold) keep their colour
     float lo = luma(m);
     float hot = max(smoothstep(0.62, 0.95, lo), smoothstep(0.015, 0.1, m.b - m.r) * smoothstep(0.12, 0.35, lo));
-    vec3 duo = mix(vec3(0.07, 0.045, 0.03), vec3(1.0, 0.66, 0.36), smoothstep(0.0, 0.75, lo)); // shadows stay lifted: thick sand is lit from all sides
-    duo = mix(duo, duo * duo * (3.0 - 2.0 * duo), 0.2);
+    vec3 duo = mix(vec3(0.045, 0.028, 0.018), vec3(1.0, 0.66, 0.36), smoothstep(0.0, 0.78, lo)); // shadows half lifted: lit sand, but near things keep a black
+    duo = mix(duo, duo * duo * (3.0 - 2.0 * duo), 0.32);
     m = mix(m, mix(duo, m * 1.15, hot), uStormLook * 0.72); // some of the real colour (rust, paint, steel) shows through
     // sand on the visor: short bright dashes streaming with the wind, thicker toward the edges
     vec2 su = vUv * vec2(uRes.x / uRes.y, 1.0); float st = 0.0;

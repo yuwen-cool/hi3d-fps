@@ -9,9 +9,10 @@ attribute vec4 iPos;    // xyz, size
 attribute vec4 iCol;    // rgb (HDR), alpha
 attribute vec4 iVel;    // dir xyz, stretch (metres)
 attribute vec2 iRot;    // rotation, softness
-varying vec4 vCol; varying vec2 vUv; varying float vSoft;
+varying vec4 vCol; varying vec2 vUv; varying float vSoft; varying float vNear;
 void main(){
   vec3 c = (modelViewMatrix * vec4(iPos.xyz, 1.0)).xyz;
+  float nearK = smoothstep(0.35, 1.6 + iPos.w * 0.9, -c.z); // fade what is about to fill the lens: a fireball in your face is a bright wall, not an effect
   vec2 q = position.xy; vUv = position.xy * 2.0;
   float s = iPos.w;
   vec3 vd = (modelViewMatrix * vec4(iVel.xyz, 0.0)).xyz;
@@ -22,11 +23,11 @@ void main(){
     float cs = cos(iRot.x), sn = sin(iRot.x);
     c.xy += mat2(cs, -sn, sn, cs) * q * s;
   }
-  vCol = iCol; vSoft = iRot.y;
+  vCol = iCol; vSoft = iRot.y; vNear = nearK;
   gl_Position = projectionMatrix * vec4(c, 1.0);
 }`;
 const PFS = /* glsl */`
-varying vec4 vCol; varying vec2 vUv; varying float vSoft;
+varying vec4 vCol; varying vec2 vUv; varying float vSoft; varying float vNear;
 float h(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 float n(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(h(i), h(i + vec2(1, 0)), f.x), mix(h(i + vec2(0, 1)), h(i + vec2(1, 1)), f.x), f.y); }
 void main(){
@@ -49,7 +50,7 @@ function pool(n, additive) {
   geo.instanceCount = 0;
   const mat = new THREE.ShaderMaterial({
     vertexShader: PVS,
-    fragmentShader: PFS.replace('ADDITIVE_OUT', additive ? 'gl_FragColor = vec4(vCol.rgb * a * vCol.a, 1.0);' : 'gl_FragColor = vec4(vCol.rgb, a * vCol.a);'),
+    fragmentShader: PFS.replace('ADDITIVE_OUT', additive ? 'gl_FragColor = vec4(vCol.rgb * a * vCol.a * vNear, 1.0);' : 'gl_FragColor = vec4(vCol.rgb, a * vCol.a * vNear);'),
     transparent: true, depthWrite: false, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, toneMapped: false,
   });
   const mesh = new THREE.Mesh(geo, mat); mesh.frustumCulled = false; mesh.renderOrder = additive ? 6 : 5;

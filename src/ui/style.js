@@ -164,7 +164,7 @@ export const CSS = `
 #hud .tag .lb{position:absolute;white-space:nowrap;background:var(--ink);border:1px solid var(--bone);padding:.05rem .45rem .2rem;font-family:var(--H);font-weight:800;font-size:1.05rem;line-height:1.2rem}
 #hud .tag .lb .hb{height:.22rem;background:rgba(239,229,207,.2);margin-top:.1rem}#hud .tag .lb .hb i{display:block;height:100%;background:var(--red)}
 #hud .tag.scan .br{border-color:var(--cy)}#hud .tag.scan .lb{border-color:var(--cy)}
-#hud .rlp{position:absolute;left:50%;top:56.5%;transform:translateX(-50%);font-family:var(--H);font-weight:800;font-size:1.15rem;letter-spacing:.08em;opacity:0;transition:opacity .15s}#hud .rlp.on{opacity:1}#hud .rlp .kc{border-color:var(--haz);color:var(--haz)}
+#hud .rlp{position:absolute;left:calc(50% + 3.4rem);top:calc(50% + 1.4rem);font-family:var(--H);font-weight:800;font-size:1.15rem;letter-spacing:.08em;opacity:0;transition:opacity .15s}#hud .rlp.on{opacity:1}#hud .rlp .kc{border-color:var(--haz);color:var(--haz)}
 #hud .use{position:absolute;left:50%;top:57%;transform:translateX(-50%);display:flex;align-items:center;gap:.5rem;opacity:0;transition:opacity .15s}
 #hud .use.on{opacity:1}
 #hud .use .kc{font-size:1.5rem;line-height:2.4rem;min-width:2.6rem;border-width:2px;background:var(--o);color:#0d0b09;border-color:var(--o)}

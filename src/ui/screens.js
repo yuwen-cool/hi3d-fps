@@ -102,8 +102,8 @@ export function createUI(G, boot) {
   function showTitle() { title.classList.add('on'); openTitleMenu(); G.hudHidden = true; G.camLocked = true; G.viewModelVisible = false; G.cinematic = true; }
   function deploy(cp = 0) {
     lock(); titleMenu?.dispose(); title.classList.add('out');
-    setTimeout(() => { title.classList.remove('on', 'out'); }, 560);
-    G.hudHidden = false; G.viewModelVisible = true; if (cp >= 2) G.flow.checkpoint(cp); else G.flow.deploy();
+    setTimeout(() => { title.classList.remove('on', 'out'); G.hudHidden = false; }, 560); // the HUD comes up once the title has gone, never under it
+    G.viewModelVisible = true; if (cp >= 2) G.flow.checkpoint(cp); else G.flow.deploy();
   }
 
   // ---------- title camera: slow drift across the yard toward the stacks ----------

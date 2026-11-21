@@ -19,7 +19,7 @@ const BOSS_IN = V(-92, 0, -30), BOSS_TRAP = V(-50, 0, -31);
 const GATE_W = V(-21.6, 1.4, -24); // the yard's west gate onto the tank farm lane
 const STORM_CLOCK = 240; // act 1 has two valves now (yard, then the gallery in the process unit)
 // the dropship settles over the pad nose-west (wings across the wall line), belly ~3.4 m up; the boarding shot is taken from inside the yard
-const SHIP = { hover: V(-47, 3.4, 1), yaw: Math.PI / 2, cam0: V(-36, 1.8, -8), cam1: V(-38.5, 2.6, -5) };
+const SHIP = { hover: V(-47, 3.4, 1), yaw: Math.PI / 2, cam0: V(-28, 1.6, -15), cam1: V(-30.5, 2.4, -12) }; // the boarding shot stands well clear of a 19 m ship
 const ease = (t) => t * t * (3 - 2 * t);
 const RADIO = {
   deploy: 'Boots on the ground. Storm front is four minutes out.',
@@ -394,7 +394,7 @@ export function createFlow(G) {
       if ((S.nightT && S.t > S.nightT) || S.actT > 190) toNight();
     // ---- act III: night falls on the burning yard; the colossus comes ----
     } else if (S.act === 3) {
-      if (ev) { ev.night = sstep(S.actT, 0, 10); ev.storm = lerp(S.storm3 ?? 1, 0.05, sstep(S.actT, 0, 10)); ev.front = Math.min(ev.front, -140); } // the storm blows out: a clear night, a little dust left
+      if (ev) { ev.night = sstep(S.actT, 0, 7); ev.storm = lerp(S.storm3 ?? 1, 0.05, sstep(S.actT, 0, 6)); ev.front = Math.min(ev.front, -140); } // the storm blows out: a clear night, a little dust left
       if (!S.bossIn && S.actT > 3 && !hostiles()) { const inC = G.player.s.pos.x < -22, line = inC ? 'TAKE COVER IN THE TANK FARM' : 'MOVE TO THE TANK FARM';
         if (G.obj?.line !== line) obj({ line, count: null, unit: null, marks: inC ? [] : [{ p: GATE_W, label: '▸', name: 'TANK FARM' }] }); }
       if (S.actT > 12 && !S.bossIn && (!hostiles() || S.actT > 35)) {
@@ -460,7 +460,7 @@ export function createFlow(G) {
   function toNight() {
     if (S.act !== 2) return; S.wave = 2; setAct(3); S.waveT = 7; S.storm3 = env()?.storm ?? 1; // night falls from wherever the storm is (mid-lull or not)
     obj({ act: 3, title: 'ACT 3 // NIGHT', line: hostiles() ? 'CLEAR THE LAST HOSTILES' : 'MOVE TO THE TANK FARM', count: null, unit: null, marks: hostiles() ? [] : [{ p: GATE_W, label: '▸', name: 'TANK FARM' }] }); say('passing');
-    later(5, () => hud()?.banner?.('ACT 3 // NIGHT', { sub: 'THE STORM HAS PASSED', dur: 3.2, pri: 3 }));
+    later(6.5, () => hud()?.banner?.('ACT 3 // NIGHT', { sub: 'THE STORM HAS PASSED', dur: 3.2, pri: 3 })); // the card once the sky has cleared
   }
   return { update, S, start, deploy, checkpoint, setAct, fellTower, toExtract, dropPod };
 }
