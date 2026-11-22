@@ -266,6 +266,7 @@ export const CSS = `
 #ui .end .stats div span{display:block;font-family:var(--B);font-weight:600;font-size:.85rem;letter-spacing:.25em;color:var(--bone2)}
 #ui .end .stats div b{font-family:var(--N);font-size:2.8rem;line-height:3rem;color:var(--o)}
 #ui .end .menu{width:20rem}
+#hud .fpsr{position:fixed;left:.6rem;bottom:.35rem;font-family:var(--B);font-weight:600;font-size:.8rem;letter-spacing:.12em;color:#9f9;text-shadow:0 1px 2px #000;z-index:50}
 #ui .title.hang>*{visibility:hidden}
 #ui .hangar{position:absolute;inset:0;z-index:30;background:radial-gradient(ellipse at 62% 55%,#2a221b 0%,#120f0c 55%,#0a0807 100%);color:var(--bone);animation:hgIn .45s var(--ease) both}
 @keyframes hgIn{from{opacity:0}to{opacity:1}}

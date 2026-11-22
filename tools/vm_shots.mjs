@@ -18,6 +18,7 @@ for (const [tag, setup] of [['day', null], ['storm', 'storm'], ['night', 'night'
   if (setup === 'night') await ev(() => { const G = __G; G.flow.S.nightT = G.flow.S.t; for (const e of G.enemies.list) if (e.alive) { e.alive = false; e.root.visible = false; e.gun.visible = false; } __step(60 * 9); });
   await pose(-6, -40, 2.4);
   await ev(() => { __G.weapon.swapTo('rifle'); __step(50); }); await shot(`${tag}_rifle`);
+  if (tag === 'day') { for (const [n, f] of [['reload_a', 18], ['reload_b', 22], ['reload_c', 22]]) { await ev((f) => { const W = __G.weapon; if (!W.S.reloading) { W.cur.ammo = 3; W.startReload(); } __step(f); }, f); await shot(n); } }
   await ev(() => { __G.weapon.swapTo('lance'); __step(50); }); await shot(`${tag}_lance`);
 }
 console.log(JSON.stringify(await ev(() => ({ key: __G.weapon.key, err: __errors.slice(0, 3) }))));

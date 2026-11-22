@@ -216,7 +216,11 @@ export function createHUD(G) {
   // ---------- per-frame ----------
   const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _c = new THREE.Vector3();
   let lastHeading = 0;
+  // frame rate readout: ?fps=1 in the URL (or SHOW FPS in settings)
+  const fpsEl = document.createElement('div'); fpsEl.className = 'fpsr'; el.appendChild(fpsEl); let fpsN = 0, fpsT = 0;
+  function fpsTick() { const on = G.params.fps || G.settings?.fps; fpsEl.style.display = on ? '' : 'none'; if (!on) return; fpsN++; const now = performance.now(); if (now - fpsT > 500) { const f = fpsN * 1000 / (now - (fpsT || now - 500)); fpsT = now; fpsN = 0; const r = G.R.res; fpsEl.textContent = `${Math.round(f)} FPS · ${r[0]}×${r[1]} · ${G.R.tier.name.toUpperCase()}`; } }
   function update(dt) {
+    fpsTick();
     banTick();
     dt = G.realDt || dt;
     const W = G.weapon, p = G.player.s, cam = G.R.camera; if (!W) return;

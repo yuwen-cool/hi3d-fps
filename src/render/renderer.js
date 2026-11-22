@@ -176,11 +176,14 @@ export function createRenderer(G, canvas) {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const cw = canvas.clientWidth || window.innerWidth, ch = canvas.clientHeight || window.innerHeight;
     renderer.setPixelRatio(1);
-    renderer.setSize(Math.round(cw * dpr), Math.round(ch * dpr), false);
-    let w = cw * dpr * tier.scale * dynScale, h = ch * dpr * tier.scale * dynScale;
+    // output: never more than ~1080p worth of pixels. On a Retina screen the full post chain (grade, AA, the gun) at
+    // 3-6 MP costs more than the scene itself; the browser upscales the canvas and the HUD (HTML) stays sharp.
+    let ow = cw * dpr, oh = ch * dpr; { const op = ow * oh, cap = tier.out || 2.1e6; if (op > cap) { const k = Math.sqrt(cap / op); ow *= k; oh *= k; } }
+    W = Math.round(ow); H = Math.round(oh);
+    renderer.setSize(W, H, false);
+    let w = ow * tier.scale * dynScale, h = oh * tier.scale * dynScale;
     const px = w * h; if (px > tier.budget) { const k = Math.sqrt(tier.budget / px); w *= k; h *= k; }
     w = Math.max(64, Math.round(w)); h = Math.max(64, Math.round(h));
-    W = Math.round(cw * dpr); H = Math.round(ch * dpr);
     camera.aspect = viewCam.aspect = cw / ch; camera.updateProjectionMatrix(); viewCam.updateProjectionMatrix();
     if (!T || T.scene.width !== w || T.scene.height !== h) alloc(w, h);
   }

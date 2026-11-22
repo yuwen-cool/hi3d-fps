@@ -253,7 +253,6 @@ export function createFlow(G) {
     G.audio?.play?.('whoomp', { gain: 1.3 }); G.audio?.play?.('pressure', { gain: 1.2, rate: 1.3 }); G.player.addShake(0.5); G.R.fx.punch = 0.8;
     hud()?.banner?.('FLARE LINE IGNITED', { kind: 'good', dur: 2.5 }); G.events.emit('trap:ignite', {});
     G.fire?.add(from.clone().addScaledVector(dir, 1.2).setY(1.1), { size: 2.6, life: 7, dir: dir.clone().add(V(0, 0.12, 0)), dmg: 0, smoke: false });
-    G.player.assist?.(B.hull.position.clone(), 0.5, 2.6); // the fire wall reaches it: be looking
     const n = Math.ceil((L - 2.5) / 1.5);
     for (let i = 0; i <= n; i++) later(0.05 * i, () => { const p = from.clone().addScaledVector(dir, 2.5 + i * 1.5).setY(0.1); G.fire?.add(p, { size: 1.5 + i * 0.06, life: 30 + G.rng() * 20, dmg: 10 }); G.R.flash(p.clone().setY(1.5), 0xff9a40, 25, 8, 0.15); });
     for (let i = 0; i < 6; i++) later(0.6 + i * 0.22, () => { G.fxs?.explosion(B.hull.position.clone().add(V((G.rng() - 0.5) * 7, (G.rng() - 0.3) * 4, (G.rng() - 0.5) * 7)), 1.2 + G.rng() * 0.8); G.player.addShake(0.35); });
@@ -282,7 +281,7 @@ export function createFlow(G) {
   // the distillation column behind the colossus topples toward the yard
   function fellTower() {
     const o = G.level.fallTower; if (!o || S.fell) return; S.fell = { o, t: 0, axis: V(1, 0, 0.25).normalize() };
-    G.player.assist?.(o.position.clone().add(V(0, 9, 6)), 0.3, 2.6); G.slowmo(2.2, 0.5); // keep the view on the column while it comes down
+    G.slowmo(2.2, 0.5); // the view stays the player's: unseen falls get a camera insert instead
     G.events.emit('tower:fall', { pos: o.position.clone() });
   }
   // the column on the ground: a long box to stand behind, robots path round it
@@ -379,7 +378,7 @@ export function createFlow(G) {
         if (c > 40.6 && S.lullOn) { S.lullOn = false; if (!S.gustSaid) { S.gustSaid = true; say('gust'); } const pp = G.player.s.pos; G.env?.strike(V(pp.x + (G.rng() - 0.5) * 50, 40, pp.z - 25 - G.rng() * 20)); G.player.addShake(0.35); G.audio?.play?.('alarm', { gain: 0.35 }); } }
       // lightning takes the storage tank — when the player is looking at it (or soon after, regardless)
       const pp2 = G.player.s.pos, tk = !S.tankHit && G.level.explosives.filter((o) => o.userData.explosive?.big && !o.userData.explosive.dead && !o.userData.explosive.mega && o.position.x > -22).sort((a, b) => a.position.distanceTo(pp2) - b.position.distanceTo(pp2))[0];
-      const strikeTank = (cine) => { S.tankHit = true; G.env?.strike(tk.position.clone().setY(30)); later(0.12, () => { G.explosives?.hurt(tk, 9999); G.slowmo(1.3, 0.3); G.player.addShake(0.6); if (!cine) G.player.assist?.(tk.position.clone().setY(5), 0.4, 1.6); }); };
+      const strikeTank = (cine) => { S.tankHit = true; G.env?.strike(tk.position.clone().setY(30)); later(0.12, () => { G.explosives?.hurt(tk, 9999); G.slowmo(1.3, 0.3); G.player.addShake(0.6); }); };
       if (tk && S.actT > 6 && seen(tk.position.clone().setY(9), 0.8, 8)) strikeTank(false);
       else if (tk && S.actT > 34 && !S.tankLook) { S.tankLook = true; // not looked at: cut to it, the bolt lands half a second in
         const at = tk.position.clone().setY(6);

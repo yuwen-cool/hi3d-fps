@@ -171,6 +171,20 @@ export async function createWeapon(G) {
   for (const k of kits) k.lHome = new THREE.Vector3(gL[4], gL[5], k.lz ?? k.muzzleLocal.z * 0.55 + gL[6]);
   const lQ = new THREE.Quaternion(), _rq = new THREE.Quaternion(), _rq2 = new THREE.Quaternion(), AX = new THREE.Vector3(1, 0, 0), AY = new THREE.Vector3(0, 1, 0);
   if (gloves.glove_l) { orientGlove(gloves.glove_l, new THREE.Vector3(gL[0], gL[1], gL[2]), gL[3], cur.lHome, +(T.lpiv || 0.4)); lQ.copy(gloves.glove_l.quaternion); }
+  // forearms: the hand models end in an open cuff; a fabric sleeve continues from it down and back out of frame, as a
+  // child of the hand so it follows every move (reloads included). Cuff found from the hand's own vertices.
+  const sleeveMat = new THREE.MeshStandardMaterial({ color: new THREE.Color().setRGB(0.15, 0.17, 0.115), roughness: 0.93, metalness: 0 });
+  function sleeve(o, fingers, side, len) {
+    o.updateMatrixWorld(true); const inv = o.matrixWorld.clone().invert(), f = fingers.clone().normalize(), P = [];
+    o.traverse((m) => { if (m.isMesh) { const a = m.geometry.attributes.position; for (let i = 0; i < a.count; i += 3) P.push(new THREE.Vector3().fromBufferAttribute(a, i).applyMatrix4(m.matrixWorld).applyMatrix4(inv)); } });
+    if (!P.length) return; const d = P.map((p) => p.dot(f)), lo = Math.min(...d), hi = Math.max(...d), end = P.filter((p, k) => d[k] < lo + (hi - lo) * 0.06);
+    const c = end.reduce((a, p) => a.add(p), new THREE.Vector3()).divideScalar(end.length); let r = 0; for (const p of end) r = Math.max(r, p.clone().sub(c).sub(f.clone().multiplyScalar(p.clone().sub(c).dot(f))).length());
+    const dir = f.clone().negate().add(new THREE.Vector3(side * 0.3, -0.6, 0.45)).normalize();
+    const g = new THREE.CylinderGeometry(r * 1.02, r * 1.4, len, 18, 1, false).translate(0, -len / 2, 0); // top = the cuff, bottom = toward the elbow
+    const m = new THREE.Mesh(g, sleeveMat); m.position.copy(c).addScaledVector(f, 0.025); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir); o.add(m);
+  }
+  if (gloves.glove_r) sleeve(gloves.glove_r, new THREE.Vector3(gR[0], gR[1], gR[2]), 1, 0.5);
+  if (gloves.glove_l) sleeve(gloves.glove_l, new THREE.Vector3(gL[0], gL[1], gL[2]), -1, 0.42);
   root.traverse((o) => { o.layers.set(1); if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; o.frustumCulled = false; } });
 
   const S = {
