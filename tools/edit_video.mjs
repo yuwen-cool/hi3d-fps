@@ -1,5 +1,6 @@
-// The edit: cold open (the run's five biggest shots, hard cuts on the hits) -> title card -> the playthrough with the
-// dead air trimmed (short crossfades; fights, set pieces and act openings never cut) -> results -> end card.
+// The edit: cold open (the storm blast, then the colossus beats, hard cuts on the hits) -> title card -> the playthrough
+// with the dead air and the bot's aimless camera sweeps trimmed (short crossfades; fights, set pieces and act openings
+// kept) -> results -> end card.
 // Sound is the game's own recorded mix, with the game's music under the open, the menus and the cards; -14 LUFS.
 //   node tools/edit_video.mjs   (needs out/video/raw.mp4, raw.wav, moments.json, card_title.png, card_end.png)
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -9,28 +10,52 @@ const sec = (f) => f / FPS, first = (n, after = 0) => { const m = M.mom.find((x)
 const all = (n) => M.mom.filter((x) => x.n === n).map((x) => sec(x.f));
 const deploy = first('flow:act') ?? 20, won = first('flow:won') ?? DUR - 14;
 
-// ---- activity: where something happens (moments), plus loud audio (gunfire) from the recorded mix ----
-const wav = readFileSync(`${dir}/raw.wav`), SR = wav.readUInt32LE(24), data = new Int16Array(wav.buffer, wav.byteOffset + 44, (wav.length - 44) >> 1);
-const WIN = 0.25, nW = Math.floor(DUR / WIN), rms = new Float32Array(nW);
-for (let w = 0; w < nW; w++) { let s = 0, c = 0; const i0 = Math.floor(w * WIN * SR) * 2, i1 = Math.min(data.length, Math.floor((w + 1) * WIN * SR) * 2); for (let i = i0; i < i1; i += 8) { s += data[i] * data[i]; c++; } rms[w] = Math.sqrt(s / Math.max(1, c)) / 32768; }
-const keep = new Uint8Array(nW), mark = (a, b) => { for (let w = Math.max(0, Math.floor(a / WIN)); w < Math.min(nW, Math.ceil(b / WIN)); w++) keep[w] = 1; };
-mark(0, deploy + 12);                                                                     // title, hangar, deploy, the brief
-for (const t of all('flow:act')) mark(t - 1, t + 9);                                     // every act opening
-for (const [n, a, b] of [['boss:spawn', -2, 10], ['boss:leg', -3, 6], ['grapple:fire', -3, 6], ['boss:dying', -2, 10], ['tower:fall', -3, 8], ['tank:boom', -3, 6], ['trap:ignite', -3, 5], ['weapon:unlock', -4, 5], ['valve:open', -4, 4], ['boss:core', -3, 3], ['ship:ready', -6, 4], ['drone:dive', -2, 2], ['shield:break', -2, 2], ['od:start', -1, 4]])
-  for (const t of all(n)) mark(t + a, t + b);
-for (const t of [...all('enemy:killed'), ...all('explosion'), ...all('lance:fire')]) mark(t - 2.2, t + 1.5);
-mark(won - 8, DUR);                                                                        // extraction, results
-// segments to keep; a gap shorter than 5 s stays (cutting it would only jolt), longer gaps keep 0.8 s each side
+// ---- camera motion: how fast the view pans, frame by frame (block matching on a 128x72 grey copy, cached) ----
+// The test bot sweeps its view when it has nothing to shoot (and whips between targets); on video that reads as
+// a dizzy, aimless shake, so those stretches are cut unless something is actually being hit.
+const MW = 128, MH = 72, MN = MW * MH, motionFile = `${dir}/motion.json`;
+let MOT; try { MOT = JSON.parse(readFileSync(motionFile, 'utf8')); if (MOT.frames !== M.frames) MOT = null; } catch { MOT = null; }
+if (!MOT) {
+  const g = execFileSync('ffmpeg', ['-loglevel', 'error', '-i', `${dir}/raw.mp4`, '-vf', `scale=${MW}:${MH},format=gray`, '-f', 'rawvideo', '-'], { maxBuffer: 1 << 30 }), nF = (g.length / MN) | 0, sx = new Array(nF).fill(0);
+  for (let f = 1; f < nF; f++) { const a = (f - 1) * MN, b = f * MN; let best = 1e18;
+    for (let dy = -8; dy <= 8; dy++) for (let dx = -14; dx <= 14; dx++) { let s = 0; for (let y = 12; y < MH - 12; y += 2) for (let x = 18; x < MW - 18; x += 2) { const d = g[a + y * MW + x] - g[b + (y + dy) * MW + x + dx]; s += d < 0 ? -d : d; } if (s < best) { best = s; sx[f] = dx; } } }
+  MOT = { frames: M.frames, sx }; writeFileSync(motionFile, JSON.stringify(MOT));
+}
+const DEG = 0.6 * FPS; // one pixel of pan at 128 px wide ~ 0.6 degrees
+const yawAt = (a, b) => { let s = 0, n = 0; for (let f = Math.max(0, Math.round(a * FPS)); f < Math.min(MOT.sx.length, Math.round(b * FPS)); f++) { s += Math.abs(MOT.sx[f]); n++; } return n ? (s / n) * DEG : 0; };
+
+// ---- what to keep: fights, set pieces, act openings; never the aimless sweeping between them ----
+const WIN = 0.25, nW = Math.floor(DUR / WIN);
+const keep = new Uint8Array(nW), hold = new Uint8Array(nW), hit = new Uint8Array(nW);
+const span = (arr, a, b) => { for (let w = Math.max(0, Math.floor(a / WIN)); w < Math.min(nW, Math.ceil(b / WIN)); w++) arr[w] = 1; };
+span(keep, 0, deploy + 12); span(hold, 0, deploy + 12);                                   // title, hangar, deploy, the brief
+for (const t of all('flow:act')) { span(keep, t - 1, t + 8); span(hold, t - 0.5, t + 5); } // every act opening (the card)
+for (const [n, a, b, h] of [['boss:spawn', -2, 10, 1], ['boss:leg', -3, 6, 1], ['grapple:fire', -2, 3.5, 1], ['boss:dying', -2, 10, 1], ['tower:fall', -3, 8, 1], ['tank:boom', -2, 5], ['trap:ignite', -1.8, 4, 1], ['weapon:unlock', -3, 4], ['valve:open', -3, 3], ['boss:core', -2, 2.5], ['ship:ready', -6, 4], ['drone:dive', -1.5, 2], ['shield:break', -1.5, 1.5], ['od:start', -1, 3]])
+  for (const t of all(n)) { span(keep, t + a, t + b); if (h) span(hold, t + a, t + b); }
+for (const t of [...all('enemy:killed'), ...all('explosion'), ...all('lance:fire')]) { span(keep, t - 1.6, t + 1.3); span(hit, t - 0.8, t + 0.8); }
+span(keep, won - 8, DUR); span(hold, won - 8, DUR);                                         // extraction, results
+let shaky = 0;
+for (let w = 0; w < nW; w++) { const c = (w + 0.5) * WIN, y = yawAt(c - 0.5, c + 0.5); if (keep[w] && !hold[w] && (y > 120 || (!hit[w] && y > 70))) { keep[w] = 0; shaky++; } } // whips are cut even mid-fight
+console.log(`cut ${(shaky * WIN).toFixed(0)} s of sweeping camera`);
+// segments to keep; a gap under 2 s stays (cutting it would only jolt), longer gaps keep 0.4 s each side
 const segs = []; { let a = null; for (let w = 0; w <= nW; w++) { const k = w < nW && keep[w]; if (k && a == null) a = w * WIN; if (!k && a != null) { segs.push([a, w * WIN]); a = null; } } }
-const merged = []; for (const s of segs) { const l = merged.at(-1); if (l && s[0] - l[1] < 5) l[1] = s[1]; else merged.push([...s]); }
-for (const s of merged) { s[0] = Math.max(0, s[0] - 0.8); s[1] = Math.min(DUR, s[1] + 0.8); }
-const body = merged.filter((s) => s[1] - s[0] > 1.2);
+const merged = []; for (const s of segs) { const l = merged.at(-1); if (l && s[0] - l[1] < 2) l[1] = s[1]; else merged.push([...s]); }
+for (const s of merged) { s[0] = Math.max(0, s[0] - 0.4); s[1] = Math.min(DUR, s[1] + 0.4); }
+const held = (a, b) => { for (let w = Math.floor(a / WIN); w < Math.min(nW, Math.ceil(b / WIN)); w++) if (hold[w]) return true; return false; };
+const body = merged.filter(([a, b]) => b - a > 2.2 && (held(a, b) || yawAt(a, b) < 75)); // a short piece that is mostly whip-pans goes whole
 const bodyLen = body.reduce((a, s) => a + s[1] - s[0], 0);
 console.log(`raw ${DUR.toFixed(0)} s -> body ${bodyLen.toFixed(0)} s in ${body.length} segments`);
+for (const [a, b] of body) console.log(`  ${a.toFixed(1)}-${b.toFixed(1)}  pan ${yawAt(a, b).toFixed(0)} deg/s`);
 
-// ---- cold open: the five biggest shots of this run, in story-free order for impact ----
-const pick = [['tank:boom', 0.25, 1.8], ['boss:spawn', 1.4, 2.1], ['boss:leg', 0.5, 1.9], ['grapple:fire', -0.15, 1.5], ['boss:dying', 3.2, 2.4]]
-  .map(([n, off, len]) => { const t = first(n); return t == null ? null : [Math.max(0, t + off), len]; }).filter(Boolean);
+// ---- cold open: the storm blast first (the run's most striking shot), then the colossus beats, hard cuts ----
+// storm blast: the explosion inside act 2 with the steadiest camera over the next two seconds
+const act2 = all('flow:act')[1] ?? deploy, act3 = all('flow:act')[2] ?? won;
+const blasts = all('explosion').filter((t) => t > act2 && t < act3).map((t) => ({ t, n: all('explosion').filter((u) => Math.abs(u - t) < 0.6).length, y: yawAt(t - 0.25, t + 1.75) }));
+const blast = blasts.filter((b) => b.y < 25).sort((p, q) => q.n - p.n || p.y - q.y)[0];
+if (blast) console.log(`cold open blast at ${blast.t.toFixed(2)} (pan ${blast.y.toFixed(0)} deg/s)`);
+const pick = [blast ? [blast.t - 0.25, 2.0] : null, ...[['boss:spawn', 1.4, 2.1], ['boss:leg', 0.5, 1.9], ['grapple:fire', -0.15, 1.5], ['boss:dying', 3.2, 2.4]]
+  .map(([n, off, len]) => { const t = first(n); return t == null ? null : [Math.max(0, t + off), len]; })].filter(Boolean);
+if (process.env.DRY) process.exit(0);
 const flash = 0.12, xf = 0.35;
 // ---- pass 1: every piece as its own short file (fast seek, so the 6-minute master is read once per piece, not per filter) ----
 const { mkdirSync } = await import('node:fs'); mkdirSync(`${dir}/parts`, { recursive: true });
