@@ -1,4 +1,4 @@
-// The edit: cold open (the storm blast, then the colossus beats, hard cuts on the hits) -> title card -> the playthrough
+// The edit: cold open (fights and effects, one colossus shot, hard cuts on the hits) -> title card -> quick menus -> the playthrough
 // with the dead air and the bot's aimless camera sweeps trimmed (short crossfades; fights, set pieces and act openings
 // kept) -> results -> end card.
 // Sound is the game's own recorded mix, with the game's music under the open, the menus and the cards; -14 LUFS.
@@ -47,14 +47,28 @@ const bodyLen = body.reduce((a, s) => a + s[1] - s[0], 0);
 console.log(`raw ${DUR.toFixed(0)} s -> body ${bodyLen.toFixed(0)} s in ${body.length} segments`);
 for (const [a, b] of body) console.log(`  ${a.toFixed(1)}-${b.toFixed(1)}  pan ${yawAt(a, b).toFixed(0)} deg/s`);
 
-// ---- cold open: the storm blast first (the run's most striking shot), then the colossus beats, hard cuts ----
-// storm blast: the explosion inside act 2 with the steadiest camera over the next two seconds
+// ---- cold open: fights and effects, one colossus shot to close, hard cuts with a white flash ----
+// The storm blast is found from the events (the explosion inside act 2 with the steadiest camera); the other shots were
+// picked by eye from this recording (steady camera, something hit on screen) — re-pick them after a new recording.
 const act2 = all('flow:act')[1] ?? deploy, act3 = all('flow:act')[2] ?? won;
 const blasts = all('explosion').filter((t) => t > act2 && t < act3).map((t) => ({ t, n: all('explosion').filter((u) => Math.abs(u - t) < 0.6).length, y: yawAt(t - 0.25, t + 1.75) }));
 const blast = blasts.filter((b) => b.y < 25).sort((p, q) => q.n - p.n || p.y - q.y)[0];
-if (blast) console.log(`cold open blast at ${blast.t.toFixed(2)} (pan ${blast.y.toFixed(0)} deg/s)`);
-const pick = [blast ? [blast.t - 0.25, 2.0] : null, ...[['boss:spawn', 1.4, 2.1], ['boss:leg', 0.5, 1.9], ['grapple:fire', -0.15, 1.5], ['boss:dying', 3.2, 2.4]]
-  .map(([n, off, len]) => { const t = first(n); return t == null ? null : [Math.max(0, t + off), len]; })].filter(Boolean);
+const leg = first('boss:leg');
+const pick = [
+  [first('tank:boom') - 0.8, 1.8],   // act 1: the ARC-7 flash, then the tank goes up in daylight
+  [189.95, 0.95],                   // storm: melee takedown, robot in the face
+  [228.3, 1.4],                     // storm: ARC-7 beam through the burning debris, robots outlined
+  [209.5, 1.5],                     // storm: a tank's flame jets under the pipe rack
+  blast ? [blast.t - 0.25, 2.0] : null, // storm: the white blast, debris flying
+  leg != null ? [leg + 0.5, 1.7] : null, // the one colossus shot: the knee blown off
+].filter((x) => x && x[0] > 0);
+for (const [a, l] of pick) console.log(`  open ${a.toFixed(2)} +${l}  pan ${yawAt(a, a + l).toFixed(0)} deg/s`);
+// ---- the menus: jump cuts, hangar prints at double speed (the real-time version dragged for 20 s) ----
+// [from, to, speed] in the recording: title hover + click HANGAR, three models printing, then back to the title to deploy
+const MENU = [[1.0, 3.0, 1], [4.4, 7.6, 2], [10.6, 13.3, 2], [14.8, 17.6, 2]], MENU_BACK = 18.6;
+if (body[0][0] < MENU_BACK) body[0][0] = MENU_BACK;
+const menuLen = MENU.reduce((a, [x, y, k]) => a + (y - x) / k, 0);
+console.log(`menus ${menuLen.toFixed(1)} s (was ${MENU_BACK.toFixed(1)} s)`);
 if (process.env.DRY) process.exit(0);
 const flash = 0.12, xf = 0.35;
 // ---- pass 1: every piece as its own short file (fast seek, so the 6-minute master is read once per piece, not per filter) ----
@@ -69,7 +83,11 @@ execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-ss', tAt.toFixed(3), '-i',
   '-filter_complex', `[0:v]trim=end_frame=1,loop=loop=-1:size=1:start=0,trim=duration=${tLen},setpts=PTS-STARTPTS,boxblur=16:2,eq=brightness=-0.16:saturation=0.85,scale=2112:1188,crop=1920:1080:'96-96*t/${tLen}':'54-54*t/${tLen}',setsar=1[bg];[1:v]format=rgba,fade=t=in:st=0.25:d=0.6:alpha=1[c];[bg][c]overlay=0:0:shortest=1,format=yuv420p[v]`,
   '-map', '[v]', '-map', '2:a', ...enc, `${dir}/parts/title.mov`]);
 parts.push({ f: `${dir}/parts/title.mov`, len: tLen, tr: 'fadeblack', d: 0.25, title: true });
-body.forEach(([a, b], i) => { const f = `${dir}/parts/b${String(i).padStart(2, '0')}.mov`; cut(a, b - a, f); parts.push({ f, len: b - a, tr: i ? 'fade' : 'fadeblack', d: i ? xf : 0.6, body0: i === 0 }); });
+{ const fc = MENU.map(([a, b, k], i) => `[0:v]trim=${a}:${b},setpts=(PTS-STARTPTS)/${k}[v${i}];[1:a]atrim=${a}:${b},asetpts=PTS-STARTPTS${k !== 1 ? `,atempo=${k}` : ''}[a${i}]`).join(';')
+    + ';' + MENU.map((_, i) => `[v${i}][a${i}]`).join('') + `concat=n=${MENU.length}:v=1:a=1[v][a]`;
+  execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-t', String(MENU_BACK), '-i', `${dir}/raw.mp4`, '-t', String(MENU_BACK), '-i', `${dir}/raw.wav`, '-filter_complex', fc, '-map', '[v]', '-map', '[a]', ...enc, `${dir}/parts/menu.mov`]);
+  parts.push({ f: `${dir}/parts/menu.mov`, len: menuLen, tr: 'fadeblack', d: 0.6, body0: true }); }
+body.forEach(([a, b], i) => { const f = `${dir}/parts/b${String(i).padStart(2, '0')}.mov`; cut(a, b - a, f); parts.push({ f, len: b - a, tr: 'fade', d: i ? xf : 0.15, play0: i === 0 }); });
 const eLen = 4.5;
 execFileSync('ffmpeg', ['-y', '-loglevel', 'error', '-sseof', '-0.6', '-i', `${dir}/raw.mp4`, '-loop', '1', '-t', String(eLen), '-i', `${dir}/card_end.png`, '-f', 'lavfi', '-t', String(eLen), '-i', 'anullsrc=r=48000:cl=stereo',
   '-filter_complex', `[0:v]trim=end_frame=1,loop=loop=-1:size=1:start=0,trim=duration=${eLen},setpts=PTS-STARTPTS,boxblur=18:2,eq=brightness=-0.25,setsar=1[bg];[1:v]format=rgba,fade=t=in:st=0.3:d=0.6:alpha=1[c];[bg][c]overlay=0:0:shortest=1,fade=t=out:st=${eLen - 0.8}:d=0.8,format=yuv420p[v]`,
@@ -79,8 +97,8 @@ parts.push({ f: `${dir}/parts/end.mov`, len: eLen, tr: 'fadeblack', d: 0.6 });
 const F = []; let cv = '0:v', ca = '0:a', T = parts[0].len; const marks = { titleAt: 0, bodyAt: 0 };
 parts.slice(1).forEach((p, j) => { const i = j + 1, off = T - p.d, nv = `x${i}v`, na = `x${i}a`;
   F.push(`[${cv}][${i}:v]xfade=transition=${p.tr}:duration=${p.d}:offset=${off.toFixed(3)}[${nv}]`, `[${ca}][${i}:a]acrossfade=d=${p.d}:c1=tri:c2=tri[${na}]`);
-  if (p.title) marks.titleAt = off; if (p.body0) marks.bodyAt = off; cv = nv; ca = na; T = off + p.len; });
-const total = T, menuEnd = marks.bodyAt + (deploy + 4 - body[0][0]), n = parts.length;
+  if (p.title) marks.titleAt = off; if (p.body0) marks.bodyAt = off; if (p.play0) marks.playAt = off; cv = nv; ca = na; T = off + p.len; });
+const total = T, menuEnd = marks.playAt + (deploy + 4 - body[0][0]), n = parts.length;
 F.push(`[${n}:a]aformat=sample_rates=48000:channel_layouts=stereo,atrim=duration=${(marks.bodyAt + 2).toFixed(2)},volume=0.55,afade=t=out:st=${marks.bodyAt.toFixed(2)}:d=2[m1]`,
   `[${n + 1}:a]aformat=sample_rates=48000:channel_layouts=stereo,atrim=duration=${(menuEnd - marks.bodyAt + 3).toFixed(2)},volume=0.45,afade=t=in:d=1.5,afade=t=out:st=${(menuEnd - marks.bodyAt).toFixed(2)}:d=3,adelay=${Math.round(marks.bodyAt * 1000)}:all=1[m2]`,
   `[${n + 2}:a]aformat=sample_rates=48000:channel_layouts=stereo,atrim=start=20:duration=${(eLen + 2).toFixed(2)},volume=0.6,afade=t=in:d=1,afade=t=out:st=${eLen.toFixed(2)}:d=1.5,adelay=${Math.round((total - eLen - 1) * 1000)}:all=1[m3]`,
