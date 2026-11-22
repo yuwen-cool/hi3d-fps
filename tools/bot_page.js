@@ -6,10 +6,11 @@ window.__installBot = () => {
     G.events.on('flow:act', (e) => G.log.push(['act' + e.act, +G.time.toFixed(0)]));
     for (const n of ['boss:leg', 'boss:exposed', 'boss:overload', 'boss:stuck', 'trap:ignite', 'valve:open', 'tank:boom', 'boss:spawn', 'boss:core', 'boss:dead', 'tower:down', 'flow:extract', 'flow:won', 'player:dead']) G.events.on(n, () => G.log.push([n, +G.time.toFixed(0)]));
     G.events.on('scan:fire', () => G.used.scan++); G.events.on('player:melee', () => G.used.melee++); G.events.on('player:dash', () => G.used.dash++); G.events.on('od:start', () => G.used.od++);
-    let t = 0, burst = 0, nav = { pts: [], t: 0, goal: null };
+    let t = 0, burst = 0, nav = { pts: [], t: 0, goal: null }; const humanaim = location.search.includes('humanaim=1');
     const go = (ps, target, dt) => { // follow the nav grid toward a world point
       nav.t -= dt; if (nav.t <= 0 || !nav.goal || nav.goal.distanceTo(target) > 0.5) { nav.pts = G.enemies.path(ps.pos, target) || []; nav.t = 1; nav.goal = target.clone(); }
-      const nx = nav.pts.find((q) => q.distanceTo(ps.pos) > 0.7) || target; const d = nx.clone().sub(ps.pos); ps.yaw = Math.atan2(-d.x, -d.z); ps.pitch *= 0.9; G.auto = { fwd: 1, str: 0 };
+      const nx = nav.pts.find((q) => q.distanceTo(ps.pos) > 0.7) || target; const d = nx.clone().sub(ps.pos), want = Math.atan2(-d.x, -d.z), dy = Math.atan2(Math.sin(want - ps.yaw), Math.cos(want - ps.yaw));
+      ps.yaw += humanaim ? Math.max(-6 * dt, Math.min(6 * dt, dy * Math.min(1, dt * 9))) : dy; ps.pitch *= humanaim ? 0.97 : 0.9; G.auto = { fwd: 1, str: humanaim && Math.abs(dy) > 1.2 ? 0 : 0 }; // ?humanaim=1: walking turns are eased like a hand on a mouse
     };
     const stuck = { p: null, t: 0, esc: 0, side: 1 };
     G.modules.bot = { update(dt) {

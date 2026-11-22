@@ -51,7 +51,7 @@ export function createPlayer(G) {
     if (s.dead || G.god || G.cinematic) return;
     s.hurtT = 0; addShake(0.22 + n / 70);
     if (s.shield > 0) { const a = Math.min(s.shield, n); s.shield -= a; n -= a; if (s.shield <= 0) G.events.emit('player:shieldBreak'); }
-    s.hp -= n;
+    s.hp -= n; if (G.params.nodie && s.hp < 18) s.hp = 18; // recordings: real hits, never a death
     G.R.fx.damage = Math.min(1, G.R.fx.damage + 0.35 + n / 40);
     G.events.emit('player:hit', { dmg: n, from });
     if (s.hp <= 0) { s.hp = 0; s.dead = true; G.events.emit('player:dead'); }
