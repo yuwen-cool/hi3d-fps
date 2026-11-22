@@ -193,13 +193,13 @@ export async function buildLevel(G) {
   // practical lights for the workshop lamps: warm, unshadowed, with a hot bulb so bloom picks them up
   const bulbM = new THREE.MeshBasicMaterial({ color: new THREE.Color(9, 5.2, 2.4), toneMapped: false });
   for (const z of [-3.5, -9.5, -15.5, -21.5]) {
-    const l = new THREE.PointLight(new THREE.Color(1.0, 0.6, 0.3), 9, 8.5, 2); l.position.set(C.maxX - 0.75, 3.05, z); root.add(l); R.volLights.push(l);
+    ctx.lights.push([new THREE.Vector3(C.maxX - 0.75, 3.05, z), new THREE.Color(1.0, 0.6, 0.3), 9, 8.5, 'lamp']); // lit by the nearby-light pool (every light costs every pixel)
     const b = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 8), bulbM); b.position.set(C.maxX - 0.48, 3.12, z); root.add(b);
   }
   // floodlights: fixtures everywhere, but a fixed pool of three lights follows the camera to the nearest ones
   // (the light count never changes, so no shader ever recompiles)
   const floodM = new THREE.MeshBasicMaterial({ color: new THREE.Color(9, 5.5, 2.6), toneMapped: false }), housing = [];
-  for (const [p] of ctx.lights) { housing.push(boxGeo(0.9, 0.35, 0.5, p.x, p.y + 0.15, p.z)); const f = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.28), floodM); f.rotation.x = Math.PI / 2; f.position.set(p.x, p.y - 0.04, p.z); root.add(f); }
+  for (const [p, , , , kind] of ctx.lights) { if (kind === 'lamp') continue; housing.push(boxGeo(0.9, 0.35, 0.5, p.x, p.y + 0.15, p.z)); const f = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 0.28), floodM); f.rotation.x = Math.PI / 2; f.position.set(p.x, p.y - 0.04, p.z); root.add(f); }
   add(housing, matSteel, 'steel');
   const floodPool = [0, 1, 2].map(() => { const l = new THREE.PointLight(0xffb36b, 0, 16, 1.6); scene.add(l); R.volLights.push(l); return l; });
   const padM = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.5, 6, 2), toneMapped: false });
@@ -212,7 +212,7 @@ export async function buildLevel(G) {
   function updateLights(cam, night) {
     if ((castT -= G.realDt || 1 / 60) <= 0) { castT = 0.35; for (const [m, bb, far] of G.level.scatterNear || []) { _cp.set(cam.x, 0, cam.z); m.visible = bb.distanceToPoint(_cp) < far; } for (const c of smallCasters) { _cp.set(cam.x, (c.bb.min.y + c.bb.max.y) / 2, cam.z); c.o.castShadow = c.bb.distanceToPoint(_cp) < c.r; } }
     const ranked = ctx.lights.map((L) => [L, L[0].distanceTo(cam)]).sort((a, b) => a[1] - b[1]);
-    floodPool.forEach((l, i) => { const r = ranked[i]; if (!r) { l.intensity = 0; return; } const [L, d] = r; l.position.copy(L[0]); l.color.set(L[1]); l.distance = L[3]; l.intensity = L[2] * Math.max(0.15, night) * THREE.MathUtils.clamp((60 - d) / 20, 0, 1); });
+    floodPool.forEach((l, i) => { const r = ranked[i]; if (!r) { l.intensity = 0; return; } const [L, d] = r; l.position.copy(L[0]); l.color.set(L[1]); l.distance = L[3]; l.intensity = L[2] * (L[4] === 'lamp' ? 1 : Math.max(0.15, night)) * THREE.MathUtils.clamp((60 - d) / 20, 0, 1); });
   }
   G.level = { root, cover: [], layout: LAYOUT, explosives, fallTower, crates, valves, updateLights, floodPool, tankSpots: ctx.tankSpots, padLights: ctx.padLights };
   await dress(G, root);

@@ -1,7 +1,7 @@
 // Real-time frame pacing with the full HUD up: node tools/perf.mjs [seconds]
 import { chromium } from 'playwright';
 const secs = +(process.argv[2] || 12);
-const b = await chromium.launch({ channel: 'chrome', headless: false, args: ['--mute-audio', '--window-size=1920,1080'] });
+const b = await chromium.launch({ channel: 'chrome', headless: true, args: ['--mute-audio', '--use-angle=metal', '--enable-gpu'] }); // headless: never a window on the user's screen
 const p = await b.newPage({ viewport: { width: 1920, height: 1080 } });
 await p.goto((process.env.BASE || 'http://127.0.0.1:5320') + '/?shot=1&god=1' + (process.env.Q || '')); await p.waitForFunction(() => window.__ready, null, { timeout: 120000 });
 if (process.env.NOSCAN) await p.evaluate(() => { window.__noscan = 1; });

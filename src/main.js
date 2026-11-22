@@ -77,7 +77,7 @@ async function boot() {
     for (const [name, m] of Object.entries(G.modules)) {
       if (!m.update || G.err[name] || (G.paused && name !== 'inputEnd')) continue;
       const t0 = performance.now();
-      try { m.update(dt); } catch (e) { G.err[name] = 1; console.error(`[${name}]`, e); window.__errors.push(`${name}: ${e.message}`); }
+      try { m.update(dt); } catch (e) { G.err[name] = 1; console.error(`[${name}]`, e); window.__errors.push(`${name}: ${e.message} @ ${(String(e.stack).split('\n')[1] || '').trim().replace(/^at /, '').replace(/https?:\/\/[^/]+\//, '').replace(/\?t=\d+/, '')}`); }
       G.prof[name] = G.prof[name] * 0.95 + (performance.now() - t0) * 0.05; // CPU ms per module (smoothed)
     }
     const tr = performance.now();

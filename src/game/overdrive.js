@@ -11,7 +11,7 @@ export function createOverdrive(G) {
     if (S.active || S.charge < 1) return;
     S.active = true; S.t = 0; S.charge = 0; G.enemyTime = 0.3; G.events.emit('od:start');
     G.audio?.vo?.('overdrive'); G.audio?.play?.('scan', { gain: 1, rate: 0.7 }); G.audio?.play?.('bigBoom', { gain: 0.5, rate: 1.4 });
-    G.player.addShake(0.5); G.hitstop(0.08); G.R.fx.flash = 1;
+    G.player.addShake(0.5); G.hitstop(0.04); G.R.fx.flash = 1;
     // shockwave: a ring of light and dust from the player, robots close by are thrown back
     const p = G.player.s.pos;
     for (let i = 0; i < 90; i++) { const a = i / 90 * Math.PI * 2; G.fxs?.emit(false, { pos: new THREE.Vector3(p.x + Math.cos(a) * 1.2, 0.25, p.z + Math.sin(a) * 1.2), vel: new THREE.Vector3(Math.cos(a), 0.03, Math.sin(a)).multiplyScalar(24), life: 0.4, size: 0.06, size1: 0.02, stretch: 0.9, col: [4, 14, 20], drag: 1.2 }); }
@@ -24,7 +24,7 @@ export function createOverdrive(G) {
   function update() {
     const dt = G.realDt || 1 / 60, live = !G.player.s.dead && !G.cinematic && ['play', 'extract'].includes(G.flow?.S.state);
     if (live && (G.input.pressed('ult') || G.auto?.ult)) { if (G.auto) G.auto.ult = false; activate(); }
-    if (!S.readySaid && S.charge >= 1 && live) { S.readySaid = true; G.hud?.hint?.([['X', 'OVERDRIVE READY']], 4); G.audio?.play?.('shieldUp', { gain: 0.6, rate: 1.3 }); }
+    if (!S.readySaid && S.charge >= 1 && live) { S.readySaid = true; G.audio?.play?.('shieldUp', { gain: 0.6, rate: 1.3 }); }
     if (S.charge < 1) S.readySaid = false;
     if (S.active) {
       S.t += dt; const k = S.t / S.dur;

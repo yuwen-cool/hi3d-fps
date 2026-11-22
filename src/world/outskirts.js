@@ -47,7 +47,7 @@ export async function scatterModel(root, name, list, { shadow = false, inside = 
   if (!inside) list = list.filter((o) => !inZones(o.x, o.z, 10)); // nothing out here may stand inside the playable zones
   if (!list.length) return;
   const src = await instance(name); src.updateMatrixWorld(true);
-  const meshes = [], out = []; src.traverse((o) => { if (o.isMesh) meshes.push(o); });
+  const meshes = [], out = []; src.traverse((o) => { if (o.isMesh && !(o.parent?.isLOD && o !== o.parent.levels[o.parent.levels.length - 1].object)) meshes.push(o); }); // instanced: the simplified level only
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), Y = new THREE.Vector3(0, 1, 0), p = new THREE.Vector3(), s = new THREE.Vector3();
   for (const mesh of meshes) {
     const im = new THREE.InstancedMesh(mesh.geometry, mesh.material, list.length);

@@ -4,7 +4,7 @@ import * as THREE from 'three';
 // burn damage and a flickering light from a small pool that also scatters in the volume. Shooting a
 // pipe or valve opens a leak: a gas jet that turns into a fire jet as soon as any flame touches it.
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
-const MAXF = 40, MAXL = 10, LIGHTS = 4;
+const MAXF = 40, MAXL = 10, LIGHTS = 3;
 
 export function createFire(G) {
   const R = G.R, rnd = G.rng;

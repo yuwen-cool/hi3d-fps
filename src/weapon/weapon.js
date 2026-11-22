@@ -272,7 +272,6 @@ export async function createWeapon(G) {
     p.recoil(0.03 + 0.035 * k, (Math.random() - 0.5) * 0.012); p.addShake(0.3 + 0.35 * k);
     S.kZ.v += 4.5 + 2 * k; S.kP.v += 4 + 3 * k; S.kR.v += (Math.random() - 0.5) * 4;
     R.fx.punch = Math.max(R.fx.punch || 0, 0.35 + 0.5 * k);
-    if (hits.length + dh.length >= 2) G.hitstop(0.05 + 0.02 * Math.min(4, hits.length + dh.length));
     G.events.emit('lance:fire', { muzzle: _m.clone(), dir: _d.clone(), end, hitW: hitB ? null : hitW, hits: hits.map((h) => h.point), k });
     G.events.emit('storm:tunnel', { a: _o.clone().addScaledVector(_d, 1.5), b: end.clone(), r: 3 + 2 * k });
     G.events.emit('noise', { pos: _o.clone(), r: 60 });
@@ -325,11 +324,11 @@ export async function createWeapon(G) {
     const facing = Math.sin(e.yaw) * -dir.x + Math.cos(e.yaw) * -dir.z; // >0: the robot faces the player
     const pt = e.bones.spine_03.getWorldPosition(new THREE.Vector3());
     // a riot shield takes a frontal strike: the robot is shoved back, nothing gets through
-    if (e.shield && !e.shield.broken && facing > 0.2) { G.enemies.shieldBash(e, dir); G.hitstop(0.06); G.player.addShake(0.45); S.kZ.v += 4; G.events.emit('melee:hit', { pos: pt, shield: true }); return; }
+    if (e.shield && !e.shield.broken && facing > 0.2) { G.enemies.shieldBash(e, dir); G.hitstop(0.03); G.player.addShake(0.45); S.kZ.v += 4; G.events.emit('melee:hit', { pos: pt, shield: true }); return; }
     const takedown = e.state !== 'engage' || facing < -0.2;
     e.meleeHit = true; G.enemies.damage(e, takedown ? 999 : 95, { part: 'body', point: pt }, dir); e.meleeHit = false;
     if (e.alive) { e.stagT = 0.6; e.knockV.copy(dir).multiplyScalar(7.5 / (e.c.mass || 1)); }
-    G.hitstop(takedown ? 0.1 : 0.07); G.player.addShake(0.5); S.kZ.v += 5; S.kR.v += 3;
+    G.hitstop(takedown ? 0.045 : 0.03); G.player.addShake(0.5); S.kZ.v += 5; S.kR.v += 3;
     for (let i = 0; i < 14; i++) G.fxs?.emit(false, { pos: pt, vel: new THREE.Vector3((Math.random() - 0.5) * 6, Math.random() * 4, (Math.random() - 0.5) * 6).addScaledVector(dir, 3), life: 0.25 + Math.random() * 0.2, size: 0.014, stretch: 0.06, col: [14, 7, 2.4], grav: 9.8, drag: 2 });
     R.flash(pt, 0xffb070, 25, 4, 0.06);
     G.events.emit('melee:hit', { pos: pt, takedown, kill: !e.alive });

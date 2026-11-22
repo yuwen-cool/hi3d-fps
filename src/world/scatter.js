@@ -59,7 +59,7 @@ export async function dress(G, root) {
   chunked(per, (i, n) => { const im = new THREE.InstancedMesh(geos[i], rockMat, n); im.castShadow = true; im.receiveShadow = true; im.name = 'rocks'; return im; }, 55);
   // ---- gravel: thousands of small angular stones, densest along walls/structures and the play paths ----
   {
-    const gGeos = [rockGeo(17, 1), rockGeo(23, 1), rockGeo(51, 1)];
+    const gGeos = [rockGeo(17, 0), rockGeo(23, 0), rockGeo(51, 0)]; // 2-10 cm stones: 20 faces each is plenty
     const gm = triplanarMaterial('gravelly_sand', { metres: 0.35, cls: 'concrete', metal: 0, tint: 0x8c7a66, nscale: 1.2 });
     const pts = [];
     const near = (x, z, n, rad) => { for (let i = 0; i < n; i++) { const a = rnd() * 6.28, d = Math.pow(rnd(), 0.7) * rad; pts.push([x + Math.cos(a) * d, z + Math.sin(a) * d]); } };

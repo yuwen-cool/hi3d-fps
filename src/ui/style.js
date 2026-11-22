@@ -115,9 +115,9 @@ export const CSS = `
 #hud .vit .ab .a{position:relative;width:3.1rem;height:3.1rem;display:flex;align-items:center;justify-content:center}
 #hud .vit .ab .a svg.rg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
 #hud .vit .ab .a .ic{width:1.5rem;height:1.5rem;opacity:.55}#hud .vit .ab .a .ic svg{width:100%;height:100%}
-#hud .vit .ab .a .kk{position:absolute;bottom:-1.05rem;left:-1rem;right:-1rem;text-align:center;font-family:var(--B);font-weight:700;font-size:.7rem;letter-spacing:.1em;color:var(--bone2);white-space:nowrap}
+#hud .vit .ab .a .kk{position:absolute;top:-.55rem;right:-.6rem;padding:0 .3rem;min-width:1rem;text-align:center;font-family:var(--B);font-weight:700;font-size:.85rem;line-height:1.15rem;letter-spacing:.06em;color:var(--bone);background:#0d0b09;border:1px solid rgba(239,229,207,.55);white-space:nowrap}
 #hud .vit .ab .a .cd{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--N);font-size:1.05rem;color:var(--bone)}
-#hud .vit .ab .a.rdy .ic{opacity:1}#hud .vit .ab .a.rdy .kk{color:var(--o)}
+#hud .vit .ab .a.rdy .ic{opacity:1}#hud .vit .ab .a.rdy .kk{color:var(--o);border-color:var(--o)}
 #hud .vit .ab .a.pop{animation:pop .4s var(--ease)}
 @keyframes pop{0%{transform:scale(1.4);filter:brightness(2)}100%{transform:scale(1)}}
 
@@ -266,6 +266,19 @@ export const CSS = `
 #ui .end .stats div span{display:block;font-family:var(--B);font-weight:600;font-size:.85rem;letter-spacing:.25em;color:var(--bone2)}
 #ui .end .stats div b{font-family:var(--N);font-size:2.8rem;line-height:3rem;color:var(--o)}
 #ui .end .menu{width:20rem}
+#hud .obj .why{font-family:var(--B);font-weight:600;font-size:.95rem;letter-spacing:.04em;color:var(--bone2);max-width:24rem;margin:.15rem 0 .1rem 1.35rem;line-height:1.15rem;text-shadow:0 1px 2px #000}
+#hud .tip{position:absolute;left:2.4rem;top:38%;width:23rem;padding:.75rem 1rem .8rem;background:rgba(13,11,9,.78);border-left:3px solid var(--o);opacity:0;transform:translateX(-1rem);transition:opacity .35s,transform .45s var(--ease);pointer-events:none}
+#hud .tip.on{opacity:1;transform:none}
+#hud .tip .th{display:flex;flex-wrap:wrap;gap:.35rem .9rem;margin-bottom:.45rem;font-family:var(--H);font-weight:800;font-size:1.05rem;color:var(--bone)}#hud .tip .th:empty{display:none}
+#hud .tip .th .kc{margin-right:.35rem}
+#hud .tip p{margin:0;font-family:var(--B);font-weight:500;font-size:1.05rem;line-height:1.35rem;color:var(--bone)}
+#hud .brief{position:absolute;left:2.4rem;top:9.2rem;width:28rem;padding:1.2rem 1.5rem 1.3rem;background:rgba(13,11,9,.82);border-top:3px solid var(--o);opacity:0;visibility:hidden;transition:opacity .5s,visibility .5s;pointer-events:none}
+#hud .brief.on{opacity:1;visibility:visible}
+#hud .brief .bh{display:flex;align-items:baseline;gap:.7rem;margin-bottom:.8rem}#hud .brief .bh span{font-family:var(--B);font-weight:600;letter-spacing:.4em;font-size:.85rem;color:var(--o)}#hud .brief .bh b{font-family:var(--H);font-weight:900;font-size:2.4rem;line-height:2.4rem;color:var(--bone)}
+#hud .brief .st{display:flex;gap:.9rem;align-items:flex-start;padding:.5rem 0;opacity:.5;border-top:1px solid rgba(239,229,207,.12)}
+#hud .brief .st em{font-style:normal;font-family:var(--N);font-size:2rem;line-height:2rem;color:var(--bone2);width:1.6rem}
+#hud .brief .st b{display:block;font-family:var(--H);font-weight:900;font-size:1.35rem;color:var(--bone)}#hud .brief .st span{font-family:var(--B);font-size:1rem;color:var(--bone2)}
+#hud .brief .st.now{opacity:1}#hud .brief .st.now em{color:var(--o)}#hud .brief .st.done{opacity:.35}#hud .brief .st.done b{text-decoration:line-through}
 #hud .fpsr{position:fixed;left:.6rem;bottom:.35rem;font-family:var(--B);font-weight:600;font-size:.8rem;letter-spacing:.12em;color:#9f9;text-shadow:0 1px 2px #000;z-index:50}
 #ui .title.hang>*{visibility:hidden}
 #ui .hangar{position:absolute;inset:0;z-index:30;background:radial-gradient(ellipse at 62% 55%,#2a221b 0%,#120f0c 55%,#0a0807 100%);color:var(--bone);animation:hgIn .45s var(--ease) both}

@@ -40,7 +40,7 @@ export function createExplosives(G) {
   async function bigBoom(o, ex) {
     const sz = new THREE.Box3().setFromObject(o).getSize(new THREE.Vector3()), c = o.position.clone();
     for (let i = 0; i < 4; i++) setTimeout(() => blast(c.clone().add(new THREE.Vector3((Math.random() - 0.5) * sz.x * 0.6, 1 + i * sz.y * 0.25, (Math.random() - 0.5) * sz.z * 0.6)), 2.2 + i * 0.4, 13, 260), i * 140);
-    G.slowmo(0.7, 0.35); G.events.emit('tank:boom', { pos: c.clone() });
+    G.slowmo(0.35, 0.6); G.events.emit('tank:boom', { pos: c.clone() });
     G.fxs?.mushroom(c.clone().setY(0), sz.y * (ex.mega ? 2.4 : 1.5), Math.max(sz.x, sz.z) * (ex.mega ? 0.5 : 0.38));
     for (let i = 0; i < 7; i++) { const a = Math.random() * 6.28, r = sz.x * (0.3 + Math.random() * 0.5); G.fire?.add(new THREE.Vector3(c.x + Math.cos(a) * r, 0.05, c.z + Math.sin(a) * r), { size: 1 + Math.random() * 1.5, life: 120 + Math.random() * 120 }); }
     G.fire?.add(c.clone().setY(sz.y * 0.55), { size: 3.2, life: 300 });

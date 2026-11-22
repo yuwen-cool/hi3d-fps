@@ -191,7 +191,7 @@ export async function createEnemies(G) {
     const S_ = e.shield; if (S_.broken) return; S_.broken = true;
     S_.v.copy(dir).setY(0).normalize().multiplyScalar(-2.5).add(new THREE.Vector3(0, 2.5, 0)); S_.w.set((rnd() - 0.5) * 4, (rnd() - 0.5) * 3, -3 - rnd() * 2);
     e.stagT = 1.3; e.knockV.copy(dir).setY(0).normalize().multiplyScalar(2.5); e.c = { ...e.c, run: 3.8, range: [3, 8] };
-    S_.m.getWorldPosition(S_.c); G.fxs?.electric(S_.c); R.flash(S_.c, 0xffb070, 40, 6, 0.1); G.hitstop(0.06);
+    S_.m.getWorldPosition(S_.c); G.fxs?.electric(S_.c); R.flash(S_.c, 0xffb070, 40, 6, 0.1);
     for (let i = 0; i < 10; i++) G.fxs?.chunk(S_.c.clone().add(new THREE.Vector3(rnd() - 0.5, rnd() - 0.5, rnd() - 0.5).multiplyScalar(0.6)), new THREE.Vector3((rnd() - 0.5) * 5, 2 + rnd() * 3, (rnd() - 0.5) * 5), 0.05 + rnd() * 0.08, 0x4a4844, 6, 1);
     G.events.emit('shield:break', { e, pos: S_.c.clone() });
   }

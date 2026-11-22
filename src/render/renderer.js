@@ -100,7 +100,8 @@ export function createRenderer(G, canvas) {
 
   // point light pool (fixed count: no shader recompiles)
   const lights = [];
-  for (let i = 0; i < 6; i++) { const l = new THREE.PointLight(0xffffff, 0, 12, 2); l.castShadow = false; l.layers.enable(1); scene.add(l); lights.push({ l, ttl: 0, life: 1, i0: 0 }); }
+  // four: each light is paid by every lit pixel, lit or not
+  for (let i = 0; i < 4; i++) { const l = new THREE.PointLight(0xffffff, 0, 12, 2); l.castShadow = false; l.layers.enable(1); scene.add(l); lights.push({ l, ttl: 0, life: 1, i0: 0 }); }
   let nextLight = 0; const _pls = [];
   const volLights = lights.map((s) => s.l); // registry of point lights that also scatter in the volume (pool + fires + lamps)
   function flash(pos, color, intensity, dist, ttl) {
@@ -190,15 +191,18 @@ export function createRenderer(G, canvas) {
   window.addEventListener('resize', resize);
 
   // dynamic resolution
-  const dyn = { acc: 0, n: 0, wait: 3.5, upDelay: 2, last: 0, on: params.dynres !== '0' && !params.shot };
+  const dyn = { acc: 0, n: 0, wait: 3.5, upDelay: 8, last: 0, on: params.dynres !== '0' && !params.shot };
   function dynres(dt) {
     if (!dyn.on) return;
     dyn.wait -= dt; dyn.acc += dt; dyn.n++;
     if (dyn.n < 45 && dyn.acc < 0.9) return;
     const avg = dyn.acc / dyn.n * 1000; dyn.acc = 0; dyn.n = 0;
     if (dyn.wait > 0) return;
-    if (avg > 21.5 && dynScale > 0.6) { dynScale = Math.max(0.6, dynScale - (avg > 45 ? 1 : avg > 30 ? 0.2 : 0.1)); dyn.upDelay = Math.min(60, dyn.upDelay * 2); dyn.wait = 1; resize(); }
-    else if (avg < 17.4 && dynScale < 1) { dynScale = Math.min(1, dynScale + 0.1); dyn.wait = dyn.upDelay; resize(); }
+    // every change reallocates the render targets (a visible hitch), so change rarely: down only after two slow windows
+    // in a row, up only after a long run of fast frames, and never more than once every few seconds
+    dyn.slow = avg > 21.5 ? (dyn.slow || 0) + 1 : 0;
+    if (dyn.slow >= 2 && dynScale > 0.6) { dynScale = Math.max(0.6, dynScale - (avg > 45 ? 0.3 : 0.15)); dyn.slow = 0; dyn.upDelay = Math.min(90, dyn.upDelay * 2); dyn.wait = 4; resize(); }
+    else if (avg < 14.5 && dynScale < 1) { dynScale = Math.min(1, dynScale + 0.1); dyn.wait = dyn.upDelay; resize(); }
   }
 
   const interiors = [];
@@ -270,10 +274,10 @@ export function createRenderer(G, canvas) {
       u.tZ.value = T.z.texture; u.tShadow.value = sun.shadow.map.depthTexture; u.uInvView.value.copy(camera.matrixWorld);
       u.uShadowMat.value.copy(sun.shadow.matrix); u.uProj.value.copy(projV); u.uCamPos.value.setFromMatrixPosition(camera.matrixWorld);
       u.uTime.value = time; u.uNear.value = camera.near; u.uFar.value = camera.far;
-      // the six strongest local lights near the camera also scatter in the volume
-      _pls.length = 0; for (const o of volLights) if (o.intensity > 0.05 && o.visible) _pls.push(o);
+      // the strongest local lights near the camera also scatter in the volume
+      _pls.length = 0; { const cp = camera.position; for (const o of volLights) if (o.intensity > 0.05 && o.visible && o.position.distanceToSquared(cp) < 1600) _pls.push(o); } // within 40 m
       { const cp = camera.position, sc = (l) => l.intensity / (1 + l.position.distanceToSquared(cp) * 0.01); _pls.sort((a, b) => sc(b) - sc(a)); }
-      u.uPLn.value = Math.min(6, _pls.length);
+      u.uPLn.value = Math.min(3, _pls.length); // the three strongest: in a firefight every muzzle flash is a light, and each one is a loop per march step
       for (let i = 0; i < u.uPLn.value; i++) { const l = _pls[i]; u.uPL.value[i].set(l.position.x, l.position.y, l.position.z, l.distance || 12); u.uPLc.value[i].set(l.color.r, l.color.g, l.color.b).multiplyScalar(l.intensity * TUNE.volLocal); }
       run(M.vol, T.volA);
       M.blur.uniforms.uTol.value = 0.30;

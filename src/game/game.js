@@ -30,6 +30,7 @@ export async function buildGame(G, setLoad) {
   try { const { createOverdrive } = await import('./overdrive.js'); G.od = createOverdrive(G); mods.push(['od', G.od]); } catch (e) { console.warn('overdrive', e); }
   try { const { createFlow } = await import('./flow.js'); G.flow = createFlow(G); mods.push(['flow', G.flow]); } catch (e) { console.warn('flow', e); }
   try { const { createPoster } = await import('../ui/poster.js'); G.poster = createPoster(G); mods.push(['poster', G.poster]); } catch (e) { console.warn('poster', e); }
+  try { const { createTutor } = await import('./tutor.js'); G.tutor = createTutor(G); mods.push(['tutor', G.tutor]); } catch (e) { console.warn('tutor', e); }
   try { const { createGrapple } = await import('./grapple.js'); G.grapple = createGrapple(G); mods.push(['grapple', G.grapple]); } catch (e) { console.warn('grapple', e); }
   G.modules.player = G.player;
   for (const [n, m] of mods) G.modules[n] = m;

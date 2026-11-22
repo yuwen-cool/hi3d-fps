@@ -115,7 +115,6 @@ export function createFlow(G) {
       const a = V(-104, 0, -60), b = V(-104, 0, 25);
       G.boss?.spawnDistant(a.clone().lerp(b, 0.4), 0, [b, a], 2.3); S.horizon = { t: 0, said: false, bolt: 2 };
     });
-    later(2.5, () => hud()?.hint?.([['WASD', 'MOVE'], ['SHIFT', 'DASH'], ['C', 'SLIDE'], ['F', 'MELEE']], 6));
     if (!valveA()) S.step = 'hold';
     G.events.emit('flow:start');
   }
@@ -151,7 +150,7 @@ export function createFlow(G) {
       P_.taken = true; G.weapon.unlockLance(); G.weapon.swapTo('lance');
       obj({ marks: (G.obj?.marks || []).filter((m) => m.kind !== 'pick') });
       hud()?.banner?.('ARC-7 LANCE', { kind: 'good', sub: 'HOLD FIRE TO CHARGE — PIERCES SHIELDS', dur: 3 , pri: 1 });
-      hud()?.hint?.([['2', 'LANCE'], ['1', 'CARBINE'], ['LMB', 'HOLD TO CHARGE']], 6); G.audio?.play?.('bolt', { gain: 1, rate: 0.8 });
+      G.audio?.play?.('bolt', { gain: 1, rate: 0.8 }); // the how-to comes from the tutor
     }
   }
   // ---------- checkpoints: a retry starts at the beginning of the act the player died in ----------
@@ -173,12 +172,12 @@ export function createFlow(G) {
   }
   // ---------- kill feel + bookkeeping ----------
   G.events.on('enemy:killed', (e) => {
-    S.kills++; G.hitstop(0.055); G.player.addShake(0.32);
-    if (S.state === 'play' && hostiles() === 0 && !S.pending) { G.slowmo(1.1, 0.22); finisher(e.pos.clone().setY(1.2)); G.events.emit('flow:lastkill'); }
+    S.kills++; G.player.addShake(0.1); // no freeze on a kill: in a shooter every stop of the world reads as a dropped frame
+    if (S.state === 'play' && hostiles() === 0 && !S.pending) { finisher(e.pos.clone().setY(1.2)); G.events.emit('flow:lastkill'); }
   });
   // the last robot of a wave overloads: a blue-white discharge, a ring of light along the ground, a punch on the lens
   function finisher(p) {
-    G.R.fx.punch = 1; G.player.addShake(0.45); G.R.flash(p, 0x9fdcff, 60, 14, 0.12);
+    G.R.fx.punch = 0.6; G.player.addShake(0.2); G.R.flash(p, 0x9fdcff, 60, 14, 0.12);
     G.fxs?.electric(p); G.fxs?.electric(p.clone().add(V(0, 0.5, 0)));
     for (let i = 0; i < 40; i++) { const a = i / 40 * Math.PI * 2; G.fxs?.emit(false, { pos: V(p.x, 0.3, p.z), vel: V(Math.cos(a), 0.02, Math.sin(a)).multiplyScalar(16), life: 0.5, size: 0.18, size1: 0.04, stretch: 0.35, col: [6, 14, 22], drag: 2 }); }
     for (let i = 0; i < 26; i++) { const v = V(Math.random() - 0.5, Math.random() * 0.9, Math.random() - 0.5).normalize(); G.fxs?.emit(false, { pos: p, vel: v.multiplyScalar(6 + Math.random() * 10), life: 0.5 + Math.random() * 0.5, size: 0.02, stretch: 0.12, col: [8, 16, 24], grav: 6, drag: 1 }); }
@@ -281,7 +280,7 @@ export function createFlow(G) {
   // the distillation column behind the colossus topples toward the yard
   function fellTower() {
     const o = G.level.fallTower; if (!o || S.fell) return; S.fell = { o, t: 0, axis: V(1, 0, 0.25).normalize() };
-    G.slowmo(2.2, 0.5); // the view stays the player's: unseen falls get a camera insert instead
+    // no slow motion in play: the view and the pace stay the player's (unseen falls get a camera insert)
     G.events.emit('tower:fall', { pos: o.position.clone() });
   }
   // the column on the ground: a long box to stand behind, robots path round it
@@ -321,7 +320,7 @@ export function createFlow(G) {
     G.audio?.play?.('alarm', { gain: 0.7 });
     stormShot(() => {
       hud()?.banner?.('SANDSTORM', { kind: 'crit', sub: 'VISIBILITY LOST — USE YOUR SCAN', dur: 3.5 , pri: 3 }); hud()?.boot?.();
-      say('storm'); later(3, () => { if (!S.scanned) hud()?.hint?.([['Q', 'SCAN PULSE']], 7); });
+      say('storm');
     });
     later(14, () => G.boss?.hideDistant()); // swallowed by the storm
   }
@@ -378,7 +377,7 @@ export function createFlow(G) {
         if (c > 40.6 && S.lullOn) { S.lullOn = false; if (!S.gustSaid) { S.gustSaid = true; say('gust'); } const pp = G.player.s.pos; G.env?.strike(V(pp.x + (G.rng() - 0.5) * 50, 40, pp.z - 25 - G.rng() * 20)); G.player.addShake(0.35); G.audio?.play?.('alarm', { gain: 0.35 }); } }
       // lightning takes the storage tank — when the player is looking at it (or soon after, regardless)
       const pp2 = G.player.s.pos, tk = !S.tankHit && G.level.explosives.filter((o) => o.userData.explosive?.big && !o.userData.explosive.dead && !o.userData.explosive.mega && o.position.x > -22).sort((a, b) => a.position.distanceTo(pp2) - b.position.distanceTo(pp2))[0];
-      const strikeTank = (cine) => { S.tankHit = true; G.env?.strike(tk.position.clone().setY(30)); later(0.12, () => { G.explosives?.hurt(tk, 9999); G.slowmo(1.3, 0.3); G.player.addShake(0.6); }); };
+      const strikeTank = (cine) => { S.tankHit = true; G.env?.strike(tk.position.clone().setY(30)); later(0.12, () => { G.explosives?.hurt(tk, 9999); G.slowmo(0.5, 0.55); G.player.addShake(0.6); }); };
       if (tk && S.actT > 6 && seen(tk.position.clone().setY(9), 0.8, 8)) strikeTank(false);
       else if (tk && S.actT > 34 && !S.tankLook) { S.tankLook = true; // not looked at: cut to it, the bolt lands half a second in
         const at = tk.position.clone().setY(6);

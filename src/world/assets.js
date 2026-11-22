@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { patchMaterial } from '../mats/patch.js';
+import { MeshoptSimplifier } from 'meshoptimizer/simplifier';
 
 // Asset table: real-world size (longest axis, metres), material class, flags.
 export const MODELS = {
@@ -65,7 +66,7 @@ let maxAniso = 8;
 export function setRendererCaps(renderer) { maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy()); }
 
 async function loadRaw(name) {
-  if (!cache.has(name)) cache.set(name, loader.loadAsync(`/models/${name}.glb`).then((g) => {
+  if (!cache.has(name)) cache.set(name, loader.loadAsync(`/models/${name}.glb`).then(async (g) => {
     const def = MODELS[name] || {};
     const root = g.scene;
     root.updateMatrixWorld(true);
@@ -89,9 +90,31 @@ async function loadRaw(name) {
       patchMaterial(m, def.cls || 'default');
     });
     holder.userData.size = b2.getSize(new THREE.Vector3());
+    if (!NO_LOD.has(name)) await addLods(holder);
     return holder;
   }).catch((e) => { console.warn('[assets] missing', name, e.message); return null; }));
   return cache.get(name);
+}
+
+// Distance LODs: every heavy prop gets a simplified copy (~15% of the triangles, meshoptimizer, same material and
+// attributes, so no new shader) that takes over past a distance scaled to its size. The Hi3D props are 30-60k
+// triangles each; drawn in full at every distance (and again in the shadow pass) they were most of the frame.
+const NO_LOD = new Set(['rifle_v1', 'rifle2', 'mag', 'glove_r', 'glove_l', 'arm_l', 'lance', 'robot', 'robot_skin', 'riot_shield', 'drone', 'colossus_hull', 'colossus_head', 'colossus_leg_upper', 'colossus_leg_lower', 'dropship', 'tank_far', 'tower_far', 'pumpjack_far', 'container_far', 'mesa']);
+async function addLods(holder) {
+  await MeshoptSimplifier.ready;
+  const size = holder.userData.size, L = Math.max(size.x, size.y, size.z), far = Math.max(16, L * 2.4);
+  const meshes = []; holder.traverse((o) => { if (o.isMesh && !o.isSkinnedMesh && o.geometry.index && o.geometry.index.count / 3 > 4000) meshes.push(o); });
+  for (const m of meshes) {
+    const g = m.geometry, P = g.attributes.position, pos = new Float32Array(P.count * 3);
+    for (let i = 0; i < P.count; i++) { pos[i * 3] = P.getX(i); pos[i * 3 + 1] = P.getY(i); pos[i * 3 + 2] = P.getZ(i); }
+    const idx = new Uint32Array(g.index.array), target = Math.max(1200, Math.floor(idx.length * 0.15 / 3) * 3);
+    const [lo] = MeshoptSimplifier.simplify(idx, pos, 3, target, 0.02, ['Prune']); if (lo.length >= idx.length * 0.6) continue;
+    const gl = new THREE.BufferGeometry(); for (const k in g.attributes) gl.setAttribute(k, g.attributes[k]); gl.setIndex(new THREE.BufferAttribute(lo, 1)); gl.boundingBox = g.boundingBox; gl.boundingSphere = g.boundingSphere;
+    const ml = new THREE.Mesh(gl, m.material); ml.castShadow = m.castShadow; ml.receiveShadow = m.receiveShadow; ml.name = m.name + '_lod';
+    const lod = new THREE.LOD(); lod.name = m.name; lod.position.copy(m.position); lod.quaternion.copy(m.quaternion); lod.scale.copy(m.scale);
+    const parent = m.parent; parent.add(lod); parent.remove(m); m.position.set(0, 0, 0); m.quaternion.identity(); m.scale.set(1, 1, 1);
+    lod.addLevel(m, 0, 0.08); lod.addLevel(ml, far, 0.08);
+  }
 }
 
 // Clone for placement. Falls back to a same-size placeholder box when the model is missing.

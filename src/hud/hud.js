@@ -23,7 +23,7 @@ export function createHUD(G) {
   el.innerHTML = `
   <svg class="crack" viewBox="0 0 1600 900" preserveAspectRatio="none"></svg>
   <div class="speed"></div>
-  <div class="obj sh0 pw" style="--d:.5s"><div class="act"><b class="an">ACT 1</b><span class="at">DUSK</span></div><div class="ln"><i class="dm"></i><span class="tx">STAND BY</span><span class="ct"></span></div><div class="sub"><span class="sx"></span><div class="pb"><i></i></div></div><div class="ho">HOSTILES<em>0</em></div></div>
+  <div class="obj sh0 pw" style="--d:.5s"><div class="act"><b class="an">ACT 1</b><span class="at">DUSK</span></div><div class="ln"><i class="dm"></i><span class="tx">STAND BY</span><span class="ct"></span></div><div class="why"></div><div class="sub"><span class="sx"></span><div class="pb"><i></i></div></div><div class="ho">HOSTILES<em>0</em></div></div>
   <div class="cmp pw" style="--d:.35s"><div class="win"><div class="strip"></div></div><div class="base"></div><div class="hd">000</div><div class="mks"></div></div>
   <div class="wmks"></div>
   <div class="tr"><div class="storm sh0 pw" style="--d:.65s"><div class="t">STORM FRONT IN</div><div class="v">--:--</div><div class="z"></div></div><div class="radar pw" style="--d:.75s"><canvas></canvas></div></div>
@@ -32,7 +32,7 @@ export function createHUD(G) {
   <div class="alert"><span>▲</span><span class="at">SHIELD DOWN</span><span>▲</span></div>
   <div class="vit sh0 pw" style="--d:.9s">
     <div class="bars"><div class="lb"><span>SHIELD / HEALTH</span><b><s class="sn">75</s><span class="n">100</span></b></div><div class="seg sh">${segs(4)}</div><div class="seg hp">${segs(10)}</div></div>
-    <div class="ab"><div class="a dash">${ring}<span class="ic">${ICON.dash}</span><span class="cd"></span><span class="kk">SHIFT DASH</span></div><div class="a scan">${ring}<span class="ic">${ICON.scan}</span><span class="cd"></span><span class="kk">Q SCAN</span></div><div class="a od">${ring}<span class="ic">${ICON.od}</span><span class="cd"></span><span class="kk">X OVERDRIVE</span></div></div>
+    <div class="ab"><div class="a dash">${ring}<span class="ic">${ICON.dash}</span><span class="cd"></span><span class="kk">SHIFT</span></div><div class="a scan">${ring}<span class="ic">${ICON.scan}</span><span class="cd"></span><span class="kk">Q</span></div><div class="a od">${ring}<span class="ic">${ICON.od}</span><span class="cd"></span><span class="kk">X</span></div></div>
   </div>
   <div class="amm sh0 pw" style="--d:1.0s">
     <div class="rl">RELOADING</div><div class="gain"></div>
@@ -103,7 +103,7 @@ export function createHUD(G) {
 
   // ---------- refs ----------
   const xh = q('.xh'), arms = { t: q('.xh .t'), b: q('.xh .b'), l: q('.xh .l'), r: q('.xh .r') }, hm = q('.hm'), pts = q('.pts'), dmgI = qa('.dmg i');
-  const objAn = q('.obj .an'), objAt = q('.obj .at'), objLn = q('.obj .ln'), objTx = q('.obj .ln .tx'), objCt = q('.obj .ln .ct'), objHo = q('.obj .ho em'), objSub = q('.obj .sub'), objSubTx = q('.obj .sub .sx'), objSubPb = q('.obj .sub .pb i');
+  const objWhy = q('.obj .why'), objAn = q('.obj .an'), objAt = q('.obj .at'), objLn = q('.obj .ln'), objTx = q('.obj .ln .tx'), objCt = q('.obj .ln .ct'), objHo = q('.obj .ho em'), objSub = q('.obj .sub'), objSubTx = q('.obj .sub .sx'), objSubPb = q('.obj .sub .pb i');
   const stormEl = q('.storm'), stormV = q('.storm .v'), stormT = q('.storm .t'), stormZ = q('.storm .z'), feed = q('.feed');
   const shN = q('.vit .sn'), vit = q('.vit'), amm = q('.amm'), shRow = q('.vit .sh'), shSeg = qa('.vit .sh i b'), hpSeg = qa('.vit .hp i b'), hpN = q('.vit .n');
   const abOd = q('.a.od'), kb = q('.kb'), kbSvg = q('.kb svg'), kbLb = q('.kb .lb'), odf = q('.odf'), odt = q('.odt'), odtBar = q('.odt i');
@@ -216,6 +216,13 @@ export function createHUD(G) {
   // ---------- per-frame ----------
   const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _c = new THREE.Vector3();
   let lastHeading = 0;
+  // one line under each objective: why you are doing it / how, so the plan is never a mystery
+  const WHY = [['OPEN VALVE A', 'Pressurise the flare line — valve 1 of 2. Hold E at the valve.'], ['CLEAR THE YARD', 'Robots on the valve. Clear them first.'], ['HOLD THE YARD', 'They are coming for the valve. Keep them off it.'],
+    ['OPEN VALVE B', 'Valve 2 of 2: south, on top of the pipe gallery. Take the stairs.'], ['BRACE FOR THE STORM', 'The sandstorm is about to hit. Get into cover.'], ['SURVIVE THE STORM', 'Two waves in the sand. Q scans them through it.'],
+    ['CLEAR THE LAST', 'Finish the robots still out there.'], ['MOVE TO THE TANK FARM', 'West gate. Something big is coming — be in the tank farm.'], ['TAKE COVER IN THE TANK FARM', 'Use the tanks and pipe runs as cover. It is coming.'],
+    ['BREAK A LEG ACTUATOR', 'Armour everywhere else. Shoot a glowing knee joint.'], ['DESTROY THE COOLANT CORES', 'It is down: grapple onto its back (E at the blue mark) or shoot the cores from the ground.'],
+    ['IGNITE THE FLARE LINE', 'It is stuck on the flare line. Hold E at the igniter to burn it.'], ['DROPSHIP', 'Get to the landing pad and hold.'], ['BOARD THE DROPSHIP', 'Walk onto the pad. You are going home.']];
+  const whyOf = (line = '') => (WHY.find(([k]) => line.startsWith(k)) || [, ''])[1];
   // frame rate readout: ?fps=1 in the URL (or SHOW FPS in settings)
   const fpsEl = document.createElement('div'); fpsEl.className = 'fpsr'; el.appendChild(fpsEl); let fpsN = 0, fpsT = 0;
   function fpsTick() { const on = G.params.fps || G.settings?.fps; fpsEl.style.display = on ? '' : 'none'; if (!on) return; fpsN++; const now = performance.now(); if (now - fpsT > 500) { const f = fpsN * 1000 / (now - (fpsT || now - 500)); fpsT = now; fpsN = 0; const r = G.R.res; fpsEl.textContent = `${Math.round(f)} FPS · ${r[0]}×${r[1]} · ${G.R.tier.name.toUpperCase()}`; } }
@@ -270,7 +277,7 @@ export function createHUD(G) {
     if (O) {
       const [an, at] = (O.title || '').split(' // '); setTx(objAn, an || ''); setTx(objAt, at || ''); setTx(objHo, String(G.enemies?.alive ?? 0));
       if (objTx._t !== O.line) { objLn.classList.remove('flash'); void objLn.offsetWidth; objLn.classList.add('flash'); }
-      setTx(objTx, O.line || ''); setTx(objCt, O.count ? `${O.count[0]}/${O.count[1]}${O.unit ? ' ' + O.unit : ''}` : '');
+      setTx(objTx, O.line || ''); setTx(objWhy, whyOf(O.line)); setTx(objCt, O.count ? `${O.count[0]}/${O.count[1]}${O.unit ? ' ' + O.unit : ''}` : '');
       objSub.style.display = O.sub ? 'block' : 'none'; if (O.sub) { setTx(objSubTx, O.sub); objSubPb.style.width = `${Math.round((O.prog || 0) * 100)}%`; }
     }
     // storm clock
