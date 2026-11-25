@@ -107,9 +107,10 @@ export function createUI(G, boot) {
   function openTitleMenu() {
     const cp = +G.params.cp || 0;
     titleMenu = menu(G, title, [...(cp >= 2 ? [{ id: 'cp', label: `CONTINUE — ACT ${cp}` }] : []), { id: 'deploy', label: cp >= 2 ? 'NEW MISSION' : 'DEPLOY' }, { id: 'controls', label: 'CONTROLS' }, { id: 'hangar', label: 'HI3D HANGAR' }, { id: 'settings', label: 'SETTINGS' }], (id) => {
+      if (title.classList.contains('hang')) return; // the hangar is loading or open: one at a time
       if (id === 'cp') deploy(cp);
       else if (id === 'deploy') deploy();
-      else if (id === 'hangar') { title.classList.add('hang'); import('./hangar.js').then(({ openHangar }) => openHangar(G, document.getElementById('ui'), () => title.classList.remove('hang'))); }
+      else if (id === 'hangar') { title.classList.add('hang'); import('./hangar.js').then(({ openHangar }) => openHangar(G, document.getElementById('ui'), () => title.classList.remove('hang'))).catch((e) => { console.warn('[hangar]', e.message); title.classList.remove('hang'); }); }
       else { const wm = title.querySelector('.wm'); wm.style.visibility = 'hidden'; panel(title, id, () => { wm.style.visibility = ''; }); }
     });
     title.querySelector('.mh').appendChild(titleMenu.el);

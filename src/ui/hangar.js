@@ -74,7 +74,7 @@ export function openHangar(G, root, onClose) {
   });
   const compScene = new THREE.Scene(); const compQuad = new THREE.Mesh(tri, compMat); compQuad.frustumCulled = false; compScene.add(compQuad);
   let rt = null;
-  const samples = Math.min(4, r.capabilities.maxSamples || 0);
+  const samples = Math.min(G.tier?.msaa ?? 0, r.capabilities.maxSamples || 0); // what this tier's game passes already use
   const ensureRT = (w, h) => {
     if (rt && rt.width === w && rt.height === h) return;
     rt?.dispose();

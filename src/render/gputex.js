@@ -23,7 +23,17 @@ export function initGpuTex(r) {
       if (!formats.length) return null;
       // The encoder works on the renderer's own context and restores most of what it touches, but not three's state
       // cache (texture units, bound program): reset it after every encode so the next frame binds from scratch.
-      return { encodeTexture: (src, o) => spark.encodeTexture(src, o).finally(() => r.resetState()), spark };
+      // spark resolves even when the GPU refused the compressed upload (e.g. a format the driver lists but cannot
+      // store); a GL error after the encode counts as a failure, so the callers' plain-texture fallback runs.
+      const encodeTexture = async (src, o) => {
+        for (let i = 0; i < 8 && gl.getError(); i++); // drop errors that are not ours
+        try {
+          const res = await spark.encodeTexture(src, o), err = gl.getError();
+          if (err) { gl.deleteTexture(res.texture); throw new Error(`GL error 0x${err.toString(16)}`); }
+          return res;
+        } finally { r.resetState(); }
+      };
+      return { encodeTexture, spark };
     } catch (e) { console.warn('[gputex] off:', e.message); return null; }
   })();
   ready.then((s) => { encoder = s; });
