@@ -1,7 +1,7 @@
 {
   "name": "hi3d-fps",
   "version": "1.0.0",
-  "description": "",
+  "description": "SANDLINE — browser FPS, every model generated with Hi3D",
   "main": "index.js",
   "scripts": {
     "dev": "vite --port 5320 --host 127.0.0.1",
@@ -11,7 +11,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "type": "module",
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.3.0",
