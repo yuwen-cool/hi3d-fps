@@ -3,6 +3,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { patchMaterial } from '../mats/patch.js';
 import { MeshoptSimplifier } from 'meshoptimizer/simplifier';
+import { withGpuTex, fixGpuTextures } from '../render/gputex.js';
 
 // Asset table: real-world size (longest axis, metres), material class, flags.
 export const MODELS = {
@@ -64,9 +65,10 @@ const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const cache = new Map();
 let maxAniso = 8;
 export function setRendererCaps(renderer) { maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy()); }
+export const aniso = () => maxAniso;
 
 async function loadRaw(name) {
-  if (!cache.has(name)) cache.set(name, loader.loadAsync(`/models/${name}.glb`).then(async (g) => {
+  if (!cache.has(name)) cache.set(name, withGpuTex(loader).then((l) => l.loadAsync(`/models/${name}.glb`)).then(async (g) => {
     const def = MODELS[name] || {};
     const root = g.scene;
     root.updateMatrixWorld(true);
@@ -79,6 +81,7 @@ async function loadRaw(name) {
     const b2 = new THREE.Box3().setFromObject(root); const c = b2.getCenter(new THREE.Vector3());
     root.position.sub(new THREE.Vector3(c.x, b2.min.y, c.z));
     holder.add(root);
+    fixGpuTextures(root, maxAniso);
     root.traverse((o) => {
       if (!o.isMesh) return;
       o.castShadow = true; o.receiveShadow = true;

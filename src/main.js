@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { params, events, rng } from './core/ctx.js';
 import { createRenderer } from './render/renderer.js';
 import { createBoot } from './ui/screens.js';
+import { gpuTexReady, gpuTexSettled } from './render/gputex.js';
 
 window.__errors = []; window.__frames = 0; window.__ready = false; window.__fatal = null;
 window.addEventListener('error', (e) => window.__errors.push(String(e.message)));
@@ -12,8 +13,8 @@ G.hitstop = (s) => { G.stopT = Math.max(G.stopT, s); };
 G.slowmo = (s, k = 0.3) => { G.slowT = s; G.slowK = k; };
 window.__G = G;
 
-const boot0 = createBoot();
-const setLoad = (t, p) => boot0.progress(t, p);
+let boot0 = null;
+const setLoad = (t, p) => boot0?.progress(t, p);
 const yieldFrame = () => new Promise((r) => setTimeout(r, 0));
 
 // Loading-screen prewarm, so nothing compiles or uploads on first use mid-match: every model the game can spawn,
@@ -44,15 +45,38 @@ async function prewarm() {
   for (const o of hidden) o.visible = false; R.scene.remove(tmp);
 }
 
+// Before anything downloads: say plainly when this machine cannot play (a phone or tablet, no WebGL2), instead of
+// a 120 MB load that ends in a frozen bar. Capture tools (webdriver) skip it.
+function gate() {
+  if (navigator.webdriver || params.force) return null;
+  if (!matchMedia('(pointer: fine)').matches || /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent))
+    return ['SANDLINE 是电脑游戏，需要键盘和鼠标。请在电脑上用 Chrome 或 Edge 打开这个链接。', 'SANDLINE is a PC game: open this link on a computer with a keyboard and mouse (Chrome or Edge).'];
+  if (!document.createElement('canvas').getContext('webgl2'))
+    return ['这个浏览器没有开启 WebGL2 或显卡加速。请换最新版 Chrome 或 Edge，并在浏览器设置里打开“使用图形加速”。', 'This browser has no WebGL2 / graphics acceleration. Use an up-to-date Chrome or Edge with hardware acceleration on.'];
+  return null;
+}
+function notice([zh, en]) {
+  document.getElementById('loading')?.remove(); document.querySelector('.scr.boot')?.remove();
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;background:#0b0907;color:#e8e2d6;text-align:center;font:16px/1.6 system-ui,sans-serif;z-index:99';
+  d.innerHTML = `<div style="letter-spacing:.3em;color:#e0782a;font-weight:700">SANDLINE</div><div style="max-width:34em"></div><div style="max-width:34em;color:#9c8f7c;font-size:14px"></div>`;
+  d.children[1].textContent = zh; d.children[2].textContent = en;
+  document.body.appendChild(d);
+}
+
 async function boot() {
   const canvas = document.getElementById('c');
+  // the GPU dropped the page (out of memory, driver reset): tell the player what to do instead of a frozen frame
+  canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); notice(['显卡内存不够，画面停止了。请关掉其他网页和程序后刷新；还不行就在 ESC 菜单的 SETTINGS 里把 QUALITY 调成 LOW。', 'The graphics card ran out of memory. Close other tabs and reload; if it happens again, set QUALITY to LOW in ESC > SETTINGS.']); });
   const R = createRenderer(G, canvas);
   G.R = R;
   R.resize();
+  await gpuTexReady(); // decide plain vs GPU-encoded textures before any material is made
   setLoad('world', 0.2); await yieldFrame();
   const show = params.show || 'game';
   const mods = await import('./scenes.js');
   await mods.build(G, show, setLoad);
+  await gpuTexSettled();
   setLoad('compile', 0.9); await yieldFrame();
   try { await prewarm(); } catch (e) { console.warn('prewarm', e); }
   if (G.flow) {
@@ -100,4 +124,9 @@ window.__stats = () => {
   return { calls: G.stats.calls, tris: G.stats.tris, geos: i.memory.geometries, tex: i.memory.textures, programs: i.programs?.length, res: R.res, scale: R.scale, tier: R.tier.name };
 };
 
-boot().catch((e) => { console.error(e); window.__fatal = String(e && e.stack || e); boot0.fail(e.message); });
+const blocked = gate();
+if (blocked) notice(blocked);
+else {
+  boot0 = createBoot();
+  boot().catch((e) => { console.error(e); window.__fatal = String(e && e.stack || e); boot0.fail(e.message); });
+}

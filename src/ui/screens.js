@@ -22,16 +22,30 @@ export function createBoot() {
   el.innerHTML = `<div class="lg">SANDLINE // HELMET OS 4.12</div><div class="log"></div><div class="bar">${'<i></i>'.repeat(24)}</div><div class="pc">0%</div>`;
   ui.appendChild(el);
   const log = el.querySelector('.log'), bars = [...el.querySelectorAll('.bar i')], pc = el.querySelector('.pc');
-  const lines = []; let last = '';
+  const lines = []; let last = '', phase = 0;
   const LBL = { world: 'TERRAIN + SKY', level: 'REFINERY GEOMETRY', weapon: 'KR-9 CARBINE', enemies: 'HOSTILE UNITS', compile: 'SHADER CACHE' };
+  // Download meter: the phases alone sit still for most of a slow first load (one phase fetches 60 MB), so the bar also
+  // follows the bytes of every model / sound / texture that has arrived, against the build's total (vite.config.js).
+  const total = typeof __ASSET_BYTES__ === 'number' ? __ASSET_BYTES__ : 0; let got = 0;
+  const draw = () => {
+    const p = Math.max(phase, total && phase < 0.9 ? 0.2 + 0.68 * Math.min(1, got / total) : 0);
+    const n = Math.round(p * bars.length); bars.forEach((b, i) => b.classList.toggle('f', i < n));
+    pc.textContent = `${Math.round(p * 100)}%` + (total && phase < 0.9 ? `  ·  ${Math.min(got, total) / 1048576 | 0} / ${total / 1048576 | 0} MB` : '');
+  };
+  let po = null;
+  try {
+    performance.setResourceTimingBufferSize?.(4000);
+    po = new PerformanceObserver((l) => { for (const e of l.getEntries()) if (/\/(models|anim|sfx|tex)\//.test(e.name)) got += e.encodedBodySize || e.transferSize || 0; draw(); });
+    po.observe({ type: 'resource', buffered: true });
+  } catch { /* no resource timing: phases only */ }
   return {
     el,
     progress(t, p) {
       if (t !== last) { if (last) lines[lines.length - 1] = lines[lines.length - 1].replace('......', '...... <b>OK</b>'); lines.push(`> LOADING ${LBL[t] || t.toUpperCase()} ......`); last = t; if (lines.length > 7) lines.shift(); log.innerHTML = lines.join('\n'); }
-      const n = Math.round(p * bars.length); bars.forEach((b, i) => b.classList.toggle('f', i < n)); pc.textContent = `${Math.round(p * 100)}%`;
+      phase = p; draw();
     },
-    done() { lines[lines.length - 1] = lines[lines.length - 1].replace('......', '...... <b>OK</b>'); lines.push('> ALL SYSTEMS NOMINAL'); log.innerHTML = lines.join('\n'); bars.forEach((b) => b.classList.add('f')); pc.textContent = '100%'; },
-    out(instant) { if (instant) { el.remove(); return; } el.classList.add('out'); setTimeout(() => el.remove(), 700); },
+    done() { po?.disconnect(); lines[lines.length - 1] = lines[lines.length - 1].replace('......', '...... <b>OK</b>'); lines.push('> ALL SYSTEMS NOMINAL'); log.innerHTML = lines.join('\n'); bars.forEach((b) => b.classList.add('f')); pc.textContent = '100%'; },
+    out(instant) { po?.disconnect(); if (instant) { el.remove(); return; } el.classList.add('out'); setTimeout(() => el.remove(), 700); },
     fail(msg) { lines.push(`> <b>FAULT</b> ${msg}`); log.innerHTML = lines.join('\n'); },
   };
 }
@@ -88,7 +102,7 @@ export function createUI(G, boot) {
       <div class="pr"><b>SECTOR 7 // KHARA BASIN</b>Hold the refinery. The storm is bringing something big.</div>
       <div class="mh"></div></div>
     <div class="keys">${[['WASD', 'MOVE'], ['LMB', 'FIRE'], ['R', 'RELOAD'], ['SHIFT', 'DASH'], ['Q', 'SCAN'], ['F', 'MELEE'], ['G', 'GRENADE'], ['E', 'INTERACT']].map(([k, t]) => `<span><span class="kc">${k}</span>${t}</span>`).join('')}</div>
-    <div class="cr"><span class="mono">EVERY MODEL IN THIS GAME WAS GENERATED WITH</span><b>HI3D</b></div>`);
+    <div class="cr"><span class="mono">EVERY MODEL IN THIS GAME WAS GENERATED WITH</span><b>HI3D</b><a class="sp" href="https://ludicon.com/sparkjs/" target="_blank" rel="noopener noreferrer">Powered by spark.js⚡️</a></div>`);
   let titleMenu = null;
   function openTitleMenu() {
     const cp = +G.params.cp || 0;

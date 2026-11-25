@@ -1,12 +1,15 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { withGpuTex, fixGpuTextures } from '../render/gputex.js';
+import { aniso } from '../world/assets.js';
 
 // Runtime retarget: Mesh2Motion (T-pose rest) clips -> robot skeleton (A-pose rest).
 // For every sampled frame:  Qt_world = Qs_world * inv(Qs_restWorld) * Qt_restWorld,
 // then back to local with the target's own parent chain. Pelvis translation is scaled by
 // the leg-length ratio and expressed in each rig's root space.
-const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder); // animation-only files: no materials, no textures
+const skinLoader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const WANT = {
   base: ['Idle_A', 'Jog', 'Walk', 'Sprint', 'Crouch_Idle', 'Crouch_Walk', 'Pistol_Aim_Neutral', 'Pistol_Shoot', 'Pistol_Reload', 'Pistol_Idle', 'Hit_Chest', 'Hit_Head', 'Death_D', 'Roll'],
   addon: ['Death_A', 'Death_B', 'Death_C', 'Strafe_left', 'Strafe_right', 'Walk_Backwards', 'Run_Stealth', 'Dodge_left', 'Dodge_right', 'Idle Hurt'],
@@ -16,8 +19,9 @@ function boneMap(root) { const m = {}; root.traverse((o) => { if (o.isBone) m[o.
 const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _m = new THREE.Matrix4();
 
 export async function loadRobotRig(url = '/models/robot_skin.glb') {
-  const [g, base, addon] = await Promise.all([loader.loadAsync(url), loader.loadAsync('/anim/human-base-animations.glb'), loader.loadAsync('/anim/human-addon-animations.glb')]);
-  const tgtRoot = g.scene; tgtRoot.updateMatrixWorld(true);
+  await withGpuTex(skinLoader);
+  const [g, base, addon] = await Promise.all([skinLoader.loadAsync(url), loader.loadAsync('/anim/human-base-animations.glb'), loader.loadAsync('/anim/human-addon-animations.glb')]);
+  const tgtRoot = g.scene; fixGpuTextures(tgtRoot, aniso()); tgtRoot.updateMatrixWorld(true);
   const tb = boneMap(tgtRoot);
   const clips = {};
   for (const [src, names] of [[base, WANT.base], [addon, WANT.addon]]) {

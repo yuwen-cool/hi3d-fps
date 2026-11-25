@@ -7,25 +7,20 @@ export const PADS = [new THREE.Vector4(-10, -26, 6, -14), new THREE.Vector4(-20,
   new THREE.Vector4(-57, -41, -37, -19), new THREE.Vector4(-52, -66, -42, -41), new THREE.Vector4(-51, -19, -43, -7)];
 export const NPADS = PADS.length;
 import { patchMaterial } from '../mats/patch.js';
+import { loadTex, NRM_GLSL, rgNormals } from '../render/gputex.js';
 
-const tl = new THREE.TextureLoader();
-function tex(name, srgb, rep) {
-  const t = tl.load(`/tex/${name}.webp`);
-  t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; t.repeat.set(rep, rep);
-  t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-  return t;
-}
+const tex = (name, srgb) => loadTex(`/tex/${name}.webp`, srgb, name.endsWith('_nor'));
 
 // Ground: two CC0 PBR sets (gravelly sand + sandy gravel) blended by a world-space noise mask,
 // with per-tile UV rotation/offset ("stochastic") to kill visible repetition.
 export function makeGroundMaterial(set = 'gravelly_sand', set2 = 'sandy_gravel_02', metres = 3.2) {
   const m = new THREE.MeshStandardMaterial({
-    map: tex(set + '_diff', true, 1), normalMap: tex(set + '_nor', false, 1),
-    roughnessMap: tex(set + '_arm', false, 1), aoMap: tex(set + '_arm', false, 1), metalnessMap: tex(set + '_arm', false, 1),
+    map: tex(set + '_diff', true), normalMap: tex(set + '_nor', false),
+    roughnessMap: tex(set + '_arm', false), aoMap: tex(set + '_arm', false), metalnessMap: tex(set + '_arm', false),
     roughness: 1, metalness: 1, normalScale: new THREE.Vector2(1.2, 1.2),
   });
-  const t2 = { d: tex(set2 + '_diff', true, 1), n: tex(set2 + '_nor', false, 1), a: tex(set2 + '_arm', false, 1) };
-  const t3 = { d: tex('concrete_floor_worn_001_diff', true, 1), n: tex('concrete_floor_worn_001_nor', false, 1), a: tex('concrete_floor_worn_001_arm', false, 1) };
+  const t2 = { d: tex(set2 + '_diff', true), n: tex(set2 + '_nor', false), a: tex(set2 + '_arm', false) };
+  const t3 = { d: tex('concrete_floor_worn_001_diff', true), n: tex('concrete_floor_worn_001_nor', false), a: tex('concrete_floor_worn_001_arm', false) };
   const pads = PADS;
   const u = { uGTile: { value: 1 / metres }, uG2d: { value: t2.d }, uG2n: { value: t2.n }, uG2a: { value: t2.a }, uG3d: { value: t3.d }, uG3n: { value: t3.n }, uG3a: { value: t3.a }, uPads: { value: pads } };
   m.onBeforeCompile = (sh) => {
@@ -48,6 +43,7 @@ float gMask(){ return smoothstep(0.35, 0.65, gN(vGW.xz * 0.06) * 0.7 + gN(vGW.xz
 float gPad(){ float k = 0.0; for (int i = 0; i < 10; i++) { vec4 r = uPads[i]; vec2 c = (r.xy + r.zw) * 0.5, h = (r.zw - r.xy) * 0.5; vec2 d = abs(vGW.xz - c) - h;
   float e = max(d.x, d.y) + (gN(vGW.xz * 0.9) - 0.5) * 1.6 + (gN(vGW.xz * 3.1) - 0.5) * 0.5; k = max(k, smoothstep(0.3, -0.3, e)); }
   return k * smoothstep(0.25, 0.45, gN(vGW.xz * 0.35 + 7.0) * 0.6 + 0.35); }
+${NRM_GLSL}
 float gOil(){ float n = gN(vGW.xz * 0.45 + 13.0) * 0.6 + gN(vGW.xz * 1.7) * 0.4; return smoothstep(0.74, 0.8, n) * smoothstep(0.45, 0.65, gN(vGW.xz * 0.08 + 2.0)); }
 float gPath(){ float a = abs(sin(vGW.x * 0.11 + 1.3) * 6.0 - vGW.z - 12.0); return (1.0 - smoothstep(1.2, 3.2, a)) * 0.6; }`;
     sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>' + decl)
@@ -66,7 +62,7 @@ float gPath(){ float a = abs(sin(vGW.x * 0.11 + 1.3) * 6.0 - vGW.z - 12.0); retu
   float roughnessFactor = mix(max(roughness * ga.g, 0.82), 0.16, go);`)
       .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = 0.0;')
       .replace('#include <normal_fragment_maps>', `
-  vec3 gn = mix(mix(gSample(normalMap, gUv).xyz, gSample(uG2n, gUv * 0.8).xyz, gm), gSample(uG3n, gUv * 1.3).xyz, gp) * 2.0 - 1.0;
+  vec3 gn = mix(mix(slNrm(gSample(normalMap, gUv)), slNrm(gSample(uG2n, gUv * 0.8)), gm), slNrm(gSample(uG3n, gUv * 1.3)), gp);
   gn.xy *= 1.0 - go * 0.85;
   gn.xy *= normalScale;
   normal = normalize(vec3(gn.x, gn.z, -gn.y)); // ground plane: tangent space == world XZ
@@ -76,7 +72,7 @@ float gPath(){ float a = abs(sin(vGW.x * 0.11 + 1.3) * 6.0 - vGW.z - 12.0); retu
   reflectedLight.indirectDiffuse *= gao; reflectedLight.indirectSpecular *= gao;`);
   };
   m.customProgramCacheKey = () => 'ground2';
-  return m;
+  return rgNormals(m, m.normalMap);
 }
 
 export function makeGround(size = 260) {

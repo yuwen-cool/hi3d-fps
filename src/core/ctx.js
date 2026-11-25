@@ -26,6 +26,8 @@ export const TIERS = {
 
 export function pickTier(gl) {
   if (params.q && TIERS[params.q]) return TIERS[params.q];
+  let saved; try { saved = JSON.parse(localStorage.getItem('sandline.settings') || '{}').q; } catch { /* private mode */ }
+  if (saved && saved !== 'auto' && TIERS[saved]) return TIERS[saved]; // the QUALITY setting, kept across visits
   if (/Mobi|Android|iPhone|iPad/.test(navigator.userAgent)) return TIERS.low;
   let r = '';
   try { const ext = gl.getExtension('WEBGL_debug_renderer_info'); r = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : ''; } catch { /* */ }

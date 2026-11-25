@@ -240,6 +240,8 @@ export const CSS = `
 #ui .title .keys{position:absolute;left:7vw;bottom:calc(7.5vh + 1.6rem);display:flex;gap:1.2rem;font-family:var(--H);font-weight:800;font-size:1rem;align-items:center}
 #ui .title .cr{position:absolute;right:2.4rem;bottom:calc(7.5vh + 1.4rem);text-align:right}
 #ui .title .cr b{display:block;font-family:var(--H);font-weight:900;font-size:1.3rem;letter-spacing:.04em}
+#ui .title .cr .sp{display:block;margin-top:.22rem;font-family:var(--M);font-size:.58rem;letter-spacing:.05em;color:var(--bone2);text-decoration:none;opacity:.78;transition:color .15s,opacity .15s}
+#ui .title .cr .sp:hover{color:var(--o);opacity:1}
 #ui .title.out{animation:tOut .55s var(--ease) both}
 @keyframes tOut{0%{opacity:1}30%{opacity:1;clip-path:inset(0 0 0 0)}100%{opacity:0;clip-path:inset(0 0 0 100%)}}
 #ui .pnl{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);min-width:36rem;background:rgba(10,8,6,.92);border:1px solid var(--bone);animation:pIn .3s var(--ease) both}
@@ -280,8 +282,8 @@ export const CSS = `
 #hud .brief .st b{display:block;font-family:var(--H);font-weight:900;font-size:1.35rem;color:var(--bone)}#hud .brief .st span{font-family:var(--B);font-size:1rem;color:var(--bone2)}
 #hud .brief .st.now{opacity:1}#hud .brief .st.now em{color:var(--o)}#hud .brief .st.done{opacity:.35}#hud .brief .st.done b{text-decoration:line-through}
 #hud .fpsr{position:fixed;left:.6rem;bottom:.35rem;font-family:var(--B);font-weight:600;font-size:.8rem;letter-spacing:.12em;color:#9f9;text-shadow:0 1px 2px #000;z-index:50}
-#ui .title.hang>*{visibility:hidden}
-#ui .hangar{position:absolute;inset:0;z-index:30;background:radial-gradient(ellipse at 62% 55%,#2a221b 0%,#120f0c 55%,#0a0807 100%);color:var(--bone);animation:hgIn .45s var(--ease) both}
+#ui .title.hang{visibility:hidden}
+#ui .hangar{position:absolute;inset:0;z-index:30;pointer-events:auto;background:none;color:var(--bone);animation:hgIn .45s var(--ease) both}
 @keyframes hgIn{from{opacity:0}to{opacity:1}}
 #ui .hangar .hh{position:absolute;left:4vw;top:5vh}#ui .hangar .hh .ov{font-family:var(--B);font-weight:600;font-size:1rem;letter-spacing:.38em;color:var(--o)}
 #ui .hangar .hh h2{margin:0;font-family:var(--H);font-weight:900;font-size:5.4rem;line-height:5rem}

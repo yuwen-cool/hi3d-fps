@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { TUNE, TIERS, pickTier, params } from '../core/ctx.js';
 import { makeSkyMaterial, makeSkyEquirect } from './sky.js';
 import * as S from './shaders.js';
+import { initGpuTex } from './gputex.js';
 
 // Softer, less aliased directional-shadow PCF: 12 Vogel taps (x4 hardware PCF) instead of 5.
 function patchShadowChunk() {
@@ -43,6 +44,7 @@ export function createRenderer(G, canvas) {
   renderer.info.autoReset = false;
   renderer.setClearColor(0x000000, 1);
   const gl = renderer.getContext();
+  initGpuTex(renderer);
   const tier = pickTier(gl);
   G.tier = tier;
 
@@ -203,6 +205,13 @@ export function createRenderer(G, canvas) {
     dyn.slow = avg > 21.5 ? (dyn.slow || 0) + 1 : 0;
     if (dyn.slow >= 2 && dynScale > 0.6) { dynScale = Math.max(0.6, dynScale - (avg > 45 ? 0.3 : 0.15)); dyn.slow = 0; dyn.upDelay = Math.min(90, dyn.upDelay * 2); dyn.wait = 4; resize(); }
     else if (avg < 14.5 && dynScale < 1) { dynScale = Math.min(1, dynScale + 0.1); dyn.wait = dyn.upDelay; resize(); }
+    // resolution at its floor and still under ~30 fps: give up effects, least visible first (fewer fog steps, then AO).
+    // One way only, so it never flaps; models, textures and the look of the grade stay as they are.
+    else if (dyn.slow >= 2 && dynScale <= 0.6 && avg > 30 && (dyn.fx || 0) < 2) {
+      dyn.fx = (dyn.fx || 0) + 1; dyn.slow = 0; dyn.wait = 4;
+      if (dyn.fx === 1) M.vol.uniforms.uSteps.value = Math.max(8, Math.round(tier.vol / 2)); else post.ao = false;
+      console.info('[dynres] effects step', dyn.fx);
+    }
   }
 
   const interiors = [];
@@ -330,7 +339,7 @@ export function createRenderer(G, canvas) {
   const R_ = {
     setWet, volLights, hemi,
     renderer, scene, camera, viewCam, sun, sky, pmrem, flash, frame, resize, fitShadow, rebuildEnv, setInteriors, fx, post, tier, M, gl,
-    get res() { return T ? [T.scene.width, T.scene.height] : [0, 0]; }, get scale() { return dynScale; },
+    get res() { return T ? [T.scene.width, T.scene.height] : [0, 0]; }, get scale() { return dynScale; }, get fxStep() { return dyn.fx || 0; },
     readExposure() { const b = new Uint16Array(4); renderer.readRenderTargetPixels(T.expA, 0, 0, 1, 1, b); return THREE.DataUtils.fromHalfFloat(b[0]); },
   };
   return R_;

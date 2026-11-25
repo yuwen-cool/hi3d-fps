@@ -1,0 +1,17 @@
+# Cloudflare Pages.
+# Vite's build output carries a content hash in every name: keep it for a year.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Models, animations, sounds, textures: a returning player starts from the browser cache at once (no 400 round trips
+# to ask "changed?"); the browser checks for updates in the background and an update shows from the next visit.
+/models/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=2592000
+/anim/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=2592000
+/sfx/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=2592000
+/tex/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=2592000
+/hangar/*
+  Cache-Control: public, max-age=3600, stale-while-revalidate=2592000
